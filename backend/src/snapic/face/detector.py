@@ -39,6 +39,7 @@ class FaceEngine:
         self._app = insightface.app.FaceAnalysis(
             name=model_name,
             providers=["CPUExecutionProvider"],
+            allowed_modules=["detection", "recognition"],
         )
         self._app.prepare(ctx_id=0, det_size=(det_size, det_size))
         self.model_name = model_name

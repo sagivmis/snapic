@@ -1,12 +1,9 @@
 import os
 
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from snapic.api.routes import router
-from snapic.face.detector import get_face_engine
 
 DEFAULT_ORIGINS = [
     "http://localhost:5173",
@@ -24,13 +21,7 @@ def get_allowed_origins() -> list[str]:
     return origins
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    get_face_engine()
-    yield
-
-
-app = FastAPI(title="Snapic", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Snapic", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

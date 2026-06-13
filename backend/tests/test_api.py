@@ -13,7 +13,6 @@ from snapic.main import app
 FACE_ENGINE_PATCHES = (
     "snapic.face.detector.get_face_engine",
     "snapic.face.pipeline.get_face_engine",
-    "snapic.main.get_face_engine",
 )
 
 
@@ -53,14 +52,12 @@ def _mock_engine_for_match() -> MagicMock:
     return engine
 
 
-@patch(FACE_ENGINE_PATCHES[2])
 @patch(FACE_ENGINE_PATCHES[1])
 @patch(FACE_ENGINE_PATCHES[0])
-def test_match_endpoint_returns_matches(mock_detector, mock_pipeline, mock_main):
+def test_match_endpoint_returns_matches(mock_detector, mock_pipeline):
     engine = _mock_engine_for_match()
     mock_detector.return_value = engine
     mock_pipeline.return_value = engine
-    mock_main.return_value = engine
 
     with TestClient(app) as client:
         response = client.post(
@@ -81,14 +78,12 @@ def test_match_endpoint_returns_matches(mock_detector, mock_pipeline, mock_main)
     assert payload["matched"][0]["filename"] == "match.jpg"
 
 
-@patch(FACE_ENGINE_PATCHES[2])
 @patch(FACE_ENGINE_PATCHES[1])
 @patch(FACE_ENGINE_PATCHES[0])
-def test_match_endpoint_requires_gallery(mock_detector, mock_pipeline, mock_main):
+def test_match_endpoint_requires_gallery(mock_detector, mock_pipeline):
     engine = MagicMock()
     mock_detector.return_value = engine
     mock_pipeline.return_value = engine
-    mock_main.return_value = engine
 
     with TestClient(app) as client:
         response = client.post(
@@ -100,15 +95,13 @@ def test_match_endpoint_requires_gallery(mock_detector, mock_pipeline, mock_main
     assert "at least one gallery" in response.json()["detail"].lower()
 
 
-@patch(FACE_ENGINE_PATCHES[2])
 @patch(FACE_ENGINE_PATCHES[1])
 @patch(FACE_ENGINE_PATCHES[0])
-def test_match_endpoint_no_face_in_selfie(mock_detector, mock_pipeline, mock_main):
+def test_match_endpoint_no_face_in_selfie(mock_detector, mock_pipeline):
     engine = MagicMock()
     engine.get_reference_face.return_value = None
     mock_detector.return_value = engine
     mock_pipeline.return_value = engine
-    mock_main.return_value = engine
 
     with TestClient(app) as client:
         response = client.post(

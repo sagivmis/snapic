@@ -106,16 +106,11 @@ snapic/
 
 ### Render deploy: "Ran out of memory (used over 512MB)"
 
-Render **Free** and **Starter** instances only have **512 MB RAM**. The default local model (`buffalo_l`) needs more than that at startup.
+Render **Free** and **Starter** instances only have **512 MB RAM**. InsightFace exceeds that even with `buffalo_s`.
 
-**Fix (included in `render.yaml`):** use the lighter `buffalo_s` model and smaller detection size via env vars. Accuracy is slightly lower but fine for wedding galleries.
+**Fix:** use **Standard** (2 GB, ~$25/mo) — configured in `render.yaml`. The app loads the face model on the first match request (not at startup) so deploy health checks stay light.
 
-If it still OOMs, upgrade the Render service to **Standard** (2 GB RAM, ~$25/mo) and set:
-
-```
-SNAPIC_FACE_MODEL=buffalo_l
-SNAPIC_DET_SIZE=640
-```
+If the blueprint does not upgrade the instance type automatically, open **Render → snapic-api → Settings → Instance Type** and select **Standard**.
 
 ### `ImportError: Unable to import dependency onnxruntime` (Windows)
 
