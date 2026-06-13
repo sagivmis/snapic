@@ -21,11 +21,22 @@ def get_allowed_origins() -> list[str]:
     return origins
 
 
+def get_allowed_origin_regex() -> str | None:
+    explicit = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip()
+    if explicit:
+        return explicit
+    if os.getenv("SNAPIC_ALLOW_VERCEL", "true").lower() in {"1", "true", "yes"}:
+        return r"https://.*\.vercel\.app"
+    return None
+
+
 app = FastAPI(title="Snapic", version="0.1.0")
 
+_cors_regex = get_allowed_origin_regex()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
+    allow_origin_regex=_cors_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

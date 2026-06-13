@@ -1,20 +1,44 @@
-services:
-  - type: web
-    name: snapic-api
-    runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn snapic.main:app --host 0.0.0.0 --port $PORT --app-dir src --workers 1
-    # InsightFace needs >512 MB even with buffalo_s. Standard = 2 GB (~$25/mo).
-    plan: standard
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.10
-      - key: ALLOWED_ORIGINS
-        sync: false
-      - key: SNAPIC_FACE_MODEL
-        value: buffalo_l
-      - key: SNAPIC_DET_SIZE
-        value: "640"
-      - key: OMP_NUM_THREADS
-        value: "2"
+services:
+
+  - type: web
+
+    name: snapic-api
+
+    runtime: python
+
+    rootDir: backend
+
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: uvicorn snapic.main:app --host 0.0.0.0 --port $PORT --app-dir src --workers 1
+
+    # InsightFace needs >512 MB even with buffalo_s. Standard = 2 GB (~$25/mo).
+
+    plan: standard
+
+    envVars:
+
+      - key: PYTHON_VERSION
+
+        value: 3.12.10
+
+      - key: ALLOWED_ORIGINS
+
+        sync: false
+
+      - key: SNAPIC_ALLOW_VERCEL
+
+        value: "true"
+
+      - key: SNAPIC_FACE_MODEL
+
+        value: buffalo_l
+
+      - key: SNAPIC_DET_SIZE
+
+        value: "640"
+
+      - key: OMP_NUM_THREADS
+
+        value: "2"
+
