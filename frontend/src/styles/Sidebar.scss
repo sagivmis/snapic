@@ -1,0 +1,247 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.sidebar {
+  display: none;
+  width: $sidebar-width;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-right: 1px solid rgba($cream-300, 0.6);
+  background: rgba($cream-100, 0.5);
+  padding: 1.5rem;
+
+  @include md {
+    display: flex;
+  }
+
+  @include lg {
+    width: $sidebar-width-lg;
+  }
+}
+
+.sidebar__brand-title {
+  margin: 0;
+  font-family: $font-display;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-style: italic;
+  color: $taupe-600;
+}
+
+.sidebar__brand-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: $champagne-500;
+}
+
+.sidebar__brand {
+  margin-bottom: 2rem;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sidebar__footer {
+  margin-top: auto;
+}
+
+.sidebar__match {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: 1px solid rgba($cream-300, 0.6);
+  padding-top: 1rem;
+}
+
+.sidebar__sensitivity-toggle {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: $taupe-400;
+
+  &:hover {
+    color: $taupe-500;
+  }
+}
+
+.sidebar__threshold-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: $taupe-500;
+}
+
+.sidebar__threshold-input {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  accent-color: $champagne-500;
+}
+
+.sidebar__threshold-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.nav-btn {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: none;
+  border-radius: $radius-xl;
+  background: transparent;
+  padding: 0.75rem;
+  text-align: left;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: rgba($white, 0.5);
+  }
+
+  &--active {
+    background: rgba($white, 0.9);
+    box-shadow: $shadow-card;
+    outline: 1px solid rgba($cream-300, 0.8);
+  }
+}
+
+.nav-btn__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.nav-btn__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-btn__title {
+  font-weight: 500;
+  color: $taupe-500;
+
+  .nav-btn:hover & {
+    color: $taupe-600;
+  }
+
+  .nav-btn--active & {
+    color: $taupe-700;
+  }
+}
+
+.nav-btn__desc {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.nav-btn__badge {
+  border-radius: 9999px;
+  background: $blush-200;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $blush-500;
+}
+
+.step-icon {
+  @include flex-center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 0.75rem;
+
+  &--complete {
+    background: $champagne-500;
+    color: $white;
+  }
+
+  &--pending {
+    border: 1px solid $cream-400;
+    color: $taupe-400;
+  }
+}
+
+.mobile-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  border-top: 1px solid rgba($cream-300, 0.8);
+  background: rgba($cream-50, 0.95);
+  padding: 0.5rem;
+  backdrop-filter: blur(12px);
+
+  @include md {
+    display: none;
+  }
+}
+
+.mobile-bar__tabs {
+  display: flex;
+  max-width: 32rem;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-around;
+  gap: 0.25rem;
+}
+
+.mobile-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  border: none;
+  border-radius: $radius-lg;
+  background: transparent;
+  padding: 0.5rem;
+  text-align: center;
+  transition: background-color 0.2s;
+
+  &--active {
+    background: $white;
+    box-shadow: $shadow-card;
+  }
+}
+
+.mobile-tab__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  color: $taupe-400;
+
+  .mobile-tab--active & {
+    color: $champagne-600;
+  }
+}
+
+.mobile-tab__meta {
+  margin-top: 0.125rem;
+  font-size: 10px;
+  font-weight: 500;
+  color: $blush-500;
+
+  &--check {
+    color: $champagne-500;
+  }
+}
+
+.mobile-bar__cta {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  margin: 0.5rem auto 0;
+}

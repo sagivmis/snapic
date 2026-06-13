@@ -1,0 +1,181 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.selfie-upload {
+  max-width: 42rem;
+  margin: 0 auto;
+
+  > * + * {
+    margin-top: 1.5rem;
+  }
+}
+
+.selfie-upload__intro {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: $taupe-400;
+}
+
+.selfie-upload__couple-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.6);
+  background: rgba($cream-50, 0.8);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+
+.selfie-upload__checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: $champagne-500;
+}
+
+.selfie-upload__couple-title {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $taupe-600;
+}
+
+.selfie-upload__couple-desc {
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.selfie-upload__slots {
+  margin-top: 1.5rem;
+
+  > * + * {
+    margin-top: 1rem;
+  }
+}
+
+.selfie-upload__continue {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.selfie-upload__tip {
+  margin: 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.portrait-slot {
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.6);
+  background: rgba($cream-50, 0.5);
+  padding: 1rem;
+}
+
+.portrait-slot__label {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $taupe-600;
+}
+
+.portrait-slot__ready {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.portrait-slot__avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  outline: 2px solid $cream-300;
+}
+
+.portrait-slot__ready-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: $taupe-500;
+}
+
+.portrait-slot__actions {
+  display: grid;
+  gap: 0.75rem;
+
+  @include sm {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.portrait-slot__tile {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.portrait-slot__tile-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $champagne-600;
+}
+
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  @include flex-center;
+  padding: 1rem;
+  background: rgba($taupe-700, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.camera-modal {
+  width: 100%;
+  max-width: 32rem;
+  border-radius: $radius-2xl;
+  border: 1px solid $cream-300;
+  background: $cream-50;
+  padding: 1.25rem;
+  box-shadow: $shadow-soft;
+}
+
+.camera-modal__title {
+  margin: 0;
+  font-family: $font-display;
+  font-size: 1.5rem;
+  color: $taupe-700;
+}
+
+.camera-modal__video-wrap {
+  position: relative;
+  margin-top: 1rem;
+  overflow: hidden;
+  border-radius: $radius-xl;
+  background: $taupe-700;
+}
+
+.camera-modal__video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.camera-modal__error {
+  margin: 0.75rem 0 0;
+  border-radius: $radius-lg;
+  border: 1px solid rgba($blush-300, 0.6);
+  background: $blush-100;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: $blush-500;
+}
+
+.camera-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}

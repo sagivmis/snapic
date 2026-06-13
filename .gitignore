@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# InsightFace model cache
+.insightface/
+
+# Samples (large images)
+samples/*.jpg
+samples/*.jpeg
+samples/*.png
+samples/*.webp
+!samples/.gitkeep
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Vercel
+.vercel
+**/.vercel

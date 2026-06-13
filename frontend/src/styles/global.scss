@@ -1,0 +1,172 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+@include spin-keyframes;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: $font-sans;
+  font-size: 1rem;
+  color: $taupe-600;
+  background-color: $cream-50;
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(228, 184, 170, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(201, 168, 124, 0.12) 0%, transparent 50%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.hidden-input {
+  display: none;
+}
+
+// Shared components
+.card-wedding {
+  border-radius: $radius-2xl;
+  border: 1px solid rgba($cream-300, 0.6);
+  background: rgba($white, 0.8);
+  padding: 1.5rem;
+  box-shadow: $shadow-card;
+  backdrop-filter: blur(4px);
+}
+
+.upload-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-xl;
+  border: 1px dashed $cream-400;
+  background: rgba($cream-50, 0.8);
+  padding: 2.5rem 1.5rem;
+  transition: border-color 0.2s, background-color 0.2s;
+
+  &:hover {
+    border-color: $champagne-400;
+    background: rgba($blush-100, 0.5);
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: $radius-xl;
+  background: $champagne-500;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $white;
+  box-shadow: $shadow-soft;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background: $champagne-600;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: $cream-400;
+    color: $taupe-400;
+  }
+
+  &.full-width {
+    width: 100%;
+  }
+}
+
+.btn-ghost {
+  border: none;
+  border-radius: $radius-lg;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: $taupe-500;
+  transition: background-color 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba($cream-200, 0.8);
+    color: $taupe-600;
+  }
+
+  &.bordered {
+    border: 1px solid $cream-300;
+  }
+
+  &.flush-left {
+    padding-left: 0;
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  border: 2px solid rgba($white, 0.3);
+  border-top-color: $white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-lg {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-color: $cream-400;
+  border-top-color: $champagne-500;
+}
+
+.error-banner {
+  margin-top: 1.5rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($blush-300, 0.6);
+  background: rgba($blush-100, 0.8);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: $blush-500;
+}
+
+.font-display {
+  font-family: $font-display;
+}
+
+.text-champagne {
+  color: $champagne-500;
+}
+
+.text-champagne-600 {
+  color: $champagne-600;
+}
+
+.text-taupe-400 {
+  color: $taupe-400;
+}
+
+.text-taupe-500 {
+  color: $taupe-500;
+}
+
+.text-taupe-600 {
+  color: $taupe-600;
+}
+
+.text-taupe-700 {
+  color: $taupe-700;
+}
+
+.text-blush {
+  color: $blush-500;
+}

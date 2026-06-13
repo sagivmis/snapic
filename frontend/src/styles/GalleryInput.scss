@@ -1,0 +1,154 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.gallery-input {
+  max-width: 75%;
+  margin: 0 auto;
+
+  > * + * {
+    margin-top: 1.5rem;
+  }
+}
+
+.gallery-input__intro {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: $taupe-400;
+}
+
+.gallery-input__upload {
+  margin-top: 1.5rem;
+  cursor: pointer;
+}
+
+.gallery-input__upload-title {
+  font-family: $font-display;
+  font-size: 1.125rem;
+  color: $champagne-600;
+}
+
+.gallery-input__upload-desc {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.gallery-input__files-header {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: $taupe-400;
+}
+
+.gallery-input__files-scroll {
+  max-height: 12rem;
+  overflow-y: auto;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.5);
+  padding-right: 0.25rem;
+}
+
+.gallery-input__files-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+
+  @include sm {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.gallery-input__file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: $radius-xl;
+  background: rgba($cream-100, 0.8);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.gallery-input__file-name {
+  @include truncate;
+  color: $taupe-600;
+}
+
+.gallery-input__file-remove {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.75rem;
+  color: $taupe-400;
+
+  &:hover {
+    color: $blush-500;
+  }
+}
+
+.gallery-input__urls {
+  margin-top: 2rem;
+}
+
+.gallery-input__urls-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $taupe-500;
+}
+
+.gallery-input__textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  border-radius: $radius-xl;
+  border: 1px solid $cream-300;
+  background: $cream-50;
+  padding: 0.75rem 1rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: $taupe-600;
+  resize: vertical;
+
+  &::placeholder {
+    color: rgba($taupe-400, 0.6);
+  }
+
+  &:focus {
+    border-color: $champagne-400;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba($champagne-400, 0.2);
+  }
+}
+
+.gallery-input__urls-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.gallery-input__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gallery-input__status {
+  margin: 0;
+  font-size: 0.875rem;
+  color: $taupe-400;
+}
+
+.gallery-input__status-count {
+  font-weight: 600;
+  color: $champagne-600;
+}
+
+.gallery-input__files-section {
+  margin-top: 1.5rem;
+}

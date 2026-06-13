@@ -1,0 +1,72 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  @include flex-center;
+  padding: 1rem;
+  background: rgba($taupe-700, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.lightbox__dialog {
+  position: relative;
+  width: 100%;
+  max-width: 56rem;
+  max-height: 90vh;
+}
+
+.lightbox__close {
+  position: absolute;
+  top: -2.5rem;
+  right: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $cream-100;
+
+  &:hover {
+    color: $white;
+  }
+}
+
+.lightbox__image {
+  display: block;
+  width: 100%;
+  max-height: 85vh;
+  border-radius: $radius-2xl;
+  object-fit: contain;
+  box-shadow: $shadow-soft;
+}
+
+.lightbox__caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  border-radius: $radius-xl;
+  background: rgba($white, 0.9);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  backdrop-filter: blur(4px);
+}
+
+.lightbox__title {
+  margin: 0;
+  @include truncate;
+  font-weight: 500;
+  color: $taupe-600;
+}
+
+.lightbox__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: $taupe-400;
+}
