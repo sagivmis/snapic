@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+import os
 import threading
 from functools import lru_cache
 
 import numpy as np
 
 from snapic.face.matcher import DetectedFace
+
+DEFAULT_FACE_MODEL = "buffalo_l"
+DEFAULT_DET_SIZE = 640
+
+
+def get_face_model_name() -> str:
+    return os.getenv("SNAPIC_FACE_MODEL", DEFAULT_FACE_MODEL).strip() or DEFAULT_FACE_MODEL
+
+
+def get_det_size() -> int:
+    raw = os.getenv("SNAPIC_DET_SIZE", str(DEFAULT_DET_SIZE)).strip()
+    try:
+        size = int(raw)
+    except ValueError:
+        return DEFAULT_DET_SIZE
+    return max(128, min(size, 1024))
 
 
 class FaceEngine:
@@ -17,11 +34,15 @@ class FaceEngine:
     def __init__(self) -> None:
         import insightface
 
+        model_name = get_face_model_name()
+        det_size = get_det_size()
         self._app = insightface.app.FaceAnalysis(
-            name="buffalo_l",
+            name=model_name,
             providers=["CPUExecutionProvider"],
         )
-        self._app.prepare(ctx_id=0, det_size=(640, 640))
+        self._app.prepare(ctx_id=0, det_size=(det_size, det_size))
+        self.model_name = model_name
+        self.det_size = det_size
 
     @classmethod
     def get(cls) -> FaceEngine:

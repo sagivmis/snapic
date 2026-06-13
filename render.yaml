@@ -4,10 +4,18 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn snapic.main:app --host 0.0.0.0 --port $PORT --app-dir src
+    startCommand: uvicorn snapic.main:app --host 0.0.0.0 --port $PORT --app-dir src --workers 1
+    # Starter = 512 MB RAM. buffalo_l needs ~1 GB+; use buffalo_s here (see env vars below).
+    # If deploy still OOMs, change plan to standard (2 GB, ~$25/mo) and SNAPIC_FACE_MODEL=buffalo_l.
     plan: starter
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: SNAPIC_FACE_MODEL
+        value: buffalo_s
+      - key: SNAPIC_DET_SIZE
+        value: "320"
+      - key: OMP_NUM_THREADS
+        value: "1"

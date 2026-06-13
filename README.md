@@ -104,6 +104,19 @@ snapic/
 
 ## Troubleshooting
 
+### Render deploy: "Ran out of memory (used over 512MB)"
+
+Render **Free** and **Starter** instances only have **512 MB RAM**. The default local model (`buffalo_l`) needs more than that at startup.
+
+**Fix (included in `render.yaml`):** use the lighter `buffalo_s` model and smaller detection size via env vars. Accuracy is slightly lower but fine for wedding galleries.
+
+If it still OOMs, upgrade the Render service to **Standard** (2 GB RAM, ~$25/mo) and set:
+
+```
+SNAPIC_FACE_MODEL=buffalo_l
+SNAPIC_DET_SIZE=640
+```
+
 ### `ImportError: Unable to import dependency onnxruntime` (Windows)
 
 This usually means onnxruntime's native DLL failed to load. Fix in order:
