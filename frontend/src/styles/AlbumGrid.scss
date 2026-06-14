@@ -1,0 +1,131 @@
+@use "variables" as *;
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.875rem;
+  margin-top: 1.25rem;
+
+  &--empty {
+    display: block;
+    margin-top: 1rem;
+    padding: 2rem 1rem;
+    border-radius: $radius-xl;
+    border: 1px dashed $cream-400;
+    text-align: center;
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: $taupe-500;
+    }
+  }
+}
+
+.album-grid__warn {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: $blush-500;
+}
+
+.album-grid__item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.album-grid__thumb {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  background: $cream-200;
+  cursor: zoom-in;
+  box-shadow: $shadow-card;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &:disabled {
+    cursor: wait;
+  }
+}
+
+.album-grid__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.25rem;
+  color: $taupe-400;
+}
+
+.album-grid__caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.album-grid__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: $taupe-500;
+}
+
+.album-grid__remove {
+  align-self: flex-start;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+}
+
+.album-grid__lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba($taupe-700, 0.88);
+}
+
+.album-grid__lightbox-inner {
+  position: relative;
+  max-width: min(56rem, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+
+  img {
+    max-width: 100%;
+    max-height: calc(100vh - 8rem);
+    border-radius: $radius-lg;
+    object-fit: contain;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: $cream-100;
+    text-align: center;
+  }
+}
+
+.album-grid__lightbox-close {
+  align-self: flex-end;
+  color: $cream-100;
+}

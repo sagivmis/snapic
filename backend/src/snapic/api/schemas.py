@@ -85,6 +85,8 @@ class GalleryPhotoResponse(BaseModel):
     sort_order: int = 0
     created_at: str | None = None
     content_hash: str | None = None
+    storage_path: str | None = None
+    signed_url: str | None = None
 
 
 class SignupRequestCreate(BaseModel):

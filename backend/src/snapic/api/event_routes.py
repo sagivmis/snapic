@@ -20,6 +20,7 @@ from snapic.auth.jwt import AuthUser, get_anonymous_session_id, get_optional_use
 from snapic.db import is_supabase_configured
 from snapic.db.repository import (
     add_event_member,
+    create_gallery_signed_url,
     create_match_run,
     create_share_token,
     delete_gallery_photo,
@@ -86,7 +87,9 @@ async def get_event_by_slug(
     return _event_public(row)
 
 
-def _gallery_photo_response(row: dict[str, Any]) -> GalleryPhotoResponse:
+def _gallery_photo_response(row: dict[str, Any], *, include_signed_url: bool = False) -> GalleryPhotoResponse:
+    storage_path = row.get("storage_path")
+    signed_url = create_gallery_signed_url(storage_path) if include_signed_url and storage_path else None
     return GalleryPhotoResponse(
         id=row["id"],
         event_id=row["event_id"],
@@ -95,6 +98,8 @@ def _gallery_photo_response(row: dict[str, Any]) -> GalleryPhotoResponse:
         sort_order=row.get("sort_order", 0),
         created_at=row.get("created_at"),
         content_hash=row.get("content_hash"),
+        storage_path=storage_path if include_signed_url else None,
+        signed_url=signed_url,
     )
 
 
@@ -106,7 +111,8 @@ async def list_event_gallery(
     if not is_supabase_configured():
         raise HTTPException(status_code=503, detail="Event service not configured")
     photos = list_gallery_photos(event_id)
-    return [_gallery_photo_response(p) for p in photos]
+    is_admin = user is not None and is_event_admin(user.id, event_id)
+    return [_gallery_photo_response(p, include_signed_url=is_admin) for p in photos]
 
 
 @router.post("/{event_id}/gallery", response_model=GalleryPhotoResponse)
@@ -138,7 +144,7 @@ async def upload_event_gallery_photo(
         len(existing),
         content_hash,
     )
-    return _gallery_photo_response(row)
+    return _gallery_photo_response(row, include_signed_url=True)
 
 
 @router.delete("/{event_id}/gallery/{photo_id}")

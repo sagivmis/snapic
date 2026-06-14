@@ -8,11 +8,15 @@ import {
   inviteEventMember,
   updateEvent,
 } from "../api/client";
+import { AlbumGrid } from "../components/AlbumGrid";
 import { AlbumUpload } from "../components/AlbumUpload";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, GalleryPhoto } from "../types";
 import "../styles/EventManage.scss";
+
+type ManageTab = "album" | "settings";
+type AlbumSection = "all";
 
 export function EventManagePage() {
   const { slug = "" } = useParams();
@@ -23,6 +27,8 @@ export function EventManagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<ManageTab>("album");
+  const [albumSection, setAlbumSection] = useState<AlbumSection>("all");
 
   const [title, setTitle] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
@@ -197,101 +203,137 @@ export function EventManagePage() {
         </Link>
       </header>
 
-      <section className="event-manage__section">
-        <h2>Guest link</h2>
-        <div className="event-manage__link-row">
-          <code>{guestUrl}</code>
-          <button type="button" className="btn btn-ghost" onClick={copyGuestLink}>
-            Copy
-          </button>
-        </div>
-        <p className="event-manage__hint">Share this link or QR code with wedding guests.</p>
-      </section>
-
-      <form className="event-manage__section" onSubmit={handleSaveSettings}>
-        <h2>Branding & settings</h2>
-        <label htmlFor="title">Event title</label>
-        <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-
-        <label htmlFor="couple">Couple names</label>
-        <input id="couple" value={coupleNames} onChange={(e) => setCoupleNames(e.target.value)} />
-
-        <label htmlFor="date">Wedding date</label>
-        <input
-          id="date"
-          type="date"
-          value={weddingDate}
-          onChange={(e) => setWeddingDate(e.target.value)}
-        />
-
-        <label htmlFor="status">Status</label>
-        <select id="status" value={status} onChange={(e) => setStatus(e.target.value as EventPublic["status"])}>
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-        </select>
-
-        <label htmlFor="accent">Accent color</label>
-        <input
-          id="accent"
-          type="color"
-          value={accentColor}
-          onChange={(e) => setAccentColor(e.target.value)}
-        />
-
-        <label htmlFor="threshold">Match threshold ({threshold.toFixed(2)})</label>
-        <input
-          id="threshold"
-          type="range"
-          min={0.2}
-          max={0.8}
-          step={0.05}
-          value={threshold}
-          onChange={(e) => setThreshold(Number(e.target.value))}
-        />
-
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Save settings
+      <nav className="event-manage__tabs" aria-label="Event management">
+        <button
+          type="button"
+          className={`event-manage__tab${activeTab === "album" ? " event-manage__tab--active" : ""}`}
+          onClick={() => setActiveTab("album")}
+        >
+          Album
+          <span className="event-manage__tab-count">{photos.length}</span>
         </button>
-      </form>
+        <button
+          type="button"
+          className={`event-manage__tab${activeTab === "settings" ? " event-manage__tab--active" : ""}`}
+          onClick={() => setActiveTab("settings")}
+        >
+          Settings
+        </button>
+      </nav>
 
-      <section className="event-manage__section">
-        <h2>Wedding album ({photos.length} photos)</h2>
-        <AlbumUpload
-          eventId={event.id}
-          photos={photos}
-          getToken={getAccessToken}
-          disabled={busy}
-          onPhotosChange={setPhotos}
-          onError={setError}
-        />
-        <ul className="event-manage__gallery">
-          {photos.map((photo) => (
-            <li key={photo.id}>
-              <span>{photo.filename ?? photo.id.slice(0, 8)}</span>
-              <button type="button" className="btn btn-ghost" onClick={() => void handleDelete(photo.id)}>
-                Remove
+      {activeTab === "album" && (
+        <section className="event-manage__section">
+          <div className="event-manage__section-header">
+            <h2>Wedding album</h2>
+            <p className="event-manage__hint">{photos.length} photos in the album</p>
+          </div>
+
+          <nav className="event-manage__sections" aria-label="Album sections">
+            <button
+              type="button"
+              className={`event-manage__section-tab${albumSection === "all" ? " event-manage__section-tab--active" : ""}`}
+              onClick={() => setAlbumSection("all")}
+            >
+              All photos
+            </button>
+          </nav>
+
+          <AlbumUpload
+            eventId={event.id}
+            photos={photos}
+            getToken={getAccessToken}
+            disabled={busy}
+            onPhotosChange={setPhotos}
+            onError={setError}
+          />
+
+          {albumSection === "all" && (
+            <AlbumGrid photos={photos} onDelete={(id) => void handleDelete(id)} disabled={busy} />
+          )}
+        </section>
+      )}
+
+      {activeTab === "settings" && (
+        <>
+          <section className="event-manage__section">
+            <h2>Guest link</h2>
+            <div className="event-manage__link-row">
+              <code>{guestUrl}</code>
+              <button type="button" className="btn btn-ghost" onClick={copyGuestLink}>
+                Copy
               </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </div>
+            <p className="event-manage__hint">Share this link or QR code with wedding guests.</p>
+          </section>
 
-      <form className="event-manage__section" onSubmit={handleInvite}>
-        <h2>Invite co-admin</h2>
-        <p className="event-manage__hint">They must sign up first, then you can invite by email.</p>
-        <label htmlFor="invite">Partner email</label>
-        <input
-          id="invite"
-          type="email"
-          value={inviteEmail}
-          onChange={(e) => setInviteEmail(e.target.value)}
-          placeholder="partner@example.com"
-        />
-        <button type="submit" className="btn btn-secondary" disabled={busy || !inviteEmail.trim()}>
-          Send invite
-        </button>
-      </form>
+          <form className="event-manage__section" onSubmit={handleSaveSettings}>
+            <h2>Branding & settings</h2>
+            <label htmlFor="title">Event title</label>
+            <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+
+            <label htmlFor="couple">Couple names</label>
+            <input id="couple" value={coupleNames} onChange={(e) => setCoupleNames(e.target.value)} />
+
+            <label htmlFor="date">Wedding date</label>
+            <input
+              id="date"
+              type="date"
+              value={weddingDate}
+              onChange={(e) => setWeddingDate(e.target.value)}
+            />
+
+            <label htmlFor="status">Status</label>
+            <select
+              id="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as EventPublic["status"])}
+            >
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+
+            <label htmlFor="accent">Accent color</label>
+            <input
+              id="accent"
+              type="color"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+            />
+
+            <label htmlFor="threshold">Match threshold ({threshold.toFixed(2)})</label>
+            <input
+              id="threshold"
+              type="range"
+              min={0.2}
+              max={0.8}
+              step={0.05}
+              value={threshold}
+              onChange={(e) => setThreshold(Number(e.target.value))}
+            />
+
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              Save settings
+            </button>
+          </form>
+
+          <form className="event-manage__section" onSubmit={handleInvite}>
+            <h2>Invite co-admin</h2>
+            <p className="event-manage__hint">They must sign up first, then you can invite by email.</p>
+            <label htmlFor="invite">Partner email</label>
+            <input
+              id="invite"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="partner@example.com"
+            />
+            <button type="submit" className="btn btn-secondary" disabled={busy || !inviteEmail.trim()}>
+              Send invite
+            </button>
+          </form>
+        </>
+      )}
 
       {error && <p className="error-banner">{error}</p>}
     </div>

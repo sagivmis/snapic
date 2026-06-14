@@ -51,6 +51,17 @@ def download_storage_bytes(storage_path: str) -> bytes:
     return client.storage.from_("events").download(storage_path)
 
 
+def create_gallery_signed_url(storage_path: str, expires_in: int = 3600) -> str | None:
+    client = get_supabase()
+    try:
+        result = client.storage.from_("events").create_signed_url(storage_path, expires_in)
+        if isinstance(result, dict):
+            return result.get("signedURL") or result.get("signedUrl")
+    except Exception:
+        return None
+    return None
+
+
 def upload_preview_bytes(event_id: str, result_id: str, data: bytes, mime: str = "image/jpeg") -> str:
     client = get_supabase()
     ext = "jpg" if "jpeg" in mime else "png"

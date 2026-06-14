@@ -1,7 +1,7 @@
 @use "variables" as *;
 
 .event-manage {
-  max-width: 40rem;
+  max-width: 56rem;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 
@@ -94,17 +94,82 @@
   color: $taupe-400;
 }
 
-.event-manage__gallery {
-  list-style: none;
-  margin: 1rem 0 0;
-  padding: 0;
+.event-manage__section-header {
+  margin-bottom: 0.5rem;
 
-  li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid $cream-200;
-    font-size: 0.875rem;
+  h2 {
+    margin-bottom: 0.25rem;
+  }
+
+  .event-manage__hint {
+    margin-top: 0;
+  }
+}
+
+.event-manage__tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem;
+  border-radius: $radius-xl;
+  background: rgba($cream-200, 0.55);
+}
+
+.event-manage__tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: $radius-lg;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $taupe-500;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+
+  &--active {
+    background: $white;
+    color: $taupe-700;
+    box-shadow: $shadow-card;
+  }
+}
+
+.event-manage__tab-count {
+  min-width: 1.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: rgba($champagne-400, 0.25);
+  color: $champagne-600;
+}
+
+.event-manage__sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.event-manage__section-tab {
+  border: 1px solid $cream-300;
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $taupe-500;
+  background: $white;
+  cursor: pointer;
+
+  &--active {
+    border-color: $champagne-400;
+    color: $champagne-600;
+    background: rgba($champagne-400, 0.12);
   }
 }

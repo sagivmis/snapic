@@ -84,6 +84,8 @@ export interface GalleryPhoto {
   sort_order: number;
   created_at?: string | null;
   content_hash?: string | null;
+  storage_path?: string | null;
+  signed_url?: string | null;
 }
 
 export interface SignupRequestCreate {
