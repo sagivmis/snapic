@@ -11,35 +11,47 @@ interface BeforeInstallPromptEvent extends Event {
 function isStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
+    ("standalone" in window.navigator &&
+      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
   );
 }
 
-function isIosSafari(): boolean {
+function isIos(): boolean {
   const ua = window.navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
 }
 
+function isMobile(): boolean {
+  return (
+    isIos() ||
+    /Android/i.test(window.navigator.userAgent) ||
+    window.matchMedia("(max-width: 768px)").matches
+  );
+}
+
 export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
-  const [iosHint, setIosHint] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installing, setInstalling] = useState(false);
+
+  const ios = isIos();
+  const canNativeInstall = installEvent != null;
 
   useEffect(() => {
     if (isStandalone() || localStorage.getItem(DISMISS_KEY) === "1") {
       return;
     }
 
-    if (isIosSafari()) {
-      setIosHint(true);
-      setVisible(true);
+    if (!isMobile()) {
       return;
     }
+
+    setVisible(true);
 
     function onBeforeInstall(event: BeforeInstallPromptEvent) {
       event.preventDefault();
       setInstallEvent(event);
-      setVisible(true);
     }
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
@@ -49,16 +61,26 @@ export function InstallPrompt() {
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, "1");
     setVisible(false);
+    setShowGuide(false);
   }
 
-  async function handleInstall() {
-    if (!installEvent) {
+  async function handleAddToHomeScreen() {
+    if (canNativeInstall && installEvent) {
+      setInstalling(true);
+      try {
+        await installEvent.prompt();
+        const choice = await installEvent.userChoice;
+        if (choice.outcome === "accepted") {
+          setVisible(false);
+        }
+      } finally {
+        setInstalling(false);
+        setInstallEvent(null);
+      }
       return;
     }
-    await installEvent.prompt();
-    await installEvent.userChoice;
-    setInstallEvent(null);
-    setVisible(false);
+
+    setShowGuide(true);
   }
 
   if (!visible) {
@@ -68,27 +90,60 @@ export function InstallPrompt() {
   return (
     <div className="install-prompt" role="region" aria-label="Install Snapic">
       <div className="install-prompt__content">
-        <p className="install-prompt__title">Install Snapic</p>
-        {iosHint ? (
-          <p className="install-prompt__desc">
-            Tap <strong>Share</strong> in Safari, then <strong>Add to Home Screen</strong> for quick
-            access like an app.
-          </p>
-        ) : (
-          <p className="install-prompt__desc">
-            Add Snapic to your home screen for a full-screen app experience at the wedding.
-          </p>
+        <p className="install-prompt__title">Add Snapic to your home screen</p>
+        <p className="install-prompt__desc">
+          Open Snapic like an app — full screen, one tap from your phone.
+        </p>
+
+        {showGuide && (
+          <ol className="install-prompt__steps">
+            {ios ? (
+              <>
+                <li>
+                  Tap the <strong>Share</strong> button{" "}
+                  <span className="install-prompt__share-icon" aria-hidden="true">
+                    ↑
+                  </span>{" "}
+                  at the bottom of Safari
+                </li>
+                <li>
+                  Scroll and tap <strong>Add to Home Screen</strong>
+                </li>
+                <li>
+                  Tap <strong>Add</strong> in the top corner
+                </li>
+              </>
+            ) : (
+              <>
+                <li>Open your browser menu (⋮)</li>
+                <li>
+                  Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>
+                </li>
+                <li>Confirm to add Snapic</li>
+              </>
+            )}
+          </ol>
         )}
+
         <div className="install-prompt__actions">
-          {!iosHint && (
-            <button type="button" className="btn-primary install-prompt__install" onClick={handleInstall}>
-              Install app
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-primary install-prompt__install"
+            onClick={handleAddToHomeScreen}
+            disabled={installing}
+          >
+            {installing ? "Adding..." : "Add to Home Screen"}
+          </button>
           <button type="button" className="btn-ghost install-prompt__dismiss" onClick={dismiss}>
             Not now
           </button>
         </div>
+
+        {!canNativeInstall && !showGuide && ios && (
+          <p className="install-prompt__note">
+            On iPhone, this button shows you the exact Safari steps.
+          </p>
+        )}
       </div>
     </div>
   );
