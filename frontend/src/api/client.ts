@@ -109,18 +109,44 @@ export async function uploadEventGalleryPhoto(
   eventId: string,
   file: File,
   token: string,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<GalleryPhoto> {
-  const formData = new FormData();
-  formData.append("file", file);
-  const response = await authFetch(
-    `/api/events/${eventId}/gallery`,
-    { method: "POST", body: formData },
-    { token },
-  );
-  if (!response.ok) {
-    await parseError(response, "Upload failed");
-  }
-  return response.json() as Promise<GalleryPhoto>;
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiUrl(`/api/events/${eventId}/gallery`));
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(event.loaded, event.total);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as GalleryPhoto);
+        } catch {
+          reject(new Error("Upload failed"));
+        }
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(xhr.responseText) as { detail?: string };
+        reject(new Error(payload.detail ?? "Upload failed"));
+      } catch {
+        reject(new Error("Upload failed"));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+    xhr.send(formData);
+  });
 }
 
 export async function deleteEventGalleryPhoto(

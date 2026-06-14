@@ -50,6 +50,19 @@ def upload_preview_bytes(event_id: str, result_id: str, data: bytes, mime: str =
     return path
 
 
+def find_gallery_photo_by_hash(event_id: str, content_hash: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    result = (
+        client.table("gallery_photos")
+        .select("*")
+        .eq("event_id", event_id)
+        .eq("content_hash", content_hash)
+        .maybe_single()
+        .execute()
+    )
+    return result.data
+
+
 def upload_gallery_photo(
     event_id: str,
     photo_id: str,
@@ -58,6 +71,7 @@ def upload_gallery_photo(
     uploaded_by: str | None,
     filename: str | None,
     sort_order: int,
+    content_hash: str | None = None,
 ) -> dict[str, Any]:
     client = get_supabase()
     ext = "jpg"
@@ -79,6 +93,7 @@ def upload_gallery_photo(
         "mime_type": mime,
         "sort_order": sort_order,
         "uploaded_by": uploaded_by,
+        "content_hash": content_hash,
     }
     result = client.table("gallery_photos").insert(row).execute()
     return (result.data or [row])[0]

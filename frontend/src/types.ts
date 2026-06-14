@@ -83,6 +83,7 @@ export interface GalleryPhoto {
   mime_type: string;
   sort_order: number;
   created_at?: string | null;
+  content_hash?: string | null;
 }
 
 export interface SignupRequestCreate {

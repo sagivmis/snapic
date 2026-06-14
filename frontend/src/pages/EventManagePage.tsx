@@ -7,8 +7,8 @@ import {
   fetchEventGallery,
   inviteEventMember,
   updateEvent,
-  uploadEventGalleryPhoto,
 } from "../api/client";
+import { AlbumUpload } from "../components/AlbumUpload";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, GalleryPhoto } from "../types";
@@ -109,29 +109,6 @@ export function EventManagePage() {
       setEvent(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleUpload(files: FileList | null) {
-    if (!event || !files?.length) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        throw new Error("Not signed in");
-      }
-      for (const file of Array.from(files)) {
-        await uploadEventGalleryPhoto(event.id, file, token);
-      }
-      const gallery = await fetchEventGallery(event.id, token);
-      setPhotos(gallery);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setBusy(false);
     }
@@ -280,12 +257,13 @@ export function EventManagePage() {
 
       <section className="event-manage__section">
         <h2>Wedding album ({photos.length} photos)</h2>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
+        <AlbumUpload
+          eventId={event.id}
+          photos={photos}
+          getToken={getAccessToken}
           disabled={busy}
-          onChange={(e) => void handleUpload(e.target.files)}
+          onPhotosChange={setPhotos}
+          onError={setError}
         />
         <ul className="event-manage__gallery">
           {photos.map((photo) => (

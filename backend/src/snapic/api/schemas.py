@@ -84,6 +84,7 @@ class GalleryPhotoResponse(BaseModel):
     mime_type: str = "image/jpeg"
     sort_order: int = 0
     created_at: str | None = None
+    content_hash: str | None = None
 
 
 class SignupRequestCreate(BaseModel):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import uuid
 from typing import Annotated, Any
 
@@ -25,6 +26,7 @@ from snapic.db.repository import (
     download_storage_bytes,
     fetch_event_by_id,
     fetch_event_by_slug,
+    find_gallery_photo_by_hash,
     find_profile_by_email,
     is_event_admin,
     list_gallery_photos,
@@ -84,6 +86,18 @@ async def get_event_by_slug(
     return _event_public(row)
 
 
+def _gallery_photo_response(row: dict[str, Any]) -> GalleryPhotoResponse:
+    return GalleryPhotoResponse(
+        id=row["id"],
+        event_id=row["event_id"],
+        filename=row.get("filename"),
+        mime_type=row.get("mime_type", "image/jpeg"),
+        sort_order=row.get("sort_order", 0),
+        created_at=row.get("created_at"),
+        content_hash=row.get("content_hash"),
+    )
+
+
 @router.get("/{event_id}/gallery", response_model=list[GalleryPhotoResponse])
 async def list_event_gallery(
     event_id: str,
@@ -92,17 +106,7 @@ async def list_event_gallery(
     if not is_supabase_configured():
         raise HTTPException(status_code=503, detail="Event service not configured")
     photos = list_gallery_photos(event_id)
-    return [
-        GalleryPhotoResponse(
-            id=p["id"],
-            event_id=p["event_id"],
-            filename=p.get("filename"),
-            mime_type=p.get("mime_type", "image/jpeg"),
-            sort_order=p.get("sort_order", 0),
-            created_at=p.get("created_at"),
-        )
-        for p in photos
-    ]
+    return [_gallery_photo_response(p) for p in photos]
 
 
 @router.post("/{event_id}/gallery", response_model=GalleryPhotoResponse)
@@ -117,6 +121,10 @@ async def upload_event_gallery_photo(
         raise HTTPException(status_code=403, detail="Event admin access required")
 
     data = await _read_upload_limited(file)
+    content_hash = hashlib.sha256(data).hexdigest()
+    if find_gallery_photo_by_hash(event_id, content_hash):
+        raise HTTPException(status_code=409, detail="This photo is already in the album")
+
     mime = file.content_type or "image/jpeg"
     photo_id = str(uuid.uuid4())
     existing = list_gallery_photos(event_id)
@@ -128,15 +136,9 @@ async def upload_event_gallery_photo(
         user.id,
         file.filename,
         len(existing),
+        content_hash,
     )
-    return GalleryPhotoResponse(
-        id=row["id"],
-        event_id=row["event_id"],
-        filename=row.get("filename"),
-        mime_type=row.get("mime_type", "image/jpeg"),
-        sort_order=row.get("sort_order", 0),
-        created_at=row.get("created_at"),
-    )
+    return _gallery_photo_response(row)
 
 
 @router.delete("/{event_id}/gallery/{photo_id}")
