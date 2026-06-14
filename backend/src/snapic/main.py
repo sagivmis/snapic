@@ -3,6 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from snapic.api.admin_routes import router as admin_router
+from snapic.api.event_routes import router as event_router
 from snapic.api.routes import router
 
 DEFAULT_ORIGINS = [
@@ -43,3 +45,5 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+app.include_router(event_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")

@@ -1,0 +1,133 @@
+@use "variables" as *;
+
+.admin {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-family: $font-display;
+    font-size: 1.25rem;
+    color: $taupe-700;
+  }
+
+  label {
+    display: block;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $taupe-600;
+  }
+
+  input {
+    width: 100%;
+    margin-top: 0.25rem;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    padding: 0.625rem 0.75rem;
+    font: inherit;
+    background: $white;
+  }
+}
+
+.admin__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+
+  h1 {
+    margin: 0.25rem 0 0;
+    font-family: $font-display;
+    font-size: 1.75rem;
+    color: $taupe-700;
+  }
+}
+
+.admin__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: $champagne-600;
+}
+
+.admin__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  border-radius: $radius-xl;
+  background: rgba($white, 0.85);
+  border: 1px solid rgba($cream-300, 0.6);
+  font-size: 0.8125rem;
+  color: $taupe-500;
+}
+
+.admin__stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: $champagne-600;
+}
+
+.admin__section {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.6);
+  background: rgba($white, 0.85);
+}
+
+.admin__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin__list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid $cream-200;
+
+  strong {
+    display: block;
+    color: $taupe-700;
+  }
+
+  span {
+    font-size: 0.8125rem;
+    color: $taupe-400;
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: $taupe-500;
+  }
+}
+
+.admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

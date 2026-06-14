@@ -12,6 +12,8 @@ from snapic.api.schemas import (
     MatchedPhoto,
     PortraitQualityResponse,
     SharedMatchResponse,
+    SignupRequestCreate,
+    SignupRequestResponse,
     SkippedPhoto,
 )
 from snapic.api.share_store import share_store
@@ -130,6 +132,25 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
+@router.post("/signup-requests", response_model=SignupRequestResponse)
+async def public_create_signup_request(body: SignupRequestCreate) -> SignupRequestResponse:
+    from snapic.db import is_supabase_configured
+    from snapic.db.repository import create_signup_request
+
+    if not is_supabase_configured():
+        raise HTTPException(status_code=503, detail="Signup not configured")
+    row = create_signup_request(body.model_dump())
+    return SignupRequestResponse(
+        id=row["id"],
+        email=row["email"],
+        couple_names=row["couple_names"],
+        wedding_date=row.get("wedding_date"),
+        message=row.get("message"),
+        status=row["status"],
+        created_at=row.get("created_at"),
+    )
+
+
 @router.post("/validate-portrait", response_model=PortraitQualityResponse)
 async def validate_portrait(portrait: Annotated[UploadFile, File()]) -> PortraitQualityResponse:
     portrait_bytes = await _read_upload_limited(portrait)
@@ -148,6 +169,16 @@ async def validate_portrait(portrait: Annotated[UploadFile, File()]) -> Portrait
 
 @router.get("/share/{share_id}", response_model=SharedMatchResponse)
 async def get_shared_results(share_id: str) -> SharedMatchResponse:
+    from snapic.db import is_supabase_configured
+    from snapic.db.repository import get_share_token, load_match_response_from_run
+
+    if is_supabase_configured():
+        token_row = get_share_token(share_id)
+        if token_row:
+            payload = load_match_response_from_run(token_row["match_run_id"])
+            if payload:
+                return SharedMatchResponse(**payload, share_id=share_id)
+
     stored = share_store.get(share_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="Shared results not found or expired")

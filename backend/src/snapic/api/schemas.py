@@ -35,10 +35,86 @@ class MatchResponse(BaseModel):
     skipped: list[SkippedPhoto]
     share_id: str | None = None
     couple_mode: bool = False
+    event_id: str | None = None
+    match_run_id: str | None = None
 
 
 class SharedMatchResponse(MatchResponse):
     share_id: str
+
+
+class EventBranding(BaseModel):
+    couple_names: str | None = None
+    accent_color: str | None = None
+    cover_image_path: str | None = None
+
+
+class EventPublicResponse(BaseModel):
+    id: str
+    slug: str
+    title: str
+    wedding_date: str | None = None
+    status: Literal["draft", "active", "archived"]
+    branding: dict = Field(default_factory=dict)
+    default_threshold: float = 0.4
+
+
+class EventCreateRequest(BaseModel):
+    slug: str = Field(min_length=2, max_length=80)
+    title: str = Field(min_length=1, max_length=200)
+    wedding_date: str | None = None
+    status: Literal["draft", "active", "archived"] = "draft"
+    branding: dict = Field(default_factory=dict)
+    default_threshold: float = 0.4
+    admin_email: str | None = None
+
+
+class EventUpdateRequest(BaseModel):
+    title: str | None = None
+    wedding_date: str | None = None
+    status: Literal["draft", "active", "archived"] | None = None
+    branding: dict | None = None
+    default_threshold: float | None = None
+
+
+class GalleryPhotoResponse(BaseModel):
+    id: str
+    event_id: str
+    filename: str | None = None
+    mime_type: str = "image/jpeg"
+    sort_order: int = 0
+    created_at: str | None = None
+
+
+class SignupRequestCreate(BaseModel):
+    email: str
+    couple_names: str
+    wedding_date: str | None = None
+    message: str | None = None
+
+
+class SignupRequestResponse(BaseModel):
+    id: str
+    email: str
+    couple_names: str
+    wedding_date: str | None = None
+    message: str | None = None
+    status: Literal["pending", "approved", "rejected"]
+    created_at: str | None = None
+    created_event_id: str | None = None
+
+
+class SignupReviewRequest(BaseModel):
+    action: Literal["approve", "reject"]
+    slug: str | None = None
+    title: str | None = None
+
+
+class AdminStatsResponse(BaseModel):
+    events_count: int
+    pending_requests: int
+    total_gallery_photos: int
+    total_match_runs: int
 
 
 class HealthResponse(BaseModel):

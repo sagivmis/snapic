@@ -1,0 +1,168 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { clearAnonymousSessionId, getAnonymousSessionId } from "./anonymousSession";
+import { isSupabaseConfigured, supabase, type Profile } from "../lib/supabase";
+
+interface AuthContextValue {
+  session: Session | null;
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
+  isSuperAdmin: boolean;
+  isEventAdmin: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signInWithMagicLink: (email: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  claimAnonymousSessions: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
+  anonymousSessionId: string;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  if (!supabase) {
+    return null;
+  }
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  return data as Profile;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const anonymousSessionId = useMemo(() => getAnonymousSessionId(), []);
+
+  const refreshProfile = useCallback(async () => {
+    if (!session?.user?.id) {
+      setProfile(null);
+      return;
+    }
+    const row = await fetchProfile(session.user.id);
+    setProfile(row);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
+
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) {
+      throw new Error("Auth not configured");
+    }
+    const redirectTo = `${window.location.origin}/login`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const signInWithMagicLink = useCallback(async (email: string) => {
+    if (!supabase) {
+      throw new Error("Auth not configured");
+    }
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/login` },
+    });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) {
+      return;
+    }
+    await supabase.auth.signOut();
+    setProfile(null);
+  }, []);
+
+  const claimAnonymousSessions = useCallback(async () => {
+    if (!supabase || !session) {
+      return;
+    }
+    await supabase.rpc("claim_anonymous_match_runs", {
+      p_session_id: anonymousSessionId,
+    });
+    clearAnonymousSessionId();
+  }, [anonymousSessionId, session]);
+
+  const getAccessToken = useCallback(async () => {
+    if (!supabase) {
+      return null;
+    }
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      void claimAnonymousSessions();
+    }
+  }, [session, claimAnonymousSessions]);
+
+  const value: AuthContextValue = {
+    session,
+    user: session?.user ?? null,
+    profile,
+    loading,
+    isSuperAdmin: profile?.global_role === "super_admin",
+    isEventAdmin: profile?.global_role === "event_admin" || profile?.global_role === "super_admin",
+    signInWithGoogle,
+    signInWithMagicLink,
+    signOut,
+    refreshProfile,
+    claimAnonymousSessions,
+    getAccessToken,
+    anonymousSessionId,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return ctx;
+}
+
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
+}
