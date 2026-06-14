@@ -16,7 +16,7 @@ import "../styles/EventManage.scss";
 
 export function EventManagePage() {
   const { slug = "" } = useParams();
-  const { getAccessToken, session } = useAuth();
+  const { getAccessToken, session, isSuperAdmin } = useAuth();
   const [event, setEvent] = useState<EventPublic | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -41,7 +41,11 @@ export function EventManagePage() {
     setLoading(true);
     setError(null);
     try {
-      const ev = await fetchEventBySlug(slug);
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const ev = await fetchEventBySlug(slug, token);
       setEvent(ev);
       setTitle(ev.title);
       setWeddingDate(ev.wedding_date ?? "");
@@ -51,17 +55,18 @@ export function EventManagePage() {
       setCoupleNames(typeof branding.couple_names === "string" ? branding.couple_names : "");
       setAccentColor(typeof branding.accent_color === "string" ? branding.accent_color : "#c9a962");
 
-      if (supabase) {
+      let hasMembership = isSuperAdmin;
+      if (supabase && !hasMembership) {
         const { data: membership } = await supabase
           .from("event_members")
           .select("role")
           .eq("event_id", ev.id)
           .eq("user_id", session.user.id)
           .maybeSingle();
-        setIsAdmin(Boolean(membership));
+        hasMembership = Boolean(membership);
       }
+      setIsAdmin(hasMembership);
 
-      const token = await getAccessToken();
       const gallery = await fetchEventGallery(ev.id, token);
       setPhotos(gallery);
     } catch (err) {
@@ -69,7 +74,7 @@ export function EventManagePage() {
     } finally {
       setLoading(false);
     }
-  }, [slug, session, getAccessToken]);
+  }, [slug, session, getAccessToken, isSuperAdmin]);
 
   useEffect(() => {
     void load();

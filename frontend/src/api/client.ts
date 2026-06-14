@@ -86,8 +86,11 @@ export async function matchEventPhotos(
   return response.json() as Promise<MatchResponse>;
 }
 
-export async function fetchEventBySlug(slug: string): Promise<EventPublic> {
-  const response = await fetch(apiUrl(`/api/events/by-slug/${slug}`));
+export async function fetchEventBySlug(
+  slug: string,
+  token?: string | null,
+): Promise<EventPublic> {
+  const response = await authFetch(`/api/events/by-slug/${slug}`, {}, { token });
   if (!response.ok) {
     await parseError(response, "Event not found");
   }

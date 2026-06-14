@@ -65,12 +65,22 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
 
 
 @router.get("/by-slug/{slug}", response_model=EventPublicResponse)
-async def get_event_by_slug(slug: str) -> EventPublicResponse:
+async def get_event_by_slug(
+    slug: str,
+    user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
+) -> EventPublicResponse:
     if not is_supabase_configured():
         raise HTTPException(status_code=503, detail="Event service not configured")
     row = fetch_event_by_slug(slug)
     if not row:
         raise HTTPException(status_code=404, detail="Event not found")
+
+    if row["status"] == "active":
+        return _event_public(row)
+
+    if user is None or not is_event_admin(user.id, row["id"]):
+        raise HTTPException(status_code=404, detail="Event not found")
+
     return _event_public(row)
 
 

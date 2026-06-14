@@ -8,10 +8,10 @@ from snapic.db import get_supabase
 
 
 def fetch_event_by_slug(slug: str) -> dict[str, Any] | None:
+    """Load event by slug via service role (bypasses RLS). Caller must enforce access rules."""
     client = get_supabase()
-    result = client.rpc("get_event_by_slug", {"p_slug": slug}).execute()
-    rows = result.data or []
-    return rows[0] if rows else None
+    result = client.table("events").select("*").eq("slug", slug).maybe_single().execute()
+    return result.data
 
 
 def fetch_event_by_id(event_id: str) -> dict[str, Any] | None:
