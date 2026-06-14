@@ -4,8 +4,10 @@
 
 1. Go to [supabase.com](https://supabase.com) and create a new project.
 2. Note your **Project URL** and **anon public** key (Settings → API).
-3. Note your **JWT Secret** (Settings → API → JWT Settings).
+3. Note your **JWT Secret** (Settings → API → JWT Settings) — used only for legacy HS256 tokens.
 4. Copy the **service_role** key (server only — never expose to frontend).
+
+New Supabase projects sign user tokens with **RS256** (asymmetric). The backend verifies those via your project's JWKS endpoint, so `SUPABASE_URL` must be set on Render even if you also set `SUPABASE_JWT_SECRET`.
 
 ## 2. Run migrations
 
