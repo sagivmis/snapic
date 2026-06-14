@@ -15,6 +15,8 @@ class MatchedPhoto(BaseModel):
     image_base64: str
     image_mime: str = "image/jpeg"
     matched_person: Literal[1, 2, "both"] | None = None
+    person_1_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    person_2_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class SkippedPhoto(BaseModel):
@@ -41,3 +43,9 @@ class SharedMatchResponse(MatchResponse):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class PortraitQualityResponse(BaseModel):
+    face_detected: bool
+    warnings: list[str]
+    face_count: int = 0

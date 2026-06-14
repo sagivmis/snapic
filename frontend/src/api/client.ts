@@ -1,5 +1,5 @@
 import { apiUrl } from "./config";
-import type { MatchRequest, MatchResponse } from "../types";
+import type { MatchRequest, MatchResponse, PortraitQualityResponse } from "../types";
 
 export async function matchPhotos(request: MatchRequest): Promise<MatchResponse> {
   const formData = new FormData();
@@ -33,6 +33,27 @@ export async function matchPhotos(request: MatchRequest): Promise<MatchResponse>
   }
 
   return response.json() as Promise<MatchResponse>;
+}
+
+export async function validatePortrait(portrait: File): Promise<PortraitQualityResponse> {
+  const formData = new FormData();
+  formData.append("portrait", portrait);
+
+  const response = await fetch(apiUrl("/api/validate-portrait"), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const detail =
+      payload && typeof payload.detail === "string"
+        ? payload.detail
+        : "Could not validate portrait";
+    throw new Error(detail);
+  }
+
+  return response.json() as Promise<PortraitQualityResponse>;
 }
 
 export async function fetchSharedResults(shareId: string): Promise<MatchResponse> {

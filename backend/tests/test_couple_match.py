@@ -36,6 +36,8 @@ def test_couple_mode_both_people():
     result = evaluate_gallery_match(refs, faces, threshold=0.4, couple_mode=True)
     assert result.matched_person == "both"
     assert result.score is not None
+    assert result.person_1_score is not None
+    assert result.person_2_score is not None
 
 
 def test_couple_mode_no_match():

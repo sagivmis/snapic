@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getImageDataUrl } from "../utils/downloadZip";
-import { formatMatchedPerson } from "../utils/matchedPerson";
+import { formatMatchedPerson, formatPersonScores } from "../utils/matchedPerson";
 import type { MatchedPhoto } from "../types";
 import "../styles/Lightbox.scss";
 
@@ -35,6 +35,7 @@ export function Lightbox({ photo, onClose }: LightboxProps) {
 
   const title = photo.filename ?? photo.url ?? "Wedding photo";
   const matchedLabel = formatMatchedPerson(photo.matched_person);
+  const personScores = formatPersonScores(photo);
 
   return (
     <div className="lightbox" onClick={onClose} role="presentation">
@@ -55,7 +56,8 @@ export function Lightbox({ photo, onClose }: LightboxProps) {
           <p className="lightbox__title">{title}</p>
           <div className="lightbox__meta">
             {matchedLabel && <span>{matchedLabel}</span>}
-            <span>{(photo.score * 100).toFixed(0)}% match</span>
+            {personScores && <span>{personScores}</span>}
+            {!personScores && <span>{(photo.score * 100).toFixed(0)}% match</span>}
           </div>
         </div>
       </div>

@@ -6,7 +6,14 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from snapic.api.schemas import HealthResponse, MatchResponse, MatchedPhoto, SharedMatchResponse, SkippedPhoto
+from snapic.api.schemas import (
+    HealthResponse,
+    MatchResponse,
+    MatchedPhoto,
+    PortraitQualityResponse,
+    SharedMatchResponse,
+    SkippedPhoto,
+)
 from snapic.api.share_store import share_store
 from snapic.face.images import (
     decode_image_bytes,
@@ -20,6 +27,7 @@ from snapic.face.pipeline import (
     evaluate_gallery_image,
     extract_reference_embedding,
 )
+from snapic.face.portrait_quality import analyze_portrait
 
 router = APIRouter()
 
@@ -90,6 +98,8 @@ def _process_gallery_image(
         return None, None
 
     matched_person = evaluation.matched_person if couple_mode else None
+    person_1_score = evaluation.person_1_score if couple_mode else None
+    person_2_score = evaluation.person_2_score if couple_mode else None
     image_mime = detect_image_mime(image_bytes)
     try:
         image_base64 = encode_original_base64(image_bytes)
@@ -108,6 +118,8 @@ def _process_gallery_image(
             image_base64=image_base64,
             image_mime=image_mime,
             matched_person=matched_person,
+            person_1_score=person_1_score,
+            person_2_score=person_2_score,
         ),
         None,
     )
@@ -116,6 +128,22 @@ def _process_gallery_image(
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(status="ok")
+
+
+@router.post("/validate-portrait", response_model=PortraitQualityResponse)
+async def validate_portrait(portrait: Annotated[UploadFile, File()]) -> PortraitQualityResponse:
+    portrait_bytes = await _read_upload_limited(portrait)
+    try:
+        image_bgr = decode_image_bytes(portrait_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Could not decode portrait image") from exc
+
+    result = analyze_portrait(image_bgr)
+    return PortraitQualityResponse(
+        face_detected=result.face_detected,
+        warnings=result.warnings,
+        face_count=result.face_count,
+    )
 
 
 @router.get("/share/{share_id}", response_model=SharedMatchResponse)

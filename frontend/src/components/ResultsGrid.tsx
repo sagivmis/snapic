@@ -1,9 +1,16 @@
-import { useState } from "react";
-import { formatMatchedPerson } from "../utils/matchedPerson";
+import { useMemo, useState } from "react";
+import {
+  type CoupleFilter,
+  filterCoupleMatches,
+  formatMatchedPerson,
+  formatPersonScores,
+  sortMatches,
+  type SortMode,
+} from "../utils/matchedPerson";
 import { buildShareUrl } from "../api/client";
 import { downloadMatchesAsZip } from "../utils/downloadZip";
 import { Lightbox } from "./Lightbox";
-import type { MatchedPhoto, MatchResponse } from "../types";
+import type { MatchedPhoto, MatchResponse, SkippedPhoto } from "../types";
 import "../styles/ResultsGrid.scss";
 
 interface ResultsGridProps {
@@ -14,8 +21,25 @@ interface ResultsGridProps {
   readOnly?: boolean;
 }
 
+const COUPLE_FILTERS: { id: CoupleFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "1", label: "Person 1" },
+  { id: "2", label: "Person 2" },
+  { id: "both", label: "Both" },
+];
+
 function formatReason(reason: string): string {
   return reason.replace(/_/g, " ");
+}
+
+function summarizeSkipped(skipped: SkippedPhoto[]): string {
+  const counts = skipped.reduce<Record<string, number>>((acc, item) => {
+    acc[item.reason] = (acc[item.reason] ?? 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts)
+    .map(([reason, count]) => `${count} ${formatReason(reason)}`)
+    .join(", ");
 }
 
 export function ResultsGrid({
@@ -28,6 +52,25 @@ export function ResultsGrid({
   const [lightboxPhoto, setLightboxPhoto] = useState<MatchedPhoto | null>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingTogether, setDownloadingTogether] = useState(false);
+  const [coupleFilter, setCoupleFilter] = useState<CoupleFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("score");
+  const [skippedOpen, setSkippedOpen] = useState(false);
+
+  const togetherCount = useMemo(
+    () => result?.matched.filter((item) => item.matched_person === "both").length ?? 0,
+    [result],
+  );
+
+  const visibleMatches = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+    const filtered = result.couple_mode
+      ? filterCoupleMatches(result.matched, coupleFilter)
+      : result.matched;
+    return sortMatches(filtered, sortMode);
+  }, [result, coupleFilter, sortMode]);
 
   async function handleCopyShareLink() {
     if (!result?.share_id) {
@@ -39,16 +82,11 @@ export function ResultsGrid({
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleDownloadZip() {
-    if (!result?.matched.length) {
+  async function handleDownloadZip(items: MatchedPhoto[], archiveName: string) {
+    if (!items.length) {
       return;
     }
-    setDownloading(true);
-    try {
-      await downloadMatchesAsZip(result.matched);
-    } finally {
-      setDownloading(false);
-    }
+    await downloadMatchesAsZip(items, archiveName);
   }
 
   if (loading) {
@@ -93,24 +131,48 @@ export function ResultsGrid({
           <p className="results__summary-desc">
             Searched {result.total_gallery} gallery photo{result.total_gallery === 1 ? "" : "s"}
             {result.couple_mode ? " · couple mode" : ""}
+            {togetherCount > 0 && result.couple_mode ? ` · ${togetherCount} together` : ""}
           </p>
 
           {result.matched.length > 0 && (
             <div className="results__actions">
               <button
                 type="button"
-                onClick={handleDownloadZip}
+                onClick={async () => {
+                  setDownloading(true);
+                  try {
+                    await handleDownloadZip(result.matched, "snapic-wedding-photos");
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
                 disabled={downloading}
                 className="btn-primary"
               >
                 {downloading ? "Preparing ZIP..." : "Download all as ZIP"}
               </button>
-              {result.share_id && !readOnly && (
+              {togetherCount > 0 && (
                 <button
                   type="button"
-                  onClick={handleCopyShareLink}
+                  onClick={async () => {
+                    setDownloadingTogether(true);
+                    try {
+                      const together = result.matched.filter(
+                        (item) => item.matched_person === "both",
+                      );
+                      await handleDownloadZip(together, "snapic-together-photos");
+                    } finally {
+                      setDownloadingTogether(false);
+                    }
+                  }}
+                  disabled={downloadingTogether}
                   className="btn-ghost bordered"
                 >
+                  {downloadingTogether ? "Preparing..." : `Together photos (${togetherCount})`}
+                </button>
+              )}
+              {result.share_id && !readOnly && (
+                <button type="button" onClick={handleCopyShareLink} className="btn-ghost bordered">
                   {copied ? "Link copied!" : "Copy share link for guests"}
                 </button>
               )}
@@ -118,14 +180,50 @@ export function ResultsGrid({
           )}
         </div>
 
+        {result.couple_mode && result.matched.length > 0 && (
+          <div className="results__toolbar">
+            <div className="results__filters" role="tablist" aria-label="Filter by person">
+              {COUPLE_FILTERS.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={coupleFilter === filter.id}
+                  className={`results__filter-chip${
+                    coupleFilter === filter.id ? " results__filter-chip--active" : ""
+                  }${filter.id === "both" ? " results__filter-chip--both" : ""}`}
+                  onClick={() => setCoupleFilter(filter.id)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <label className="results__sort">
+              <span className="results__sort-label">Sort</span>
+              <select
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as SortMode)}
+                className="results__sort-select"
+              >
+                <option value="score">Best match first</option>
+                <option value="together-first">Together photos first</option>
+              </select>
+            </label>
+          </div>
+        )}
+
         {result.matched.length === 0 ? (
           <p className="results__no-matches">
             We couldn&apos;t find matching photos. Try adjusting sensitivity in the sidebar, or add
             clearer gallery images.
           </p>
+        ) : visibleMatches.length === 0 ? (
+          <p className="results__no-matches">
+            No photos match this filter. Try another tab or lower the sensitivity.
+          </p>
         ) : (
           <div className="results__grid">
-            {result.matched.map((item) => (
+            {visibleMatches.map((item) => (
               <article
                 key={`${item.source}-${item.index}-${item.score}`}
                 className="result-card"
@@ -154,6 +252,9 @@ export function ResultsGrid({
                   <p className="result-card__title">
                     {item.filename ?? item.url ?? "Wedding photo"}
                   </p>
+                  {formatPersonScores(item) && (
+                    <p className="result-card__scores">{formatPersonScores(item)}</p>
+                  )}
                   <p className="result-card__hint">Tap to view full size</p>
                 </div>
               </article>
@@ -161,11 +262,18 @@ export function ResultsGrid({
           </div>
         )}
 
-        {!readOnly && result.skipped.length > 0 && (
-          <div className="results__skipped">
-            <h3 className="results__skipped-title">
-              {result.skipped.length} photo{result.skipped.length === 1 ? "" : "s"} skipped
-            </h3>
+        {result.skipped.length > 0 && (
+          <details
+            className="results__skipped"
+            open={skippedOpen}
+            onToggle={(event) => setSkippedOpen(event.currentTarget.open)}
+          >
+            <summary className="results__skipped-summary">
+              <span>
+                {result.skipped.length} photo{result.skipped.length === 1 ? "" : "s"} skipped
+              </span>
+              <span className="results__skipped-breakdown">{summarizeSkipped(result.skipped)}</span>
+            </summary>
             <ul className="results__skipped-list">
               {result.skipped.map((item) => (
                 <li key={`${item.source}-${item.index}-${item.reason}`}>
@@ -176,7 +284,7 @@ export function ResultsGrid({
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         )}
       </div>
 

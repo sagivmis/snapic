@@ -17,6 +17,14 @@
   color: $taupe-400;
 }
 
+.selfie-upload__privacy {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: $taupe-400;
+  opacity: 0.9;
+}
+
 .selfie-upload__couple-toggle {
   display: flex;
   align-items: center;
@@ -79,6 +87,27 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: $taupe-600;
+}
+
+.portrait-slot__quality {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+
+  &--loading {
+    color: $taupe-400;
+  }
+
+  &--ok {
+    color: $champagne-600;
+  }
+
+  &--warn {
+    margin: 0.75rem 0 0;
+    padding-left: 1rem;
+    color: $blush-500;
+    list-style: disc;
+  }
 }
 
 .portrait-slot__ready {

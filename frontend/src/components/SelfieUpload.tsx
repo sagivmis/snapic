@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { validatePortrait } from "../api/client";
+import type { PortraitQualityResponse } from "../types";
 import "../styles/SelfieUpload.scss";
 
 interface PortraitSlotProps {
@@ -11,8 +13,33 @@ interface PortraitSlotProps {
 function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [quality, setQuality] = useState<PortraitQualityResponse | null>(null);
+  const [checkingQuality, setCheckingQuality] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const runQualityCheck = useCallback(async (portrait: File) => {
+    setCheckingQuality(true);
+    try {
+      const result = await validatePortrait(portrait);
+      setQuality(result);
+    } catch {
+      setQuality(null);
+    } finally {
+      setCheckingQuality(false);
+    }
+  }, []);
+
+  const handleFileChange = useCallback(
+    (next: File | null) => {
+      onChange(next);
+      setQuality(null);
+      if (next) {
+        void runQualityCheck(next);
+      }
+    },
+    [onChange, runQualityCheck],
+  );
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -69,13 +96,13 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
           return;
         }
         const captured = new File([blob], `portrait-${Date.now()}.jpg`, { type: "image/jpeg" });
-        onChange(captured);
+        handleFileChange(captured);
         closeCamera();
       },
       "image/jpeg",
       0.92,
     );
-  }, [closeCamera, onChange]);
+  }, [closeCamera, handleFileChange]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
@@ -89,7 +116,7 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
             <img src={previewUrl} alt={label} className="portrait-slot__avatar" />
             <div>
               <p className="portrait-slot__ready-text">Ready</p>
-              <button type="button" className="btn-ghost flush-left" onClick={() => onChange(null)}>
+              <button type="button" className="btn-ghost flush-left" onClick={() => handleFileChange(null)}>
                 Change
               </button>
             </div>
@@ -101,7 +128,7 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
                 type="file"
                 accept="image/*"
                 className="hidden-input"
-                onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
               />
               <span className="portrait-slot__tile-label">Upload</span>
             </label>
@@ -111,6 +138,18 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
           </div>
         )}
       </div>
+
+      {checkingQuality && <p className="portrait-slot__quality portrait-slot__quality--loading">Checking portrait...</p>}
+      {quality && quality.warnings.length > 0 && (
+        <ul className="portrait-slot__quality portrait-slot__quality--warn">
+          {quality.warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
+        </ul>
+      )}
+      {quality?.face_detected && quality.warnings.length === 0 && !checkingQuality && (
+        <p className="portrait-slot__quality portrait-slot__quality--ok">Great portrait — ready to search</p>
+      )}
 
       {cameraOpen && (
         <div className="camera-overlay">
@@ -173,6 +212,11 @@ export function SelfieUpload({
         <p className="selfie-upload__intro">
           Share a clear photo of your face so we can find every picture of you from the celebration.
           {coupleMode && " In couple mode, we search for either partner."}
+        </p>
+
+        <p className="selfie-upload__privacy">
+          Your portraits are used only for this search and are not stored on our servers. Shared
+          result links expire after 7 days.
         </p>
 
         <label className="selfie-upload__couple-toggle">

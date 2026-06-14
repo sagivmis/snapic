@@ -10,6 +10,8 @@ export interface MatchedPhoto {
   image_base64?: string;
   image_mime?: string;
   matched_person?: MatchedPerson | null;
+  person_1_score?: number | null;
+  person_2_score?: number | null;
 }
 
 export interface SkippedPhoto {
@@ -28,6 +30,12 @@ export interface MatchResponse {
   skipped: SkippedPhoto[];
   share_id?: string | null;
   couple_mode?: boolean;
+}
+
+export interface PortraitQualityResponse {
+  face_detected: boolean;
+  warnings: string[];
+  face_count: number;
 }
 
 export interface MatchRequest {

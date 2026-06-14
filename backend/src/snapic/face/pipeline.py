@@ -44,6 +44,8 @@ class GalleryMatchEvaluation:
     score: float | None
     matched_person: MatchedPerson | None
     had_faces: bool = True
+    person_1_score: float | None = None
+    person_2_score: float | None = None
 
 
 def extract_reference_embedding(image_bgr: np.ndarray) -> np.ndarray:
@@ -91,17 +93,30 @@ def evaluate_gallery_match(
     person_two_score = person_scores[1] if len(person_scores) > 1 else 0.0
     person_one_match = person_one_score >= threshold
     person_two_match = person_two_score >= threshold
+    score_fields = {
+        "person_1_score": round(person_one_score, 4),
+        "person_2_score": round(person_two_score, 4),
+    }
 
     if person_one_match and person_two_match:
         return GalleryMatchEvaluation(
             score=max(person_one_score, person_two_score),
             matched_person="both",
+            **score_fields,
         )
     if person_one_match:
-        return GalleryMatchEvaluation(score=person_one_score, matched_person=1)
+        return GalleryMatchEvaluation(
+            score=person_one_score,
+            matched_person=1,
+            **score_fields,
+        )
     if person_two_match:
-        return GalleryMatchEvaluation(score=person_two_score, matched_person=2)
-    return GalleryMatchEvaluation(score=None, matched_person=None)
+        return GalleryMatchEvaluation(
+            score=person_two_score,
+            matched_person=2,
+            **score_fields,
+        )
+    return GalleryMatchEvaluation(score=None, matched_person=None, **score_fields)
 
 
 def evaluate_gallery_image(
