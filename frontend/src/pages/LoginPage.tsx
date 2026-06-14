@@ -8,7 +8,11 @@ export function LoginPage() {
   const { signInWithGoogle, signInWithMagicLink, session, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const nextFromQuery = new URLSearchParams(location.search).get("next");
+  const from =
+    (nextFromQuery && nextFromQuery.startsWith("/") ? nextFromQuery : null) ??
+    (location.state as { from?: string } | null)?.from ??
+    "/";
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +39,7 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await signInWithMagicLink(email.trim());
+      await signInWithMagicLink(email.trim(), from);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send magic link");
@@ -55,7 +59,7 @@ export function LoginPage() {
         disabled={busy}
         onClick={() => {
           setBusy(true);
-          void signInWithGoogle().catch((err) => {
+          void signInWithGoogle(from).catch((err) => {
             setError(err instanceof Error ? err.message : "Google sign-in failed");
             setBusy(false);
           });

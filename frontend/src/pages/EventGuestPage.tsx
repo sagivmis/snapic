@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchEventBySlug, matchEventPhotos } from "../api/client";
+import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotos } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
-import type { EventPublic, MatchResponse } from "../types";
+import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import "../styles/EventGuest.scss";
 
 type GuestStep = "portrait" | "results";
+
+function formatRunDate(value?: string | null): string {
+  if (!value) {
+    return "Recent search";
+  }
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export function EventGuestPage() {
   const { slug = "" } = useParams();
@@ -24,6 +36,10 @@ export function EventGuestPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResponse | null>(null);
+  const [pastRuns, setPastRuns] = useState<MatchRunSummary[]>([]);
+
+  const loginNext = slug ? `/e/${slug}` : "/";
+  const loginHref = `/login?next=${encodeURIComponent(loginNext)}`;
 
   const branding = useMemo(() => {
     const b = event?.branding ?? {};
@@ -73,6 +89,21 @@ export function EventGuestPage() {
       .finally(() => setLoadingEvent(false));
   }, [slug]);
 
+  useEffect(() => {
+    if (!event) {
+      return;
+    }
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        const runs = await fetchMyEventRuns(event.id, { token, anonymousSessionId });
+        setPastRuns(runs);
+      } catch {
+        setPastRuns([]);
+      }
+    })();
+  }, [event, session, anonymousSessionId, getAccessToken]);
+
   async function handleMatch() {
     if (!event || !selfie) {
       return;
@@ -94,6 +125,8 @@ export function EventGuestPage() {
       );
       setResult(response);
       setStep("results");
+      const runs = await fetchMyEventRuns(event.id, { token, anonymousSessionId });
+      setPastRuns(runs);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -111,39 +144,103 @@ export function EventGuestPage() {
 
   if (!event) {
     return (
-      <div className="event-guest">
-        <p className="error-banner">{error ?? "Event not found"}</p>
-        <Link to="/">Back home</Link>
+      <div className="event-guest event-guest--state">
+        <div className="event-guest__state-card">
+          <h1>Event not found</h1>
+          <p>{error ?? "This link may be incorrect or the event is not public yet."}</p>
+          <Link className="btn btn-secondary" to="/">
+            Back home
+          </Link>
+        </div>
       </div>
     );
   }
 
   const title = branding.coupleNames ?? event.title;
+  const photoCount = event.gallery_photo_count ?? 0;
+
+  if (event.status === "archived") {
+    return (
+      <div
+        className="event-guest event-guest--state"
+        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
+      >
+        <div className="event-guest__state-card">
+          <h1>{title}</h1>
+          <p className="event-guest__state-lead">This event has ended.</p>
+          <p>Photo matching is no longer available. Thank you for celebrating with us.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (photoCount === 0) {
+    return (
+      <div
+        className="event-guest event-guest--state"
+        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
+      >
+        <div className="event-guest__state-card">
+          <h1>{title}</h1>
+          <p className="event-guest__state-lead">Album still uploading</p>
+          <p>The wedding photos are being added. Check back in a little while.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const noMatches = step === "results" && result && result.matched.length === 0;
 
   return (
     <div
-      className="event-guest"
+      className={`event-guest${step === "results" ? " event-guest--results" : ""}`}
       style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
     >
       <InstallPrompt />
-      <header className="event-guest__header">
-        <p className="event-guest__eyebrow">
-          {step === "portrait" ? "Step 1 of 2" : "Step 2 of 2"}
-        </p>
-        <h1>{title}</h1>
-        {event.wedding_date && (
-          <p className="event-guest__date">{new Date(event.wedding_date).toLocaleDateString()}</p>
-        )}
-        <p className="event-guest__desc">
-          {step === "portrait"
-            ? "Upload a selfie to find photos of you in this wedding gallery."
-            : "Your matching photos from the event."}
-        </p>
-      </header>
+
+      {step === "portrait" && (
+        <header className="event-guest__header">
+          <p className="event-guest__eyebrow">{title}</p>
+          <h1>Find your photos</h1>
+          {event.wedding_date && (
+            <p className="event-guest__date">{new Date(event.wedding_date).toLocaleDateString()}</p>
+          )}
+          <p className="event-guest__desc">Upload a clear selfie to search {photoCount} wedding photos.</p>
+        </header>
+      )}
+
+      {step === "results" && (
+        <header className="event-guest__header event-guest__header--compact">
+          <p className="event-guest__eyebrow">{title}</p>
+          <h1>{noMatches ? "No matches yet" : "Your photos"}</h1>
+        </header>
+      )}
 
       <div className="event-guest__content">
         {step === "portrait" && (
           <>
+            {pastRuns.length > 0 && (
+              <div className="event-guest__past">
+                <h2>My past searches</h2>
+                <ul>
+                  {pastRuns.map((run) => (
+                    <li key={run.id}>
+                      {run.share_id ? (
+                        <Link to={`/share/${run.share_id}`}>
+                          {formatRunDate(run.created_at)} · {run.matched_count} photo
+                          {run.matched_count === 1 ? "" : "s"}
+                        </Link>
+                      ) : (
+                        <span>
+                          {formatRunDate(run.created_at)} · {run.matched_count} matches
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <SelfieUpload
               file={selfie}
               previewUrl={selfiePreview}
@@ -169,31 +266,42 @@ export function EventGuestPage() {
 
         {step === "results" && (
           <>
-            <ResultsGrid
-              result={result}
-              loading={loading}
-              onStartSearch={handleMatch}
-              canMatch={hasPortrait}
-            />
+            {noMatches ? (
+              <div className="event-guest__empty-results">
+                <p>No photos found — try a clearer selfie with your face well lit and facing the camera.</p>
+              </div>
+            ) : (
+              <ResultsGrid
+                result={result}
+                loading={loading}
+                onStartSearch={handleMatch}
+                canMatch={hasPortrait}
+              />
+            )}
+
             {!session && (
               <div className="event-guest__save">
                 <p>Save these results to your account</p>
-                <Link className="btn btn-secondary" to="/login">
-                  Sign in with email
+                <Link className="btn btn-primary" to={loginHref}>
+                  Sign in to save
                 </Link>
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => void signInWithGoogle()}
+                  onClick={() => void signInWithGoogle(loginNext)}
                 >
                   Continue with Google
                 </button>
               </div>
             )}
+
             <button
               type="button"
-              className="btn btn-ghost event-guest__back"
-              onClick={() => setStep("portrait")}
+              className="btn btn-secondary event-guest__back"
+              onClick={() => {
+                setStep("portrait");
+                setError(null);
+              }}
             >
               Search again
             </button>
@@ -203,9 +311,9 @@ export function EventGuestPage() {
         {error && <p className="error-banner">{error}</p>}
       </div>
 
-      <p className="event-guest__privacy">
-        Your selfie is processed in memory and never stored.
-      </p>
+      {step === "portrait" && (
+        <p className="event-guest__privacy">Your selfie is processed in memory and never stored.</p>
+      )}
     </div>
   );
 }

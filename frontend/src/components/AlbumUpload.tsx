@@ -37,6 +37,7 @@ interface AlbumUploadProps {
   photos: GalleryPhoto[];
   getToken: () => Promise<string | null>;
   disabled?: boolean;
+  section?: string;
   onPhotosChange: (photos: GalleryPhoto[]) => void;
   onError: (message: string | null) => void;
 }
@@ -46,6 +47,7 @@ export function AlbumUpload({
   photos,
   getToken,
   disabled = false,
+  section,
   onPhotosChange,
   onError,
 }: AlbumUploadProps) {
@@ -153,15 +155,21 @@ export function AlbumUpload({
         }));
 
         try {
-          const photo = await uploadEventGalleryPhoto(eventId, item.file, token, (loaded, total) => {
-            const filePct = total > 0 ? loaded / total : 0;
-            const overall = 10 + ((index + filePct) / prepared.toUpload.length) * 90;
-            setProgress((current) => ({
-              ...current,
-              fileProgress: Math.round(filePct * 100),
-              overallProgress: Math.min(100, Math.round(overall)),
-            }));
-          });
+          const photo = await uploadEventGalleryPhoto(
+            eventId,
+            item.file,
+            token,
+            (loaded, total) => {
+              const filePct = total > 0 ? loaded / total : 0;
+              const overall = 10 + ((index + filePct) / prepared.toUpload.length) * 90;
+              setProgress((current) => ({
+                ...current,
+                fileProgress: Math.round(filePct * 100),
+                overallProgress: Math.min(100, Math.round(overall)),
+              }));
+            },
+            section,
+          );
           nextPhotos.push(photo);
           uploadedCount += 1;
         } catch (err) {

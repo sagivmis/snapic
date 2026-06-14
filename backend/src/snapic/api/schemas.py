@@ -57,6 +57,8 @@ class EventPublicResponse(BaseModel):
     status: Literal["draft", "active", "archived"]
     branding: dict = Field(default_factory=dict)
     default_threshold: float = 0.4
+    gallery_photo_count: int = 0
+    auto_archive_days: int = 90
 
 
 class EventCreateRequest(BaseModel):
@@ -75,6 +77,7 @@ class EventUpdateRequest(BaseModel):
     status: Literal["draft", "active", "archived"] | None = None
     branding: dict | None = None
     default_threshold: float | None = None
+    auto_archive_days: int | None = None
 
 
 class GalleryPhotoResponse(BaseModel):
@@ -87,6 +90,25 @@ class GalleryPhotoResponse(BaseModel):
     content_hash: str | None = None
     storage_path: str | None = None
     signed_url: str | None = None
+    section: str = "general"
+
+
+class GalleryPhotoSectionUpdate(BaseModel):
+    section: str = Field(min_length=1, max_length=80)
+
+
+class MatchRunSummary(BaseModel):
+    id: str
+    share_id: str | None = None
+    matched_count: int
+    created_at: str | None = None
+
+
+class EventStatsResponse(BaseModel):
+    gallery_photo_count: int
+    match_run_count: int
+    unique_guest_sessions: int
+    last_match_at: str | None = None
 
 
 class SignupRequestCreate(BaseModel):

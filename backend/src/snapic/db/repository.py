@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from snapic.db import get_supabase
@@ -100,6 +100,7 @@ def upload_gallery_photo(
     filename: str | None,
     sort_order: int,
     content_hash: str | None = None,
+    section: str = "general",
 ) -> dict[str, Any]:
     client = get_supabase()
     ext = "jpg"
@@ -122,14 +123,20 @@ def upload_gallery_photo(
         "sort_order": sort_order,
         "uploaded_by": uploaded_by,
         "content_hash": content_hash,
+        "section": section,
     }
     try:
         result = client.table("gallery_photos").insert(row).execute()
     except Exception:
-        if not content_hash:
-            raise
-        row.pop("content_hash", None)
-        result = client.table("gallery_photos").insert(row).execute()
+        if content_hash:
+            row.pop("content_hash", None)
+        else:
+            row.pop("section", None)
+        try:
+            result = client.table("gallery_photos").insert(row).execute()
+        except Exception:
+            row.pop("section", None)
+            result = client.table("gallery_photos").insert(row).execute()
     return (result.data or [row])[0]
 
 
@@ -383,3 +390,88 @@ def fetch_profile_role(user_id: str) -> str | None:
 def update_profile_role(user_id: str, global_role: str) -> None:
     client = get_supabase()
     client.table("profiles").update({"global_role": global_role}).eq("id", user_id).execute()
+
+
+def maybe_auto_archive_event(event_row: dict[str, Any]) -> dict[str, Any]:
+    if event_row.get("status") == "archived":
+        return event_row
+    wedding_date = event_row.get("wedding_date")
+    if not wedding_date:
+        return event_row
+    archive_days = int(event_row.get("auto_archive_days") or 90)
+    if isinstance(wedding_date, str):
+        wedding = date.fromisoformat(wedding_date[:10])
+    else:
+        wedding = wedding_date
+    if date.today() <= wedding + timedelta(days=archive_days):
+        return event_row
+    client = get_supabase()
+    result = client.table("events").update({"status": "archived"}).eq("id", event_row["id"]).execute()
+    updated = (result.data or [event_row])[0]
+    return updated if isinstance(updated, dict) else {**event_row, "status": "archived"}
+
+
+def count_gallery_photos(event_id: str) -> int:
+    return len(list_gallery_photos(event_id))
+
+
+def update_gallery_photo_section(photo_id: str, section: str) -> dict[str, Any]:
+    client = get_supabase()
+    result = client.table("gallery_photos").update({"section": section}).eq("id", photo_id).execute()
+    return (result.data or [{}])[0]
+
+
+def list_gallery_sections(event_id: str) -> list[str]:
+    photos = list_gallery_photos(event_id)
+    sections = sorted({p.get("section") or "general" for p in photos})
+    return sections or ["general"]
+
+
+def get_event_stats(event_id: str) -> dict[str, Any]:
+    client = get_supabase()
+    photos = list_gallery_photos(event_id)
+    runs = client.table("match_runs").select("*").eq("event_id", event_id).execute().data or []
+    sessions = {
+        r.get("anonymous_session_id") or r.get("user_id")
+        for r in runs
+        if r.get("anonymous_session_id") or r.get("user_id")
+    }
+    last_match = None
+    if runs:
+        sorted_runs = sorted(runs, key=lambda r: r.get("created_at") or "", reverse=True)
+        last_match = sorted_runs[0].get("created_at")
+    return {
+        "gallery_photo_count": len(photos),
+        "match_run_count": len(runs),
+        "unique_guest_sessions": len(sessions),
+        "last_match_at": last_match,
+    }
+
+
+def list_user_match_runs(
+    event_id: str,
+    user_id: str | None,
+    anonymous_session_id: str | None,
+) -> list[dict[str, Any]]:
+    client = get_supabase()
+    query = client.table("match_runs").select("*").eq("event_id", event_id).order("created_at", desc=True)
+    runs = query.execute().data or []
+    filtered = [
+        r
+        for r in runs
+        if (user_id and r.get("user_id") == user_id)
+        or (anonymous_session_id and r.get("anonymous_session_id") == anonymous_session_id)
+    ]
+    summaries: list[dict[str, Any]] = []
+    for run in filtered:
+        share = client.table("share_tokens").select("token").eq("match_run_id", run["id"]).limit(1).execute()
+        share_id = share.data[0]["token"] if share.data else None
+        summaries.append(
+            {
+                "id": run["id"],
+                "share_id": share_id,
+                "matched_count": run.get("matched_count", 0),
+                "created_at": run.get("created_at"),
+            }
+        )
+    return summaries

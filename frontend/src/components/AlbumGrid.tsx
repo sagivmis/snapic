@@ -5,6 +5,8 @@ import "../styles/AlbumGrid.scss";
 interface AlbumGridProps {
   photos: GalleryPhoto[];
   onDelete: (photoId: string) => void;
+  onSectionChange?: (photoId: string, section: string) => void;
+  sectionOptions?: string[];
   disabled?: boolean;
 }
 
@@ -14,7 +16,13 @@ interface PreviewPhoto {
   filename: string;
 }
 
-export function AlbumGrid({ photos, onDelete, disabled = false }: AlbumGridProps) {
+export function AlbumGrid({
+  photos,
+  onDelete,
+  onSectionChange,
+  sectionOptions = ["general", "ceremony", "reception", "portraits", "party"],
+  disabled = false,
+}: AlbumGridProps) {
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
 
   const urls = useMemo(() => {
@@ -93,6 +101,21 @@ export function AlbumGrid({ photos, onDelete, disabled = false }: AlbumGridProps
                 <span className="album-grid__name" title={label}>
                   {label}
                 </span>
+                {onSectionChange && (
+                  <select
+                    className="album-grid__section"
+                    value={photo.section ?? "general"}
+                    disabled={disabled}
+                    onChange={(event) => onSectionChange(photo.id, event.target.value)}
+                    aria-label={`Section for ${label}`}
+                  >
+                    {sectionOptions.map((section) => (
+                      <option key={section} value={section}>
+                        {section}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   className="album-grid__remove btn btn-ghost"

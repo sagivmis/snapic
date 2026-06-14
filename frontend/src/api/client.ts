@@ -3,10 +3,12 @@ import type {
   AdminStats,
   EventCreateRequest,
   EventPublic,
+  EventStats,
   EventUpdateRequest,
   GalleryPhoto,
   MatchRequest,
   MatchResponse,
+  MatchRunSummary,
   PortraitQualityResponse,
   SignupRequest,
   SignupRequestCreate,
@@ -110,10 +112,14 @@ export async function uploadEventGalleryPhoto(
   file: File,
   token: string,
   onProgress?: (loaded: number, total: number) => void,
+  section?: string,
 ): Promise<GalleryPhoto> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("file", file);
+    if (section) {
+      formData.append("section", section);
+    }
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", apiUrl(`/api/events/${eventId}/gallery`));
@@ -298,4 +304,66 @@ export async function inviteEventMember(
   if (!response.ok) {
     await parseError(response, "Could not invite member");
   }
+}
+
+export async function fetchEventGallerySections(eventId: string, token: string): Promise<string[]> {
+  const response = await authFetch(`/api/events/${eventId}/gallery/sections`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load sections");
+  }
+  return response.json() as Promise<string[]>;
+}
+
+export async function updateGalleryPhotoSection(
+  eventId: string,
+  photoId: string,
+  section: string,
+  token: string,
+): Promise<GalleryPhoto> {
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery/${photoId}/section`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section }),
+    },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not update section");
+  }
+  return response.json() as Promise<GalleryPhoto>;
+}
+
+export async function fetchEventStats(eventId: string, token: string): Promise<EventStats> {
+  const response = await authFetch(`/api/events/${eventId}/stats`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load stats");
+  }
+  return response.json() as Promise<EventStats>;
+}
+
+export async function fetchMyEventRuns(
+  eventId: string,
+  auth: AuthFetchOptions,
+): Promise<MatchRunSummary[]> {
+  const response = await authFetch(`/api/events/${eventId}/my-runs`, {}, auth);
+  if (!response.ok) {
+    await parseError(response, "Could not load past searches");
+  }
+  return response.json() as Promise<MatchRunSummary[]>;
+}
+
+export async function downloadEventGalleryZip(eventId: string, token: string, filename: string): Promise<void> {
+  const response = await authFetch(`/api/events/${eventId}/gallery/download`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not download album");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

@@ -56,6 +56,8 @@ export interface EventPublic {
   status: "draft" | "active" | "archived";
   branding: Record<string, unknown>;
   default_threshold: number;
+  gallery_photo_count?: number;
+  auto_archive_days?: number;
 }
 
 export interface EventCreateRequest {
@@ -74,6 +76,7 @@ export interface EventUpdateRequest {
   status?: "draft" | "active" | "archived";
   branding?: Record<string, unknown>;
   default_threshold?: number;
+  auto_archive_days?: number;
 }
 
 export interface GalleryPhoto {
@@ -86,6 +89,21 @@ export interface GalleryPhoto {
   content_hash?: string | null;
   storage_path?: string | null;
   signed_url?: string | null;
+  section?: string;
+}
+
+export interface EventStats {
+  gallery_photo_count: number;
+  match_run_count: number;
+  unique_guest_sessions: number;
+  last_match_at?: string | null;
+}
+
+export interface MatchRunSummary {
+  id: string;
+  share_id?: string | null;
+  matched_count: number;
+  created_at?: string | null;
 }
 
 export interface SignupRequestCreate {

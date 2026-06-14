@@ -14,12 +14,16 @@ from snapic.api.schemas import (
     SignupReviewRequest,
 )
 from snapic.auth.jwt import AuthUser, require_super_admin
+from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     add_event_member,
+    count_gallery_photos,
     create_event,
+    fetch_event_by_id,
     find_profile_by_email,
     list_events,
     list_signup_requests,
+    maybe_auto_archive_event,
     update_profile_role,
     update_signup_request,
 )
@@ -48,21 +52,25 @@ async def admin_stats(_: Annotated[AuthUser, Depends(require_super_admin)]) -> A
     )
 
 
+def _event_public(row: dict[str, Any]) -> EventPublicResponse:
+    row = maybe_auto_archive_event(row)
+    return EventPublicResponse(
+        id=row["id"],
+        slug=row["slug"],
+        title=row["title"],
+        wedding_date=row.get("wedding_date"),
+        status=row["status"],
+        branding=row.get("branding") or {},
+        default_threshold=row.get("default_threshold", 0.4),
+        gallery_photo_count=count_gallery_photos(row["id"]),
+        auto_archive_days=int(row.get("auto_archive_days") or 90),
+    )
+
+
 @router.get("/events", response_model=list[EventPublicResponse])
 async def admin_list_events(_: Annotated[AuthUser, Depends(require_super_admin)]) -> list[EventPublicResponse]:
     rows = list_events()
-    return [
-        EventPublicResponse(
-            id=r["id"],
-            slug=r["slug"],
-            title=r["title"],
-            wedding_date=r.get("wedding_date"),
-            status=r["status"],
-            branding=r.get("branding") or {},
-            default_threshold=r.get("default_threshold", 0.4),
-        )
-        for r in rows
-    ]
+    return [_event_public(r) for r in rows]
 
 
 @router.post("/events", response_model=EventPublicResponse)
@@ -83,19 +91,8 @@ async def admin_create_event(
         }
     )
     if body.admin_email:
-        profile = find_profile_by_email(body.admin_email)
-        if profile:
-            add_event_member(row["id"], profile["id"], "admin")
-            update_profile_role(profile["id"], "event_admin")
-    return EventPublicResponse(
-        id=row["id"],
-        slug=row["slug"],
-        title=row["title"],
-        wedding_date=row.get("wedding_date"),
-        status=row["status"],
-        branding=row.get("branding") or {},
-        default_threshold=row.get("default_threshold", 0.4),
-    )
+        invite_event_admin(body.admin_email, row["id"], row["slug"], "admin")
+    return _event_public(row)
 
 
 @router.get("/signup-requests", response_model=list[SignupRequestResponse])
@@ -156,6 +153,8 @@ async def admin_review_signup(
         if profile:
             add_event_member(event["id"], profile["id"], "admin")
             update_profile_role(profile["id"], "event_admin")
+        else:
+            invite_event_admin(target["email"], event["id"], event["slug"], "admin")
         row = update_signup_request(
             request_id,
             {
@@ -184,9 +183,8 @@ async def admin_add_event_member(
     _: Annotated[AuthUser, Depends(require_super_admin)],
     role: str = "co_admin",
 ) -> dict[str, str]:
-    profile = find_profile_by_email(email)
-    if not profile:
-        raise HTTPException(status_code=404, detail="User not found — they must sign up first")
-    add_event_member(event_id, profile["id"], role)
-    update_profile_role(profile["id"], "event_admin")
-    return {"status": "added", "user_id": profile["id"]}
+    event_row = fetch_event_by_id(event_id)
+    if not event_row:
+        raise HTTPException(status_code=404, detail="Event not found")
+    invite_event_admin(email, event_id, event_row["slug"], role)
+    return {"status": "invited", "email": email.strip().lower()}

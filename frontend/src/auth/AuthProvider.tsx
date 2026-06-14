@@ -18,8 +18,8 @@ interface AuthContextValue {
   loading: boolean;
   isSuperAdmin: boolean;
   isEventAdmin: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithMagicLink: (email: string) => Promise<void>;
+  signInWithGoogle: (redirectPath?: string) => Promise<void>;
+  signInWithMagicLink: (email: string, redirectPath?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   claimAnonymousSessions: () => Promise<void>;
@@ -77,32 +77,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshProfile();
   }, [refreshProfile]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const loginRedirectUrl = useCallback((redirectPath?: string) => {
+    const next = redirectPath ?? "/";
+    return `${window.location.origin}/login?next=${encodeURIComponent(next)}`;
+  }, []);
+
+  const signInWithGoogle = useCallback(async (redirectPath?: string) => {
     if (!supabase) {
       throw new Error("Auth not configured");
     }
-    const redirectTo = `${window.location.origin}/login`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: { redirectTo: loginRedirectUrl(redirectPath) },
     });
     if (error) {
       throw error;
     }
-  }, []);
+  }, [loginRedirectUrl]);
 
-  const signInWithMagicLink = useCallback(async (email: string) => {
+  const signInWithMagicLink = useCallback(async (email: string, redirectPath?: string) => {
     if (!supabase) {
       throw new Error("Auth not configured");
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/login` },
+      options: { emailRedirectTo: loginRedirectUrl(redirectPath) },
     });
     if (error) {
       throw error;
     }
-  }, []);
+  }, [loginRedirectUrl]);
 
   const signOut = useCallback(async () => {
     if (!supabase) {
