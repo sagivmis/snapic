@@ -7,17 +7,30 @@ from typing import Any
 from snapic.db import get_supabase
 
 
+def _single_row(result: Any) -> dict[str, Any] | None:
+    if result is None:
+        return None
+    data = getattr(result, "data", None)
+    if data is None:
+        return None
+    if isinstance(data, list):
+        return data[0] if data else None
+    if isinstance(data, dict):
+        return data
+    return None
+
+
 def fetch_event_by_slug(slug: str) -> dict[str, Any] | None:
     """Load event by slug via service role (bypasses RLS). Caller must enforce access rules."""
     client = get_supabase()
     result = client.table("events").select("*").eq("slug", slug).maybe_single().execute()
-    return result.data
+    return _single_row(result)
 
 
 def fetch_event_by_id(event_id: str) -> dict[str, Any] | None:
     client = get_supabase()
     result = client.table("events").select("*").eq("id", event_id).maybe_single().execute()
-    return result.data
+    return _single_row(result)
 
 
 def list_gallery_photos(event_id: str) -> list[dict[str, Any]]:
@@ -52,15 +65,19 @@ def upload_preview_bytes(event_id: str, result_id: str, data: bytes, mime: str =
 
 def find_gallery_photo_by_hash(event_id: str, content_hash: str) -> dict[str, Any] | None:
     client = get_supabase()
-    result = (
-        client.table("gallery_photos")
-        .select("*")
-        .eq("event_id", event_id)
-        .eq("content_hash", content_hash)
-        .maybe_single()
-        .execute()
-    )
-    return result.data
+    try:
+        result = (
+            client.table("gallery_photos")
+            .select("*")
+            .eq("event_id", event_id)
+            .eq("content_hash", content_hash)
+            .limit(1)
+            .execute()
+        )
+        return _single_row(result)
+    except Exception:
+        # content_hash column missing before migration 003, or transient API error
+        return None
 
 
 def upload_gallery_photo(
@@ -95,7 +112,13 @@ def upload_gallery_photo(
         "uploaded_by": uploaded_by,
         "content_hash": content_hash,
     }
-    result = client.table("gallery_photos").insert(row).execute()
+    try:
+        result = client.table("gallery_photos").insert(row).execute()
+    except Exception:
+        if not content_hash:
+            raise
+        row.pop("content_hash", None)
+        result = client.table("gallery_photos").insert(row).execute()
     return (result.data or [row])[0]
 
 
@@ -107,10 +130,12 @@ def delete_gallery_photo(photo_id: str, storage_path: str) -> None:
 
 def is_event_admin(user_id: str, event_id: str) -> bool:
     client = get_supabase()
-    profile = client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
-    if profile.data and profile.data.get("global_role") == "super_admin":
+    profile = _single_row(
+        client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
+    )
+    if profile and profile.get("global_role") == "super_admin":
         return True
-    member = (
+    member = _single_row(
         client.table("event_members")
         .select("role")
         .eq("event_id", event_id)
@@ -118,7 +143,7 @@ def is_event_admin(user_id: str, event_id: str) -> bool:
         .maybe_single()
         .execute()
     )
-    return member.data is not None
+    return member is not None
 
 
 def create_match_run(
@@ -178,19 +203,19 @@ def create_share_token(match_run_id: str, ttl_days: int = 7) -> str:
 
 def get_share_token(token: str) -> dict[str, Any] | None:
     client = get_supabase()
-    result = client.table("share_tokens").select("*").eq("token", token).maybe_single().execute()
-    if not result.data:
+    row = _single_row(client.table("share_tokens").select("*").eq("token", token).maybe_single().execute())
+    if not row:
         return None
-    expires = datetime.fromisoformat(result.data["expires_at"].replace("Z", "+00:00"))
+    expires = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
     if expires < datetime.now(UTC):
         return None
-    return result.data
+    return row
 
 
 def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
     client = get_supabase()
-    run = client.table("match_runs").select("*").eq("id", match_run_id).maybe_single().execute()
-    if not run.data:
+    run = _single_row(client.table("match_runs").select("*").eq("id", match_run_id).maybe_single().execute())
+    if not run:
         return None
 
     results = (
@@ -222,22 +247,22 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
             except Exception:
                 preview_b64 = ""
         if row.get("gallery_photo_id"):
-            gallery = (
+            gallery = _single_row(
                 client.table("gallery_photos")
                 .select("storage_path,mime_type,filename")
                 .eq("id", row["gallery_photo_id"])
                 .maybe_single()
                 .execute()
             )
-            if gallery.data:
+            if gallery:
                 try:
                     import base64
 
-                    full_bytes = download_storage_bytes(gallery.data["storage_path"])
+                    full_bytes = download_storage_bytes(gallery["storage_path"])
                     image_b64 = base64.b64encode(full_bytes).decode("ascii")
-                    image_mime = gallery.data.get("mime_type") or "image/jpeg"
+                    image_mime = gallery.get("mime_type") or "image/jpeg"
                     if not row.get("filename"):
-                        row["filename"] = gallery.data.get("filename")
+                        row["filename"] = gallery.get("filename")
                 except Exception:
                     pass
 
@@ -273,13 +298,13 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
 
     return {
         "reference_face_detected": True,
-        "threshold": run.data["threshold"],
-        "total_gallery": run.data["total_gallery"],
+        "threshold": run["threshold"],
+        "total_gallery": run["total_gallery"],
         "matched": matched_photos,
         "skipped": skipped_photos,
         "share_id": share_id,
-        "couple_mode": run.data.get("couple_mode", False),
-        "event_id": run.data["event_id"],
+        "couple_mode": run.get("couple_mode", False),
+        "event_id": run["event_id"],
     }
 
 
@@ -331,14 +356,16 @@ def add_event_member(event_id: str, user_id: str, role: str = "admin") -> None:
 def find_profile_by_email(email: str) -> dict[str, Any] | None:
     client = get_supabase()
     result = client.table("profiles").select("*").eq("email", email).maybe_single().execute()
-    return result.data
+    return _single_row(result)
 
 
 def fetch_profile_role(user_id: str) -> str | None:
     client = get_supabase()
-    result = client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
-    if result.data:
-        return result.data.get("global_role")
+    row = _single_row(
+        client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
+    )
+    if row:
+        return row.get("global_role")
     return None
 
 
