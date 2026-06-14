@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchSharedResults, matchPhotos } from "./api/client";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { GalleryInput } from "./components/GalleryInput";
 import { ResultsGrid } from "./components/ResultsGrid";
 import { SelfieUpload } from "./components/SelfieUpload";
@@ -122,6 +123,7 @@ export default function App() {
   if (isGuestView) {
     return (
       <div className="app-guest">
+        <InstallPrompt />
         <header className="header header--guest">
           <p className="header__step">Shared gallery</p>
           <h1 className="header__title">Wedding moments</h1>
@@ -144,6 +146,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <InstallPrompt />
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}

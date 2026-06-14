@@ -1,0 +1,52 @@
+@use "../styles/variables" as *;
+
+.install-prompt {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 50;
+  max-width: 24rem;
+  margin: 0 auto;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.8);
+  background: rgba($white, 0.96);
+  box-shadow: $shadow-soft;
+  backdrop-filter: blur(8px);
+
+  @supports (padding: max(0px)) {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+    right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+.install-prompt__content {
+  padding: 1rem 1.125rem;
+}
+
+.install-prompt__title {
+  margin: 0;
+  font-family: $font-display;
+  font-size: 1.125rem;
+  color: $taupe-700;
+}
+
+.install-prompt__desc {
+  margin: 0.375rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: $taupe-400;
+}
+
+.install-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+}
+
+.install-prompt__install,
+.install-prompt__dismiss {
+  font-size: 0.8125rem;
+}
