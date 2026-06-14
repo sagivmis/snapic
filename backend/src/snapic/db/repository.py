@@ -20,6 +20,37 @@ def _single_row(result: Any) -> dict[str, Any] | None:
     return None
 
 
+def _parse_utc_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
+def _normalize_matched_person(value: Any) -> int | str | None:
+    if value is None:
+        return None
+    if value == "both":
+        return "both"
+    if value in (1, "1"):
+        return 1
+    if value in (2, "2"):
+        return 2
+    return None
+
+
+def _normalize_score(value: Any) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _normalize_optional_score(value: Any) -> float | None:
+    if value is None:
+        return None
+    return _normalize_score(value)
+
+
 def fetch_event_by_slug(slug: str) -> dict[str, Any] | None:
     """Load event by slug via service role (bypasses RLS). Caller must enforce access rules."""
     client = get_supabase()
@@ -224,8 +255,8 @@ def get_share_token(token: str) -> dict[str, Any] | None:
     row = _single_row(client.table("share_tokens").select("*").eq("token", token).maybe_single().execute())
     if not row:
         return None
-    expires = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
-    if expires < datetime.now(UTC):
+    expires = _parse_utc_datetime(row.get("expires_at"))
+    if expires is None or expires < datetime.now(UTC):
         return None
     return row
 
@@ -254,7 +285,6 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
     matched_photos = []
     for idx, row in enumerate(results.data or []):
         preview_b64 = ""
-        image_b64 = ""
         image_mime = "image/jpeg"
         if row.get("preview_path"):
             try:
@@ -264,39 +294,33 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
                 preview_b64 = base64.b64encode(preview_bytes).decode("ascii")
             except Exception:
                 preview_b64 = ""
-        if row.get("gallery_photo_id"):
+
+        filename = row.get("filename")
+        if not filename and row.get("gallery_photo_id"):
             gallery = _single_row(
                 client.table("gallery_photos")
-                .select("storage_path,mime_type,filename")
+                .select("filename,mime_type")
                 .eq("id", row["gallery_photo_id"])
                 .maybe_single()
                 .execute()
             )
             if gallery:
-                try:
-                    import base64
-
-                    full_bytes = download_storage_bytes(gallery["storage_path"])
-                    image_b64 = base64.b64encode(full_bytes).decode("ascii")
-                    image_mime = gallery.get("mime_type") or "image/jpeg"
-                    if not row.get("filename"):
-                        row["filename"] = gallery.get("filename")
-                except Exception:
-                    pass
+                filename = gallery.get("filename")
+                image_mime = gallery.get("mime_type") or "image/jpeg"
 
         matched_photos.append(
             {
                 "source": "upload",
                 "index": idx,
-                "score": row["score"],
-                "filename": row.get("filename"),
+                "score": _normalize_score(row["score"]),
+                "filename": filename,
                 "url": None,
                 "preview_base64": preview_b64,
-                "image_base64": image_b64 or preview_b64,
+                "image_base64": preview_b64,
                 "image_mime": image_mime,
-                "matched_person": row.get("matched_person"),
-                "person_1_score": row.get("person_1_score"),
-                "person_2_score": row.get("person_2_score"),
+                "matched_person": _normalize_matched_person(row.get("matched_person")),
+                "person_1_score": _normalize_optional_score(row.get("person_1_score")),
+                "person_2_score": _normalize_optional_score(row.get("person_2_score")),
             }
         )
 
