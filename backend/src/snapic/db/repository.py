@@ -62,6 +62,18 @@ def fetch_event_by_slug(slug: str) -> dict[str, Any] | None:
     return _query_one(client.table("events").select("*").eq("slug", slug))
 
 
+def allocate_event_slug(base_slug: str) -> str:
+    """Return base_slug if unused, otherwise append -2, -3, … until unique."""
+    cleaned = (base_slug or "event").strip("-")[:80] or "event"
+    if fetch_event_by_slug(cleaned) is None:
+        return cleaned
+    for suffix in range(2, 100):
+        candidate = f"{cleaned}-{suffix}"[:80].strip("-")
+        if fetch_event_by_slug(candidate) is None:
+            return candidate
+    raise RuntimeError("Could not allocate a unique event slug")
+
+
 def fetch_event_by_id(event_id: str) -> dict[str, Any] | None:
     client = get_supabase()
     return _query_one(client.table("events").select("*").eq("id", event_id))

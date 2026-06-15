@@ -17,9 +17,11 @@ from snapic.auth.jwt import AuthUser, require_super_admin
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     add_event_member,
+    allocate_event_slug,
     count_gallery_photos,
     create_event,
     fetch_event_by_id,
+    fetch_event_by_slug,
     find_profile_by_email,
     list_events,
     list_signup_requests,
@@ -79,6 +81,8 @@ async def admin_create_event(
     user: Annotated[AuthUser, Depends(require_super_admin)],
 ) -> EventPublicResponse:
     slug = _slugify(body.slug)
+    if fetch_event_by_slug(slug):
+        raise HTTPException(status_code=409, detail=f"Event slug '{slug}' is already taken")
     row = create_event(
         {
             "slug": slug,
@@ -137,7 +141,7 @@ async def admin_review_signup(
             },
         )
     else:
-        slug = _slugify(body.slug or target["couple_names"])
+        slug = allocate_event_slug(_slugify(body.slug or target["couple_names"]))
         title = body.title or f"{target['couple_names']} Wedding"
         event = create_event(
             {
