@@ -1,5 +1,6 @@
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { InstallPrompt } from "../components/InstallPrompt";
+import { MyEventsSelect } from "../components/MyEventsSelect";
 import { useAuth } from "../auth/AuthProvider";
 import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/Landing.scss";
@@ -23,9 +24,13 @@ export function LandingPage() {
           through hundreds of shots.
         </p>
         <div className="landing__actions">
-          <Link className="btn btn-primary" to="/demo">
-            Try demo
-          </Link>
+          {session ? (
+            <MyEventsSelect />
+          ) : (
+            <Link className="btn btn-primary" to="/demo">
+              Try demo
+            </Link>
+          )}
           {isSupabaseConfigured && (
             <Link className="btn btn-secondary" to="/request-access">
               Request event access

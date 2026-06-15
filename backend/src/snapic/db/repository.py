@@ -20,6 +20,11 @@ def _single_row(result: Any) -> dict[str, Any] | None:
     return None
 
 
+def _query_one(query: Any) -> dict[str, Any] | None:
+    """Return one row from a Supabase select builder (.limit(1) avoids maybe_single None bugs)."""
+    return _single_row(query.limit(1).execute())
+
+
 def _parse_utc_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -54,14 +59,12 @@ def _normalize_optional_score(value: Any) -> float | None:
 def fetch_event_by_slug(slug: str) -> dict[str, Any] | None:
     """Load event by slug via service role (bypasses RLS). Caller must enforce access rules."""
     client = get_supabase()
-    result = client.table("events").select("*").eq("slug", slug).maybe_single().execute()
-    return _single_row(result)
+    return _query_one(client.table("events").select("*").eq("slug", slug))
 
 
 def fetch_event_by_id(event_id: str) -> dict[str, Any] | None:
     client = get_supabase()
-    result = client.table("events").select("*").eq("id", event_id).maybe_single().execute()
-    return _single_row(result)
+    return _query_one(client.table("events").select("*").eq("id", event_id))
 
 
 def list_gallery_photos(event_id: str) -> list[dict[str, Any]]:
@@ -179,18 +182,14 @@ def delete_gallery_photo(photo_id: str, storage_path: str) -> None:
 
 def is_event_admin(user_id: str, event_id: str) -> bool:
     client = get_supabase()
-    profile = _single_row(
-        client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
-    )
+    profile = _query_one(client.table("profiles").select("global_role").eq("id", user_id))
     if profile and profile.get("global_role") == "super_admin":
         return True
-    member = _single_row(
+    member = _query_one(
         client.table("event_members")
         .select("role")
         .eq("event_id", event_id)
         .eq("user_id", user_id)
-        .maybe_single()
-        .execute()
     )
     return member is not None
 
@@ -252,7 +251,7 @@ def create_share_token(match_run_id: str, ttl_days: int = 7) -> str:
 
 def get_share_token(token: str) -> dict[str, Any] | None:
     client = get_supabase()
-    row = _single_row(client.table("share_tokens").select("*").eq("token", token).maybe_single().execute())
+    row = _query_one(client.table("share_tokens").select("*").eq("token", token))
     if not row:
         return None
     expires = _parse_utc_datetime(row.get("expires_at"))
@@ -263,7 +262,7 @@ def get_share_token(token: str) -> dict[str, Any] | None:
 
 def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
     client = get_supabase()
-    run = _single_row(client.table("match_runs").select("*").eq("id", match_run_id).maybe_single().execute())
+    run = _query_one(client.table("match_runs").select("*").eq("id", match_run_id))
     if not run:
         return None
 
@@ -297,12 +296,10 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
 
         filename = row.get("filename")
         if not filename and row.get("gallery_photo_id"):
-            gallery = _single_row(
+            gallery = _query_one(
                 client.table("gallery_photos")
                 .select("filename,mime_type")
                 .eq("id", row["gallery_photo_id"])
-                .maybe_single()
-                .execute()
             )
             if gallery:
                 filename = gallery.get("filename")
@@ -397,15 +394,12 @@ def add_event_member(event_id: str, user_id: str, role: str = "admin") -> None:
 
 def find_profile_by_email(email: str) -> dict[str, Any] | None:
     client = get_supabase()
-    result = client.table("profiles").select("*").eq("email", email).maybe_single().execute()
-    return _single_row(result)
+    return _query_one(client.table("profiles").select("*").eq("email", email))
 
 
 def fetch_profile_role(user_id: str) -> str | None:
     client = get_supabase()
-    row = _single_row(
-        client.table("profiles").select("global_role").eq("id", user_id).maybe_single().execute()
-    )
+    row = _query_one(client.table("profiles").select("global_role").eq("id", user_id))
     if row:
         return row.get("global_role")
     return None
