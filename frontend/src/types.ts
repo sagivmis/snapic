@@ -106,6 +106,16 @@ export interface MatchRunSummary {
   created_at?: string | null;
 }
 
+export interface UserEventSummary {
+  id: string;
+  slug: string;
+  title: string;
+  status: "draft" | "active" | "archived";
+  is_admin: boolean;
+  last_search_at?: string | null;
+  search_count: number;
+}
+
 export interface SignupRequestCreate {
   email: string;
   couple_names: string;

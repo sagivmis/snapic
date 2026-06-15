@@ -12,6 +12,7 @@ import type {
   PortraitQualityResponse,
   SignupRequest,
   SignupRequestCreate,
+  UserEventSummary,
 } from "../types";
 
 export interface AuthFetchOptions {
@@ -341,6 +342,14 @@ export async function fetchEventStats(eventId: string, token: string): Promise<E
     await parseError(response, "Could not load stats");
   }
   return response.json() as Promise<EventStats>;
+}
+
+export async function fetchMyEvents(token: string): Promise<UserEventSummary[]> {
+  const response = await authFetch("/api/events/mine", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load your events");
+  }
+  return response.json() as Promise<UserEventSummary[]>;
 }
 
 export async function fetchMyEventRuns(

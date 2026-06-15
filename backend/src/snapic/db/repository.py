@@ -505,3 +505,81 @@ def list_user_match_runs(
             }
         )
     return summaries
+
+
+def is_super_admin(user_id: str) -> bool:
+    return fetch_profile_role(user_id) == "super_admin"
+
+
+def list_user_events(user_id: str) -> list[dict[str, Any]]:
+    """Events the user administers or has searched, excluding archived."""
+    client = get_supabase()
+    runs = client.table("match_runs").select("event_id, created_at").eq("user_id", user_id).execute().data or []
+    members = client.table("event_members").select("event_id, role").eq("user_id", user_id).execute().data or []
+
+    search_stats: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        event_id = run["event_id"]
+        stats = search_stats.setdefault(event_id, {"count": 0, "last_at": None})
+        stats["count"] += 1
+        created_at = run.get("created_at")
+        if created_at and (stats["last_at"] is None or created_at > stats["last_at"]):
+            stats["last_at"] = created_at
+
+    admin_event_ids = {member["event_id"] for member in members}
+    event_ids = set(search_stats) | admin_event_ids
+
+    if is_super_admin(user_id):
+        all_events = (
+            client.table("events")
+            .select("*")
+            .neq("status", "archived")
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+        summaries: list[dict[str, Any]] = []
+        for event in all_events:
+            event_id = event["id"]
+            stats = search_stats.get(event_id, {"count": 0, "last_at": None})
+            summaries.append(
+                {
+                    "id": event_id,
+                    "slug": event["slug"],
+                    "title": event["title"],
+                    "status": event["status"],
+                    "is_admin": True,
+                    "last_search_at": stats["last_at"],
+                    "search_count": stats["count"],
+                }
+            )
+        return summaries
+
+    if not event_ids:
+        return []
+
+    events = client.table("events").select("*").in_("id", list(event_ids)).execute().data or []
+    summaries = []
+    for event in events:
+        if event.get("status") == "archived":
+            continue
+        event_id = event["id"]
+        stats = search_stats.get(event_id, {"count": 0, "last_at": None})
+        summaries.append(
+            {
+                "id": event_id,
+                "slug": event["slug"],
+                "title": event["title"],
+                "status": event["status"],
+                "is_admin": event_id in admin_event_ids,
+                "last_search_at": stats["last_at"],
+                "search_count": stats["count"],
+            }
+        )
+
+    summaries.sort(
+        key=lambda row: row.get("last_search_at") or "",
+        reverse=True,
+    )
+    return summaries

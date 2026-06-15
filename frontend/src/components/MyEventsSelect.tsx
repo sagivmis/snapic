@@ -1,61 +1,29 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchMyEvents } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
-import { supabase } from "../lib/supabase";
+import type { UserEventSummary } from "../types";
 import "../styles/MyEventsSelect.scss";
 
-interface UserEventOption {
-  id: string;
-  slug: string;
-  title: string;
-}
-
-async function loadUserEvents(userId: string, isSuperAdmin: boolean): Promise<UserEventOption[]> {
-  if (!supabase) {
-    return [];
+function formatEventLabel(event: UserEventSummary): string {
+  if (event.search_count > 0) {
+    return `${event.title} (${event.search_count} search${event.search_count === 1 ? "" : "es"})`;
   }
-
-  if (isSuperAdmin) {
-    const { data, error } = await supabase
-      .from("events")
-      .select("id, slug, title")
-      .order("created_at", { ascending: false });
-    if (error) {
-      throw error;
-    }
-    return data ?? [];
+  if (event.is_admin) {
+    return `${event.title} (admin)`;
   }
-
-  const { data, error } = await supabase
-    .from("event_members")
-    .select("events ( id, slug, title )")
-    .eq("user_id", userId);
-
-  if (error) {
-    throw error;
-  }
-
-  const events: UserEventOption[] = [];
-  for (const row of data ?? []) {
-    const event = row.events as UserEventOption | UserEventOption[] | null;
-    const resolved = Array.isArray(event) ? event[0] : event;
-    if (resolved?.slug) {
-      events.push(resolved);
-    }
-  }
-
-  return events.sort((a, b) => a.title.localeCompare(b.title));
+  return event.title;
 }
 
 export function MyEventsSelect() {
   const navigate = useNavigate();
-  const { session, isSuperAdmin } = useAuth();
-  const [events, setEvents] = useState<UserEventOption[]>([]);
+  const { session, getAccessToken } = useAuth();
+  const [events, setEvents] = useState<UserEventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session?.user?.id) {
+    if (!session) {
       setEvents([]);
       setLoading(false);
       return;
@@ -63,14 +31,21 @@ export function MyEventsSelect() {
 
     setLoading(true);
     setError(null);
-    void loadUserEvents(session.user.id, isSuperAdmin)
-      .then(setEvents)
-      .catch((err) => {
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error("Not signed in");
+        }
+        setEvents(await fetchMyEvents(token));
+      } catch (err) {
         setEvents([]);
         setError(err instanceof Error ? err.message : "Could not load events");
-      })
-      .finally(() => setLoading(false));
-  }, [session?.user?.id, isSuperAdmin]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [session, getAccessToken]);
 
   if (loading) {
     return (
@@ -95,16 +70,19 @@ export function MyEventsSelect() {
 
   return (
     <label className="my-events-select">
-      <span className="visually-hidden">Go to your event</span>
+      <span className="visually-hidden">Go to one of your events</span>
       <select
         className="my-events-select__control btn btn-primary"
         defaultValue=""
-        onChange={(event) => {
-          const slug = event.target.value;
-          if (slug) {
-            navigate(`/e/${slug}/manage`);
-            event.target.value = "";
+        onChange={(selectEvent) => {
+          const slug = selectEvent.target.value;
+          if (!slug) {
+            return;
           }
+          const event = events.find((item) => item.slug === slug);
+          const path = event?.is_admin ? `/e/${slug}/manage` : `/e/${slug}`;
+          navigate(path);
+          selectEvent.target.value = "";
         }}
       >
         <option value="" disabled>
@@ -112,7 +90,7 @@ export function MyEventsSelect() {
         </option>
         {events.map((event) => (
           <option key={event.id} value={event.slug}>
-            {event.title}
+            {formatEventLabel(event)}
           </option>
         ))}
       </select>

@@ -21,6 +21,7 @@ from snapic.api.schemas import (
     MatchRunSummary,
     MatchedPhoto,
     SkippedPhoto,
+    UserEventSummary,
 )
 from snapic.auth.jwt import AuthUser, get_anonymous_session_id, get_optional_user, get_required_user
 from snapic.db import is_supabase_configured
@@ -39,6 +40,7 @@ from snapic.db.repository import (
     is_event_admin,
     list_gallery_photos,
     list_gallery_sections,
+    list_user_events,
     list_user_match_runs,
     maybe_auto_archive_event,
     save_match_results,
@@ -98,6 +100,16 @@ async def get_event_by_slug(
         return _event_public(row)
 
     raise HTTPException(status_code=404, detail="Event not found")
+
+
+@router.get("/mine", response_model=list[UserEventSummary])
+async def list_my_events(
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> list[UserEventSummary]:
+    if not is_supabase_configured():
+        raise HTTPException(status_code=503, detail="Event service not configured")
+    rows = list_user_events(user.id)
+    return [UserEventSummary(**row) for row in rows]
 
 
 def _gallery_photo_response(row: dict[str, Any], *, include_signed_url: bool = False) -> GalleryPhotoResponse:

@@ -104,6 +104,16 @@ class MatchRunSummary(BaseModel):
     created_at: str | None = None
 
 
+class UserEventSummary(BaseModel):
+    id: str
+    slug: str
+    title: str
+    status: Literal["draft", "active", "archived"]
+    is_admin: bool = False
+    last_search_at: str | None = None
+    search_count: int = 0
+
+
 class EventStatsResponse(BaseModel):
     gallery_photo_count: int
     match_run_count: int
