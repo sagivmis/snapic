@@ -177,12 +177,12 @@ async def get_shared_results(share_id: str) -> SharedMatchResponse:
         if token_row:
             payload = load_match_response_from_run(token_row["match_run_id"])
             if payload:
-                return SharedMatchResponse(**payload, share_id=share_id)
+                return SharedMatchResponse(**{**payload, "share_id": share_id})
 
     stored = share_store.get(share_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="Shared results not found or expired")
-    return SharedMatchResponse(**stored.model_dump(), share_id=share_id)
+    return SharedMatchResponse(**{**stored.model_dump(), "share_id": share_id})
 
 
 @router.post("/match", response_model=MatchResponse)
