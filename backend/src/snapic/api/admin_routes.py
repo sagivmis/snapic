@@ -141,18 +141,23 @@ async def admin_review_signup(
             },
         )
     else:
-        slug = allocate_event_slug(_slugify(body.slug or target["couple_names"]))
-        title = body.title or f"{target['couple_names']} Wedding"
-        event = create_event(
-            {
-                "slug": slug,
-                "title": title,
-                "wedding_date": target.get("wedding_date"),
-                "status": "draft",
-                "branding": {"couple_names": target["couple_names"]},
-                "created_by": user.id,
-            }
-        )
+        if body.event_id:
+            event = fetch_event_by_id(body.event_id)
+            if not event:
+                raise HTTPException(status_code=404, detail="Event not found")
+        else:
+            slug = allocate_event_slug(_slugify(body.slug or target["couple_names"]))
+            title = body.title or f"{target['couple_names']} Wedding"
+            event = create_event(
+                {
+                    "slug": slug,
+                    "title": title,
+                    "wedding_date": target.get("wedding_date"),
+                    "status": "draft",
+                    "branding": {"couple_names": target["couple_names"]},
+                    "created_by": user.id,
+                }
+            )
         profile = find_profile_by_email(target["email"])
         if profile:
             add_event_member(event["id"], profile["id"], "admin")

@@ -137,6 +137,44 @@ def find_gallery_photo_by_hash(event_id: str, content_hash: str) -> dict[str, An
         return None
 
 
+def fetch_gallery_photo_by_id(photo_id: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    return _query_one(client.table("gallery_photos").select("*").eq("id", photo_id))
+
+
+def update_gallery_face_index(
+    photo_id: str,
+    face_embeddings: list[list[float]] | None,
+    status: str,
+) -> None:
+    client = get_supabase()
+    payload: dict[str, Any] = {"face_index_status": status}
+    if face_embeddings is not None:
+        payload["face_embeddings"] = face_embeddings
+    try:
+        client.table("gallery_photos").update(payload).eq("id", photo_id).execute()
+    except Exception:
+        client.table("gallery_photos").update({"face_index_status": status}).eq("id", photo_id).execute()
+
+
+def index_gallery_photo_faces(photo_id: str, storage_path: str) -> str:
+    from snapic.face.images import decode_image_bytes
+    from snapic.face.indexing import detect_face_embeddings, embeddings_to_json
+
+    try:
+        data = download_storage_bytes(storage_path)
+        image_bgr = decode_image_bytes(data)
+        embeddings = detect_face_embeddings(image_bgr)
+        if not embeddings:
+            update_gallery_face_index(photo_id, [], "no_face")
+            return "no_face"
+        update_gallery_face_index(photo_id, embeddings_to_json(embeddings), "indexed")
+        return "indexed"
+    except Exception:
+        update_gallery_face_index(photo_id, None, "failed")
+        return "failed"
+
+
 def upload_gallery_photo(
     event_id: str,
     photo_id: str,
@@ -170,6 +208,7 @@ def upload_gallery_photo(
         "uploaded_by": uploaded_by,
         "content_hash": content_hash,
         "section": section,
+        "face_index_status": "pending",
     }
     try:
         result = client.table("gallery_photos").insert(row).execute()
@@ -177,11 +216,12 @@ def upload_gallery_photo(
         if content_hash:
             row.pop("content_hash", None)
         else:
-            row.pop("section", None)
+            row.pop("face_index_status", None)
         try:
             result = client.table("gallery_photos").insert(row).execute()
         except Exception:
             row.pop("section", None)
+            row.pop("face_index_status", None)
             result = client.table("gallery_photos").insert(row).execute()
     return (result.data or [row])[0]
 

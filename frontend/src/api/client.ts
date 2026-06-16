@@ -265,7 +265,7 @@ export async function reviewSignupRequest(
   requestId: string,
   action: "approve" | "reject",
   token: string,
-  extra?: { slug?: string; title?: string },
+  extra?: { slug?: string; title?: string; event_id?: string },
 ): Promise<SignupRequest> {
   const response = await authFetch(
     `/api/admin/signup-requests/${requestId}/review`,
@@ -280,6 +280,18 @@ export async function reviewSignupRequest(
     await parseError(response, "Review failed");
   }
   return response.json() as Promise<SignupRequest>;
+}
+
+export async function reindexEventGallery(eventId: string, token: string): Promise<{ processed: number }> {
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery/reindex`,
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not index album faces");
+  }
+  return response.json() as Promise<{ processed: number }>;
 }
 
 export function buildShareUrl(shareId: string): string {

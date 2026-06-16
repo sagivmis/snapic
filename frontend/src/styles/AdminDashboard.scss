@@ -126,6 +126,29 @@
   }
 }
 
+.admin__approve-plan {
+  flex: 1 1 100%;
+  margin-top: 0.75rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $taupe-500;
+  }
+
+  select {
+    width: 100%;
+    max-width: 28rem;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    background: $white;
+  }
+}
+
 .admin__actions {
   display: flex;
   flex-wrap: wrap;

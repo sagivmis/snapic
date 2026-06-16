@@ -12,6 +12,8 @@ import { useAuth } from "../auth/AuthProvider";
 import type { EventPublic, SignupRequest } from "../types";
 import "../styles/AdminDashboard.scss";
 
+const CREATE_NEW_EVENT = "";
+
 export function AdminDashboardPage() {
   const { getAccessToken } = useAuth();
   const [stats, setStats] = useState({ events_count: 0, pending_requests: 0, total_gallery_photos: 0, total_match_runs: 0 });
@@ -25,6 +27,7 @@ export function AdminDashboardPage() {
   const [title, setTitle] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
+  const [approvePlan, setApprovePlan] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,7 +95,17 @@ export function AdminDashboardPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      await reviewSignupRequest(requestId, action, token);
+      const linkedEventId = approvePlan[requestId];
+      const extra =
+        action === "approve" && linkedEventId
+          ? { event_id: linkedEventId }
+          : undefined;
+      await reviewSignupRequest(requestId, action, token, extra);
+      setApprovePlan((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
@@ -183,6 +196,27 @@ export function AdminDashboardPage() {
                     <strong>{req.couple_names}</strong>
                     <span>{req.email}</span>
                     {req.message && <p>{req.message}</p>}
+                  </div>
+                  <div className="admin__approve-plan">
+                    <label htmlFor={`approve-event-${req.id}`}>On approve</label>
+                    <select
+                      id={`approve-event-${req.id}`}
+                      value={approvePlan[req.id] ?? CREATE_NEW_EVENT}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setApprovePlan((prev) => ({
+                          ...prev,
+                          [req.id]: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value={CREATE_NEW_EVENT}>Create new event</option>
+                      {events.map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          Link to {ev.title} (/e/{ev.slug})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="admin__actions">
                     <button

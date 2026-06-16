@@ -35,8 +35,10 @@ from snapic.db.repository import (
     download_storage_bytes,
     fetch_event_by_id,
     fetch_event_by_slug,
+    fetch_gallery_photo_by_id,
     find_gallery_photo_by_hash,
     get_event_stats,
+    index_gallery_photo_faces,
     is_event_admin,
     list_gallery_photos,
     list_gallery_sections,
@@ -45,12 +47,19 @@ from snapic.db.repository import (
     maybe_auto_archive_event,
     save_match_results,
     update_event,
+    update_gallery_face_index,
     update_gallery_photo_section,
     upload_gallery_photo,
     upload_preview_bytes,
 )
 from snapic.face.images import decode_image_bytes, encode_thumbnail_base64
-from snapic.face.pipeline import NoFaceInSelfieError, evaluate_gallery_image, extract_reference_embedding
+from snapic.face.gallery_match import (
+    evaluate_photo_for_match,
+    evaluate_photo_match,
+    load_photo_face_embeddings,
+    serialize_face_embeddings_for_db,
+)
+from snapic.face.pipeline import NoFaceInSelfieError, extract_reference_embedding
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -255,7 +264,29 @@ async def upload_event_gallery_photo(
         content_hash,
         section.strip() or "general",
     )
-    return _gallery_photo_response(row, include_signed_url=True)
+    try:
+        index_gallery_photo_faces(photo_id, row["storage_path"])
+    except Exception:
+        pass
+    refreshed = fetch_gallery_photo_by_id(photo_id) or row
+    return _gallery_photo_response(refreshed, include_signed_url=True)
+
+
+@router.post("/{event_id}/gallery/reindex")
+async def reindex_event_gallery_faces(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> dict[str, int]:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    photos = list_gallery_photos(event_id)
+    processed = 0
+    for photo in photos:
+        if photo.get("face_index_status") == "indexed":
+            continue
+        index_gallery_photo_faces(photo["id"], photo["storage_path"])
+        processed += 1
+    return {"processed": processed}
 
 
 @router.delete("/{event_id}/gallery/{photo_id}")
@@ -369,9 +400,55 @@ async def match_event_gallery(
 
     for index, photo in enumerate(gallery):
         filename = photo.get("filename") or f"photo_{index}"
+        precomputed = load_photo_face_embeddings(photo)
+
         try:
-            image_bytes = download_storage_bytes(photo["storage_path"])
-            image_bgr = decode_image_bytes(image_bytes)
+            if precomputed is not None:
+                evaluation = evaluate_photo_match(references, precomputed, effective_threshold, couple_mode)
+                if not evaluation.had_faces:
+                    skipped.append(
+                        SkippedPhoto(source="upload", index=index, reason="no_face_detected", filename=filename)
+                    )
+                    db_skipped.append(
+                        {
+                            "match_run_id": "",
+                            "gallery_photo_id": photo["id"],
+                            "reason": "no_face_detected",
+                            "filename": filename,
+                            "sort_index": index,
+                        }
+                    )
+                    continue
+                if evaluation.score is None:
+                    continue
+                image_bytes = download_storage_bytes(photo["storage_path"])
+            else:
+                image_bytes = download_storage_bytes(photo["storage_path"])
+                image_bgr = decode_image_bytes(image_bytes)
+                evaluation, embeddings, index_status = evaluate_photo_for_match(
+                    references, image_bgr, effective_threshold, couple_mode
+                )
+                update_gallery_face_index(
+                    photo["id"],
+                    serialize_face_embeddings_for_db(embeddings) if index_status == "indexed" else [],
+                    index_status,
+                )
+                if not evaluation.had_faces:
+                    skipped.append(
+                        SkippedPhoto(source="upload", index=index, reason="no_face_detected", filename=filename)
+                    )
+                    db_skipped.append(
+                        {
+                            "match_run_id": "",
+                            "gallery_photo_id": photo["id"],
+                            "reason": "no_face_detected",
+                            "filename": filename,
+                            "sort_index": index,
+                        }
+                    )
+                    continue
+                if evaluation.score is None:
+                    continue
         except Exception:
             skipped.append(
                 SkippedPhoto(source="upload", index=index, reason="decode_failed", filename=filename)
@@ -381,23 +458,7 @@ async def match_event_gallery(
             )
             continue
 
-        evaluation = evaluate_gallery_image(references, image_bgr, effective_threshold, couple_mode)
-        if not evaluation.had_faces:
-            skipped.append(
-                SkippedPhoto(source="upload", index=index, reason="no_face_detected", filename=filename)
-            )
-            db_skipped.append(
-                {
-                    "match_run_id": "",
-                    "gallery_photo_id": photo["id"],
-                    "reason": "no_face_detected",
-                    "filename": filename,
-                    "sort_index": index,
-                }
-            )
-            continue
-        if evaluation.score is None:
-            continue
+        image_bgr = decode_image_bytes(image_bytes)
 
         preview_b64 = encode_thumbnail_base64(image_bgr)
         preview_bytes = base64.b64decode(preview_b64)

@@ -57,6 +57,7 @@ export function SharePage() {
           onStartSearch={() => undefined}
           canMatch={false}
           readOnly
+          guestMode
         />
         {error && <p className="error-banner">{error}</p>}
       </div>

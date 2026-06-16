@@ -276,6 +276,7 @@ export function EventGuestPage() {
                 loading={loading}
                 onStartSearch={handleMatch}
                 canMatch={hasPortrait}
+                guestMode
               />
             )}
 

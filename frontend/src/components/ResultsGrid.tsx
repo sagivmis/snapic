@@ -19,6 +19,7 @@ interface ResultsGridProps {
   onStartSearch: () => void;
   canMatch: boolean;
   readOnly?: boolean;
+  guestMode?: boolean;
 }
 
 const COUPLE_FILTERS: { id: CoupleFilter; label: string }[] = [
@@ -48,6 +49,7 @@ export function ResultsGrid({
   onStartSearch,
   canMatch,
   readOnly = false,
+  guestMode = false,
 }: ResultsGridProps) {
   const [lightboxPhoto, setLightboxPhoto] = useState<MatchedPhoto | null>(null);
   const [copied, setCopied] = useState(false);
@@ -135,21 +137,28 @@ export function ResultsGrid({
           </p>
 
           {result.matched.length > 0 && (
-            <div className="results__actions">
+            <div className={`results__actions${guestMode ? " results__actions--guest" : ""}`}>
               <button
                 type="button"
                 onClick={async () => {
                   setDownloading(true);
                   try {
-                    await handleDownloadZip(result.matched, "snapic-wedding-photos");
+                    await handleDownloadZip(
+                      result.matched,
+                      guestMode ? "my-wedding-photos" : "snapic-wedding-photos",
+                    );
                   } finally {
                     setDownloading(false);
                   }
                 }}
                 disabled={downloading}
-                className="btn-primary"
+                className={guestMode ? "btn-primary results__download-guest" : "btn-primary"}
               >
-                {downloading ? "Preparing ZIP..." : "Download all as ZIP"}
+                {downloading
+                  ? "Preparing download…"
+                  : guestMode
+                    ? "Download my photos"
+                    : "Download all as ZIP"}
               </button>
               {togetherCount > 0 && (
                 <button

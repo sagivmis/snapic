@@ -9,6 +9,7 @@ import {
   fetchEventGallerySections,
   fetchEventStats,
   inviteEventMember,
+  reindexEventGallery,
   updateEvent,
   updateGalleryPhotoSection,
 } from "../api/client";
@@ -219,6 +220,27 @@ export function EventManagePage() {
     }
   }
 
+  async function handleReindexFaces() {
+    if (!event) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const result = await reindexEventGallery(event.id, token);
+      setSuccess(`Indexed faces in ${result.processed} photo${result.processed === 1 ? "" : "s"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Indexing failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDownloadZip() {
     if (!event) {
       return;
@@ -336,6 +358,14 @@ export function EventManagePage() {
             <h2>Wedding album</h2>
             <div className="event-manage__section-actions">
               <p className="event-manage__hint">{photos.length} photos in the album</p>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={busy || photos.length === 0}
+                onClick={() => void handleReindexFaces()}
+              >
+                Index faces
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost"

@@ -143,6 +143,7 @@ class SignupReviewRequest(BaseModel):
     action: Literal["approve", "reject"]
     slug: str | None = None
     title: str | None = None
+    event_id: str | None = None
 
 
 class AdminStatsResponse(BaseModel):
