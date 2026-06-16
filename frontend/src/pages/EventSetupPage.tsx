@@ -1,15 +1,16 @@
-import { FormEvent, useCallback, useEffect, useState, type CSSProperties } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   fetchEventBySlug,
   fetchEventSetupStatus,
   inviteEventMember,
+  reindexEventGallery,
   updateEvent,
 } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, EventSetupStatus } from "../types";
-import { parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
+import { getNextSetupAction, parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
 import "../styles/EventSetup.scss";
 
 const STEP_LABELS: Record<SetupStep, string> = {
@@ -47,6 +48,11 @@ export function EventSetupPage() {
 
   const stepIndex = SETUP_STEPS.indexOf(step);
   const manageHref = `/e/${slug}/manage?from=setup`;
+  const uploadHref = `${manageHref}&tab=album`;
+  const nextAction = useMemo(
+    () => (setupStatus ? getNextSetupAction(setupStatus) : null),
+    [setupStatus],
+  );
 
   const refreshSetupStatus = useCallback(async () => {
     if (!event) {
@@ -191,13 +197,13 @@ export function EventSetupPage() {
           branding: buildBrandingPatch(event, {
             couple_names: coupleNames,
             accent_color: accentColor,
-            onboarding_step: "invite",
+            onboarding_step: "ready",
           }),
         },
         token,
       );
       setEvent(updated);
-      setStep("invite");
+      setStep("ready");
       await refreshSetupStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save branding");
@@ -223,6 +229,50 @@ export function EventSetupPage() {
       setInviteSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send invite");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleIndexFaces() {
+    if (!event) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const result = await reindexEventGallery(event.id, token);
+      await refreshSetupStatus();
+      if (result.processed === 0) {
+        setError("No photos needed indexing.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not index faces");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoLive() {
+    if (!event) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const updated = await updateEvent(event.id, { status: "active" }, token);
+      setEvent(updated);
+      await refreshSetupStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not activate event");
     } finally {
       setBusy(false);
     }
@@ -434,8 +484,7 @@ export function EventSetupPage() {
             <section className="event-setup__section">
               <h2>Almost there</h2>
               <p className="event-setup__lead">
-                Upload your wedding photos from the manage dashboard, index faces, then set your
-                event to Active when you&apos;re ready for guests.
+                Complete each step below to get your gallery ready for wedding guests.
               </p>
 
               <ul className="event-setup__checklist">
@@ -469,21 +518,54 @@ export function EventSetupPage() {
                 </li>
               </ul>
 
-              <div className="event-setup__actions event-setup__actions--stack">
-                <Link to={manageHref} className="btn btn-secondary">
-                  Open album dashboard
-                </Link>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={busy}
-                  onClick={() => void handleFinishSetup()}
-                >
-                  {busy ? "Finishing…" : "Finish setup"}
-                </button>
-              </div>
+              {nextAction && (
+                <div className="event-setup__actions event-setup__actions--stack">
+                  {nextAction.action === "upload" && (
+                    <Link to={uploadHref} className="btn btn-primary">
+                      {nextAction.label}
+                    </Link>
+                  )}
+                  {nextAction.action === "index" && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={busy}
+                      onClick={() => void handleIndexFaces()}
+                    >
+                      {busy ? nextAction.busyLabel : nextAction.label}
+                    </button>
+                  )}
+                  {nextAction.action === "activate" && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={busy}
+                      onClick={() => void handleGoLive()}
+                    >
+                      {busy ? nextAction.busyLabel : nextAction.label}
+                    </button>
+                  )}
+                  {nextAction.action === "complete" && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={busy}
+                      onClick={() => void handleFinishSetup()}
+                    >
+                      {busy ? nextAction.busyLabel : nextAction.label}
+                    </button>
+                  )}
+                  {nextAction.action !== "complete" && (
+                    <button type="button" className="btn btn-ghost" onClick={() => goToStep("invite")}>
+                      Invite your partner
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="event-setup__hint">
-                Return here anytime from your dashboard — we&apos;ll pick up where you left off.
+                {nextAction?.action === "complete"
+                  ? "Your gallery is ready for guests. Finish setup to hide this wizard."
+                  : "Return here after each step — the next action will update automatically."}
               </p>
             </section>
           )}

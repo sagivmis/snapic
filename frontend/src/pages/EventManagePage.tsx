@@ -124,6 +124,14 @@ export function EventManagePage() {
   }, [load]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab === "album" || tab === "settings") {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
     if (loading || !event || !isAdmin || event.onboarding_completed_at || event.status !== "draft") {
       return;
     }
