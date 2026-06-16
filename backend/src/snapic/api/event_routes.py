@@ -57,7 +57,7 @@ from snapic.face.gallery_match import (
     evaluate_photo_for_match,
     evaluate_photo_match,
     load_photo_face_embeddings,
-    serialize_face_embeddings_for_db,
+    serialize_embeddings_for_db,
 )
 from snapic.face.pipeline import NoFaceInSelfieError, extract_reference_embedding
 
@@ -430,7 +430,7 @@ async def match_event_gallery(
                 )
                 update_gallery_face_index(
                     photo["id"],
-                    serialize_face_embeddings_for_db(embeddings) if index_status == "indexed" else [],
+                    serialize_embeddings_for_db(embeddings) if index_status == "indexed" else [],
                     index_status,
                 )
                 if not evaluation.had_faces:
