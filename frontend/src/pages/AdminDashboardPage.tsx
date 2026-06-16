@@ -13,6 +13,12 @@ import {
   updateAdminEvent,
 } from "../api/client";
 import { AdminAttentionStrip, type AttentionFocus } from "../components/AdminAttentionStrip";
+import {
+  AdminAttentionSkeleton,
+  AdminEventsTableSkeleton,
+  AdminSignupRequestsSkeleton,
+  AdminStatsSkeleton,
+} from "../components/AdminDashboardSkeletons";
 import { AdminEventsTable, type EventAttentionFilter } from "../components/AdminEventsTable";
 import { AdminSignupRequests } from "../components/AdminSignupRequests";
 import { useAuth } from "../auth/AuthProvider";
@@ -25,7 +31,10 @@ export function AdminDashboardPage() {
   const [attention, setAttention] = useState<AdminAttention | null>(null);
   const [events, setEvents] = useState<AdminEventSummary[]>([]);
   const [requests, setRequests] = useState<SignupRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [attentionLoading, setAttentionLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,35 +47,77 @@ export function AdminDashboardPage() {
 
   const [signupTab, setSignupTab] = useState<"pending" | "approved" | "rejected">("pending");
   const [attentionFilter, setAttentionFilter] = useState<EventAttentionFilter>(null);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options?: { showSkeletons?: boolean; clearSuccess?: boolean }) => {
+    const showSkeletons = options?.showSkeletons ?? false;
+    if (options?.clearSuccess !== false) {
+      setSuccess(null);
+    }
     setError(null);
-    setSuccess(null);
+    if (showSkeletons) {
+      setStatsLoading(true);
+      setAttentionLoading(true);
+      setEventsLoading(true);
+      setRequestsLoading(true);
+    }
+
     try {
       const token = await getAccessToken();
       if (!token) {
         throw new Error("Not signed in");
       }
-      const [statsRow, attentionRow, eventRows, requestRows] = await Promise.all([
-        fetchAdminStats(token),
-        fetchAdminAttention(token),
-        fetchAdminEvents(token),
-        fetchSignupRequests(token),
-      ]);
-      setStats(statsRow);
-      setAttention(attentionRow);
-      setEvents(eventRows);
-      setRequests(requestRows);
+
+      let failures = 0;
+
+      const statsTask = fetchAdminStats(token)
+        .then((statsRow) => setStats(statsRow))
+        .catch(() => {
+          failures += 1;
+        })
+        .finally(() => setStatsLoading(false));
+
+      const attentionTask = fetchAdminAttention(token)
+        .then((attentionRow) => setAttention(attentionRow))
+        .catch(() => {
+          failures += 1;
+        })
+        .finally(() => setAttentionLoading(false));
+
+      const eventsTask = fetchAdminEvents(token)
+        .then((eventRows) => setEvents(eventRows))
+        .catch(() => {
+          failures += 1;
+        })
+        .finally(() => setEventsLoading(false));
+
+      const requestsTask = fetchSignupRequests(token)
+        .then((requestRows) => setRequests(requestRows))
+        .catch(() => {
+          failures += 1;
+        })
+        .finally(() => setRequestsLoading(false));
+
+      await Promise.all([statsTask, attentionTask, eventsTask, requestsTask]);
+
+      if (failures > 0) {
+        setError(
+          failures === 4
+            ? "Could not load dashboard"
+            : "Some dashboard sections failed to load. Try refreshing the page.",
+        );
+      }
     } catch (err) {
+      setStatsLoading(false);
+      setAttentionLoading(false);
+      setEventsLoading(false);
+      setRequestsLoading(false);
       setError(err instanceof Error ? err.message : "Could not load dashboard");
-    } finally {
-      setLoading(false);
     }
   }, [getAccessToken]);
 
   useEffect(() => {
-    void load();
+    void load({ showSkeletons: true, clearSuccess: false });
   }, [load]);
 
   async function handleCreateEvent(eventForm: FormEvent) {
@@ -211,7 +262,7 @@ export function AdminDashboardPage() {
         throw new Error("Not signed in");
       }
       await deleteAdminEvent(eventId, token);
-      await load();
+      await load({ clearSuccess: false });
       setSuccess(`Deleted ${event?.title ?? "event"}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete event");
@@ -232,14 +283,6 @@ export function AdminDashboardPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="admin admin--loading">
-        <span className="spinner spinner-lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="admin">
       <header className="admin__header">
@@ -252,77 +295,114 @@ export function AdminDashboardPage() {
         </Link>
       </header>
 
-      <section className="admin__stats">
-        <div className="admin__stat">
-          <span className="admin__stat-value">{stats.events_count}</span>
-          <span>Events</span>
-        </div>
-        <div className="admin__stat">
-          <span className="admin__stat-value">{stats.pending_requests}</span>
-          <span>Pending requests</span>
-        </div>
-        <div className="admin__stat">
-          <span className="admin__stat-value">{stats.total_gallery_photos}</span>
-          <span>Gallery photos</span>
-        </div>
-        <div className="admin__stat">
-          <span className="admin__stat-value">{stats.total_match_runs}</span>
-          <span>Match runs</span>
+      {statsLoading ? (
+        <AdminStatsSkeleton />
+      ) : (
+        <section className="admin__stats" aria-label="Dashboard stats">
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.events_count}</span>
+            <span>Events</span>
+          </div>
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.pending_requests}</span>
+            <span>Pending requests</span>
+          </div>
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.total_gallery_photos}</span>
+            <span>Gallery photos</span>
+          </div>
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.total_match_runs}</span>
+            <span>Match runs</span>
+          </div>
+        </section>
+      )}
+
+      {attentionLoading ? (
+        <AdminAttentionSkeleton />
+      ) : (
+        attention && <AdminAttentionStrip attention={attention} onFocus={handleAttentionFocus} />
+      )}
+
+      <section
+        className={`admin__section admin__collapsible${createEventOpen ? " admin__collapsible--open" : ""}`}
+      >
+        <button
+          type="button"
+          className="admin__collapsible-summary"
+          aria-expanded={createEventOpen}
+          aria-controls="admin-create-event-panel"
+          onClick={() => setCreateEventOpen((open) => !open)}
+        >
+          <h2>Create event</h2>
+        </button>
+        <div
+          id="admin-create-event-panel"
+          className="admin__collapsible-panel"
+          aria-hidden={!createEventOpen}
+          {...(!createEventOpen ? { inert: "" as const } : {})}
+        >
+          <div className="admin__collapsible-inner">
+            <form className="admin__collapsible-body" onSubmit={handleCreateEvent}>
+              <label htmlFor="slug">Slug</label>
+              <input id="slug" required value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="smith-wedding-2026" />
+
+              <label htmlFor="title">Title</label>
+              <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+
+              <label htmlFor="admin-email">Admin email (optional)</label>
+              <input
+                id="admin-email"
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+              />
+
+              <label htmlFor="wedding-date">Wedding date</label>
+              <input
+                id="wedding-date"
+                type="date"
+                value={weddingDate}
+                onChange={(e) => setWeddingDate(e.target.value)}
+              />
+
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                Create event
+              </button>
+            </form>
+          </div>
         </div>
       </section>
 
-      {attention && <AdminAttentionStrip attention={attention} onFocus={handleAttentionFocus} />}
-
-      <form className="admin__section" onSubmit={handleCreateEvent}>
-        <h2>Create event</h2>
-        <label htmlFor="slug">Slug</label>
-        <input id="slug" required value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="smith-wedding-2026" />
-
-        <label htmlFor="title">Title</label>
-        <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-
-        <label htmlFor="admin-email">Admin email (optional)</label>
-        <input
-          id="admin-email"
-          type="email"
-          value={adminEmail}
-          onChange={(e) => setAdminEmail(e.target.value)}
+      {requestsLoading ? (
+        <AdminSignupRequestsSkeleton />
+      ) : (
+        <AdminSignupRequests
+          requests={requests}
+          events={events}
+          busy={busy}
+          initialTab={signupTab}
+          onReview={handleSignupReview}
         />
-
-        <label htmlFor="wedding-date">Wedding date</label>
-        <input
-          id="wedding-date"
-          type="date"
-          value={weddingDate}
-          onChange={(e) => setWeddingDate(e.target.value)}
-        />
-
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Create event
-        </button>
-      </form>
-
-      <AdminSignupRequests
-        requests={requests}
-        events={events}
-        busy={busy}
-        initialTab={signupTab}
-        onReview={handleSignupReview}
-      />
+      )}
 
       <section className="admin__section">
         <h2>Events</h2>
-        <AdminEventsTable
-          events={events}
-          busy={busy}
-          indexingEventId={indexingEventId}
-          attentionFilter={attentionFilter}
-          onClearAttentionFilter={() => setAttentionFilter(null)}
-          onStatusChange={handleStatusChange}
-          onIndexFaces={handleIndexFaces}
-          onInviteAdmin={handleInviteAdmin}
-          onDeleteEvent={handleDeleteEvent}
-        />
+        {eventsLoading ? (
+          <AdminEventsTableSkeleton />
+        ) : (
+          <AdminEventsTable
+            events={events}
+            busy={busy}
+            indexingEventId={indexingEventId}
+            attentionFilter={attentionFilter}
+            onClearAttentionFilter={() => setAttentionFilter(null)}
+            onStatusChange={handleStatusChange}
+            onIndexFaces={handleIndexFaces}
+            onInviteAdmin={handleInviteAdmin}
+            onDeleteEvent={handleDeleteEvent}
+          />
+        )}
       </section>
 
       {success && <p className="success-banner">{success}</p>}
