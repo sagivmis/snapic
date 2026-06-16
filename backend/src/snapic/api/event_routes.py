@@ -160,6 +160,23 @@ async def list_event_gallery_sections(
     return list_gallery_sections(event_id)
 
 
+@router.post("/{event_id}/gallery/index-faces")
+async def reindex_event_gallery_faces(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> dict[str, int]:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    photos = list_gallery_photos(event_id)
+    processed = 0
+    for photo in photos:
+        if photo.get("face_index_status") == "indexed":
+            continue
+        index_gallery_photo_faces(photo["id"], photo["storage_path"])
+        processed += 1
+    return {"processed": processed}
+
+
 @router.patch("/{event_id}/gallery/{photo_id}/section", response_model=GalleryPhotoResponse)
 async def set_gallery_photo_section(
     event_id: str,
@@ -270,23 +287,6 @@ async def upload_event_gallery_photo(
         pass
     refreshed = fetch_gallery_photo_by_id(photo_id) or row
     return _gallery_photo_response(refreshed, include_signed_url=True)
-
-
-@router.post("/{event_id}/gallery/reindex")
-async def reindex_event_gallery_faces(
-    event_id: str,
-    user: Annotated[AuthUser, Depends(get_required_user)],
-) -> dict[str, int]:
-    if not is_event_admin(user.id, event_id):
-        raise HTTPException(status_code=403, detail="Event admin access required")
-    photos = list_gallery_photos(event_id)
-    processed = 0
-    for photo in photos:
-        if photo.get("face_index_status") == "indexed":
-            continue
-        index_gallery_photo_faces(photo["id"], photo["storage_path"])
-        processed += 1
-    return {"processed": processed}
 
 
 @router.delete("/{event_id}/gallery/{photo_id}")

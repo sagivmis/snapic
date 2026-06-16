@@ -284,7 +284,7 @@ export async function reviewSignupRequest(
 
 export async function reindexEventGallery(eventId: string, token: string): Promise<{ processed: number }> {
   const response = await authFetch(
-    `/api/events/${eventId}/gallery/reindex`,
+    `/api/events/${eventId}/gallery/index-faces`,
     { method: "POST" },
     { token },
   );
