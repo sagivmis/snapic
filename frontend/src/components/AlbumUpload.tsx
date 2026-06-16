@@ -29,28 +29,41 @@ const INITIAL_PROGRESS: GalleryUploadProgress = {
   processed: 0,
   uploaded: 0,
   failed: 0,
-  skippedDuplicates: 0,
+  skippedBeforeUpload: 0,
+  skippedDuringUpload: 0,
 };
 
 function formatUploadStatus(progress: GalleryUploadProgress): string {
-  const { processed, fileTotal, uploaded, skippedDuplicates, failed, activeCount } = progress;
+  const processed = Math.min(
+    progress.processed ?? progress.uploaded + progress.failed + progress.skippedDuringUpload,
+    progress.fileTotal,
+  );
+  const { fileTotal, uploaded, skippedBeforeUpload, skippedDuringUpload, failed, activeCount } =
+    progress;
+  const totalSkipped = skippedBeforeUpload + skippedDuringUpload;
   const base = `${processed}/${fileTotal} processed`;
 
+  const detailParts: string[] = [];
+  if (uploaded > 0) {
+    detailParts.push(`${uploaded} uploaded`);
+  }
+  if (totalSkipped > 0) {
+    detailParts.push(`${totalSkipped} skipped`);
+  }
+  if (failed > 0) {
+    detailParts.push(`${failed} failed`);
+  }
+  const detail = detailParts.length > 0 ? ` · ${detailParts.join(", ")}` : "";
+
+  if (activeCount > 0 && processed >= fileTotal) {
+    return `Finishing last ${activeCount} photo${activeCount === 1 ? "" : "s"}…`;
+  }
+
   if (activeCount > 1) {
-    const detail =
-      skippedDuplicates > 0 || failed > 0
-        ? ` · ${uploaded} uploaded${skippedDuplicates > 0 ? `, ${skippedDuplicates} skipped` : ""}${failed > 0 ? `, ${failed} failed` : ""}`
-        : uploaded !== processed
-          ? ` · ${uploaded} uploaded`
-          : "";
     return `Uploading ${activeCount} at once — ${base}${detail}`;
   }
 
-  if (skippedDuplicates > 0 || failed > 0) {
-    return `${base} · ${uploaded} uploaded${skippedDuplicates > 0 ? `, ${skippedDuplicates} skipped` : ""}${failed > 0 ? `, ${failed} failed` : ""}`;
-  }
-
-  return `${uploaded}/${fileTotal} uploaded`;
+  return `${base}${detail}`;
 }
 
 export function AlbumUpload({
@@ -132,7 +145,7 @@ export function AlbumUpload({
     setProgress({
       ...INITIAL_PROGRESS,
       fileTotal: prepared.toUpload.length,
-      skippedDuplicates: prepared.skippedDuplicates,
+      skippedBeforeUpload: prepared.skippedDuplicates,
     });
 
     const batchPhotos = [...photos];

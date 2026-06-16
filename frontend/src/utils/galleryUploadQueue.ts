@@ -8,18 +8,23 @@ export interface GalleryUploadProgress {
   activeCount: number;
   currentFileNames: string[];
   overallProgress: number;
-  /** Files fully handled (uploaded + failed + skipped). Matches the progress bar. */
+  /** Queue items fully handled (uploaded + failed + skipped on server). Max = fileTotal. */
   processed: number;
   uploaded: number;
   failed: number;
-  skippedDuplicates: number;
+  skippedBeforeUpload: number;
+  skippedDuringUpload: number;
 }
 
 export interface GalleryUploadCallbacks {
   getToken: () => Promise<string | null>;
   onProgress: (progress: GalleryUploadProgress) => void;
   onPhotoUploaded: (photo: GalleryPhoto) => void;
-  onComplete: (summary: { uploaded: number; failed: number; skippedDuplicates: number }) => void;
+  onComplete: (summary: {
+    uploaded: number;
+    failed: number;
+    skippedDuplicates: number;
+  }) => void;
   onError: (message: string) => void;
 }
 
@@ -39,7 +44,7 @@ export class GalleryUploadQueue {
 
   private failed = 0;
 
-  private skippedDuplicates: number;
+  private skippedDuringUpload = 0;
 
   private totalFiles: number;
 
@@ -57,11 +62,10 @@ export class GalleryUploadQueue {
     private eventId: string,
     private section: string | undefined,
     totalFiles: number,
-    initialSkipped: number,
+    private skippedBeforeUpload: number,
     private callbacks: GalleryUploadCallbacks,
   ) {
     this.totalFiles = totalFiles;
-    this.skippedDuplicates = initialSkipped;
   }
 
   enqueue(prepared: PreparedUpload[]): void {
@@ -77,8 +81,15 @@ export class GalleryUploadQueue {
     await this.acquireWakeLock();
     this.emitProgress("uploading");
 
-    const workerCount = Math.min(concurrency, this.pending.length);
+    const workerCount = Math.min(concurrency, Math.max(this.pending.length, 1));
     await Promise.all(Array.from({ length: workerCount }, () => this.workerLoop()));
+
+    // Re-queued retry items may remain after workers exit — drain the queue.
+    if (!this.cancelled && this.pending.length > 0) {
+      this.processing = false;
+      await this.start(concurrency);
+      return;
+    }
 
     this.processing = false;
     await this.releaseWakeLock();
@@ -87,12 +98,11 @@ export class GalleryUploadQueue {
       this.callbacks.onComplete({
         uploaded: this.uploaded,
         failed: this.failed,
-        skippedDuplicates: this.skippedDuplicates,
+        skippedDuplicates: this.skippedBeforeUpload + this.skippedDuringUpload,
       });
     }
   }
 
-  /** Call when the tab becomes visible again — resumes workers if uploads stalled. */
   resumeIfNeeded(): void {
     if (this.cancelled || (this.pending.length === 0 && this.running === 0)) {
       return;
@@ -148,7 +158,7 @@ export class GalleryUploadQueue {
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         if (message.toLowerCase().includes("already in the album")) {
-          this.skippedDuplicates += 1;
+          this.skippedDuringUpload += 1;
         } else if (item.attempts + 1 < MAX_ATTEMPTS && !this.cancelled) {
           item.attempts += 1;
           this.pending.push(item);
@@ -166,12 +176,11 @@ export class GalleryUploadQueue {
   }
 
   private emitProgress(phase: GalleryUploadProgress["phase"]): void {
-    const processed = this.uploaded + this.failed + this.skippedDuplicates;
+    const processed = this.uploaded + this.failed + this.skippedDuringUpload;
     const inFlightSum = [...this.inFlightProgress.values()].reduce((sum, value) => sum + value, 0);
-    const overall =
-      this.totalFiles > 0
-        ? Math.min(100, Math.round(((processed + inFlightSum) / this.totalFiles) * 100))
-        : 0;
+    const rawOverall =
+      this.totalFiles > 0 ? ((processed + inFlightSum) / this.totalFiles) * 100 : 0;
+    const overall = Math.min(100, Math.max(0, Math.round(rawOverall)));
 
     this.callbacks.onProgress({
       phase,
@@ -182,7 +191,8 @@ export class GalleryUploadQueue {
       processed,
       uploaded: this.uploaded,
       failed: this.failed,
-      skippedDuplicates: this.skippedDuplicates,
+      skippedBeforeUpload: this.skippedBeforeUpload,
+      skippedDuringUpload: this.skippedDuringUpload,
     });
   }
 
@@ -196,7 +206,7 @@ export class GalleryUploadQueue {
         this.wakeLock = null;
       });
     } catch {
-      // Optional — not available on all devices
+      // Optional
     }
   }
 
