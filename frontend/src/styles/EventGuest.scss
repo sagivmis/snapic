@@ -153,37 +153,6 @@
   color: $taupe-600;
 }
 
-.event-guest__past {
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid $cream-300;
-
-  h2 {
-    margin: 0 0 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: $taupe-500;
-  }
-
-  ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  li + li {
-    margin-top: 0.35rem;
-  }
-
-  a {
-    color: var(--event-accent, #{$champagne-600});
-    font-weight: 500;
-    text-decoration: none;
-  }
-}
-
 .event-guest__save {
   margin-top: 2rem;
   padding-top: 1.5rem;

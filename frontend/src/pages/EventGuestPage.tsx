@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
+import { GuestSearchHistory } from "../components/GuestSearchHistory";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
@@ -11,18 +12,6 @@ import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import "../styles/EventGuest.scss";
 
 type GuestStep = "portrait" | "results";
-
-function formatRunDate(value?: string | null): string {
-  if (!value) {
-    return "Recent search";
-  }
-  return new Date(value).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 export function EventGuestPage() {
   const { slug = "" } = useParams();
@@ -287,6 +276,7 @@ export function EventGuestPage() {
       style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
     >
       <InstallPrompt />
+      <GuestSearchHistory runs={pastRuns} />
 
       {!network.online && (
         <div className="event-guest__network-banner event-guest__network-banner--offline" role="status">
@@ -325,28 +315,6 @@ export function EventGuestPage() {
       <div className="event-guest__content">
         {step === "portrait" && (
           <>
-            {pastRuns.length > 0 && (
-              <div className="event-guest__past">
-                <h2>My past searches</h2>
-                <ul>
-                  {pastRuns.map((run) => (
-                    <li key={run.id}>
-                      {run.share_id ? (
-                        <Link to={`/share/${run.share_id}`}>
-                          {formatRunDate(run.created_at)} · {run.matched_count} photo
-                          {run.matched_count === 1 ? "" : "s"}
-                        </Link>
-                      ) : (
-                        <span>
-                          {formatRunDate(run.created_at)} · {run.matched_count} matches
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             <SelfieUpload
               file={selfie}
               previewUrl={selfiePreview}
