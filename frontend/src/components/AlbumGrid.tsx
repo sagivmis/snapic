@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import type { GalleryPhoto } from "../types";
 import "../styles/AlbumGrid.scss";
 
@@ -11,20 +11,27 @@ interface AlbumGridProps {
   disabled?: boolean;
 }
 
+export interface AlbumGridHandle {
+  selectAll: () => void;
+}
+
 interface PreviewPhoto {
   id: string;
   url: string;
   filename: string;
 }
 
-export function AlbumGrid({
-  photos,
-  onDelete,
-  onBulkDelete,
-  onSectionChange,
-  sectionOptions = ["general", "ceremony", "reception", "portraits", "party"],
-  disabled = false,
-}: AlbumGridProps) {
+export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function AlbumGrid(
+  {
+    photos,
+    onDelete,
+    onBulkDelete,
+    onSectionChange,
+    sectionOptions = ["general", "ceremony", "reception", "portraits", "party"],
+    disabled = false,
+  },
+  ref,
+) {
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -93,6 +100,19 @@ export function AlbumGrid({
     });
   }
 
+  function enterSelectAll() {
+    setSelectMode(true);
+    setSelected(new Set(sortedPhotos.map((photo) => photo.id)));
+  }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      selectAll: enterSelectAll,
+    }),
+    [sortedPhotos],
+  );
+
   function toggleSelectAll() {
     if (allSelected) {
       setSelected(new Set());
@@ -129,14 +149,24 @@ export function AlbumGrid({
       {onBulkDelete && (
         <div className="album-grid__toolbar">
           {!selectMode ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={disabled}
-              onClick={() => setSelectMode(true)}
-            >
-              Select photos
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={disabled || sortedPhotos.length === 0}
+                onClick={enterSelectAll}
+              >
+                Select all ({sortedPhotos.length})
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={disabled}
+                onClick={() => setSelectMode(true)}
+              >
+                Select photos…
+              </button>
+            </>
           ) : (
             <>
               <button type="button" className="btn btn-ghost" disabled={disabled} onClick={exitSelectMode}>
@@ -263,4 +293,4 @@ export function AlbumGrid({
       )}
     </>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   buildEventGuestUrl,
@@ -14,7 +14,7 @@ import {
   updateEvent,
   updateGalleryPhotoSection,
 } from "../api/client";
-import { AlbumGrid } from "../components/AlbumGrid";
+import { AlbumGrid, type AlbumGridHandle } from "../components/AlbumGrid";
 import { AlbumUpload } from "../components/AlbumUpload";
 import { GuestQrCode } from "../components/GuestQrCode";
 import { useAuth } from "../auth/AuthProvider";
@@ -49,6 +49,7 @@ export function EventManagePage() {
   const [threshold, setThreshold] = useState(0.4);
   const [autoArchiveDays, setAutoArchiveDays] = useState(90);
   const [inviteEmail, setInviteEmail] = useState("");
+  const albumGridRef = useRef<AlbumGridHandle>(null);
 
   const guestUrl = useMemo(() => (slug ? buildEventGuestUrl(slug) : ""), [slug]);
 
@@ -392,6 +393,14 @@ export function EventManagePage() {
               <button
                 type="button"
                 className="btn btn-ghost"
+                disabled={busy || filteredPhotos.length === 0}
+                onClick={() => albumGridRef.current?.selectAll()}
+              >
+                Select all{filteredPhotos.length > 0 ? ` (${filteredPhotos.length})` : ""}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
                 disabled={busy || photos.length === 0}
                 onClick={() => void handleReindexFaces()}
               >
@@ -432,6 +441,7 @@ export function EventManagePage() {
           />
 
           <AlbumGrid
+            ref={albumGridRef}
             photos={filteredPhotos}
             onDelete={(id) => void handleDelete(id)}
             onBulkDelete={(ids) => handleBulkDelete(ids)}
