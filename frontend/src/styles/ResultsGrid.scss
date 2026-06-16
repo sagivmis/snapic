@@ -65,6 +65,13 @@
 
 .results__progress {
   margin-bottom: 1rem;
+
+  &--loading {
+    width: 100%;
+    max-width: 16rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0;
+  }
 }
 
 .results__progress-bar {

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
+import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
@@ -40,6 +41,7 @@ export function EventGuestPage() {
     null,
   );
   const [pastRuns, setPastRuns] = useState<MatchRunSummary[]>([]);
+  const [refreshingEvent, setRefreshingEvent] = useState(false);
 
   const loginNext = slug ? `/e/${slug}` : "/";
   const loginHref = `/login?next=${encodeURIComponent(loginNext)}`;
@@ -107,6 +109,22 @@ export function EventGuestPage() {
     })();
   }, [event, session, anonymousSessionId, getAccessToken]);
 
+  async function refreshEvent() {
+    if (!slug) {
+      return;
+    }
+    setRefreshingEvent(true);
+    try {
+      const row = await fetchEventBySlug(slug);
+      setEvent(row);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not refresh event");
+    } finally {
+      setRefreshingEvent(false);
+    }
+  }
+
   async function handleMatch() {
     if (!event || !selfie) {
       return;
@@ -170,11 +188,7 @@ export function EventGuestPage() {
   }
 
   if (loadingEvent) {
-    return (
-      <div className="event-guest event-guest--loading">
-        <span className="spinner spinner-lg" />
-      </div>
-    );
+    return <EventGuestSkeleton />;
   }
 
   if (!event) {
@@ -216,15 +230,27 @@ export function EventGuestPage() {
         style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
       >
         <div className="event-guest__state-card">
+          <div className="event-guest__state-icon" aria-hidden="true">
+            📷
+          </div>
           <h1>{title}</h1>
-          <p className="event-guest__state-lead">Album still uploading</p>
-          <p>The wedding photos are being added. Check back in a little while.</p>
+          <p className="event-guest__state-lead">Photos coming soon</p>
+          <p>The album is still being uploaded. Check back in a few minutes — the photographer is adding photos now.</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={refreshingEvent}
+            onClick={() => void refreshEvent()}
+          >
+            {refreshingEvent ? "Checking…" : "Check again"}
+          </button>
         </div>
       </div>
     );
   }
 
-  const noMatches = step === "results" && result && result.matched.length === 0;
+  const showCompactHeader =
+    step === "results" && !loading && result && result.matched.length === 0;
 
   return (
     <div
@@ -247,7 +273,7 @@ export function EventGuestPage() {
       {step === "results" && (
         <header className="event-guest__header event-guest__header--compact">
           <p className="event-guest__eyebrow">{title}</p>
-          <h1>{noMatches ? "No matches yet" : "Your photos"}</h1>
+          <h1>{showCompactHeader ? "No matches yet" : "Your photos"}</h1>
         </header>
       )}
 
@@ -301,24 +327,29 @@ export function EventGuestPage() {
 
         {step === "results" && (
           <>
-            {noMatches ? (
-              <div className="event-guest__empty-results">
-                <p>No photos found — try a clearer selfie with your face well lit and facing the camera.</p>
+            <ResultsGrid
+              result={result}
+              loading={loading}
+              onStartSearch={handleMatch}
+              canMatch={hasPortrait}
+              guestMode
+              eventId={event.id}
+              auth={{ anonymousSessionId }}
+              matchProgress={matchProgress}
+            />
+
+            {!loading && result && result.matched.length === 0 && (
+              <div className="event-guest__tips">
+                <p className="event-guest__tips-title">Tips for a better match</p>
+                <ul>
+                  <li>Use a well-lit photo with your face clearly visible</li>
+                  <li>Look straight at the camera, without sunglasses or a mask</li>
+                  <li>Try a different selfie if this one was blurry or far away</li>
+                </ul>
               </div>
-            ) : (
-              <ResultsGrid
-                result={result}
-                loading={loading}
-                onStartSearch={handleMatch}
-                canMatch={hasPortrait}
-                guestMode
-                eventId={event.id}
-                auth={{ anonymousSessionId }}
-                matchProgress={matchProgress}
-              />
             )}
 
-            {!session && (
+            {!session && !loading && result && result.matched.length > 0 && (
               <div className="event-guest__save">
                 <p>Save these results to your account</p>
                 <Link className="btn btn-primary" to={loginHref}>

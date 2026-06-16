@@ -1,0 +1,81 @@
+@use "variables" as *;
+
+@keyframes event-guest-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.event-guest-skeleton {
+  pointer-events: none;
+}
+
+.event-guest-skeleton__line,
+.event-guest-skeleton__portrait {
+  border-radius: $radius-lg;
+  background: linear-gradient(
+    90deg,
+    rgba($cream-200, 0.95) 0%,
+    rgba($cream-100, 1) 45%,
+    rgba($cream-200, 0.95) 90%
+  );
+  background-size: 200% 100%;
+  animation: event-guest-shimmer 1.4s ease-in-out infinite;
+}
+
+.event-guest-skeleton__header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.event-guest-skeleton__line {
+  margin-inline: auto;
+
+  &--eyebrow {
+    width: 8rem;
+    height: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &--title {
+    width: 12rem;
+    height: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &--desc {
+    width: 16rem;
+    height: 0.875rem;
+  }
+
+  &--button {
+    width: 100%;
+    height: 3.25rem;
+    margin-top: 1rem;
+  }
+}
+
+.event-guest-skeleton__card {
+  border-radius: $radius-2xl;
+  border: 1px solid rgba($cream-300, 0.6);
+  background: rgba($white, 0.85);
+  padding: 1.5rem;
+  box-shadow: $shadow-card;
+}
+
+.event-guest-skeleton__portrait {
+  width: 100%;
+  height: 14rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-guest-skeleton__line,
+  .event-guest-skeleton__portrait {
+    animation: none;
+    background: rgba($cream-200, 0.95);
+  }
+}

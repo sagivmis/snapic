@@ -111,12 +111,28 @@ export function ResultsGrid({
     return (
       <div className="results results--loading">
         <span className="spinner spinner-lg" />
-        <p className="results__loading-title">Searching your gallery...</p>
+        <p className="results__loading-title">
+          {guestMode ? "Searching the wedding album…" : "Searching your gallery..."}
+        </p>
         <p className="results__loading-desc">
           {matchProgress && matchProgress.total > 0
-            ? `Scanned ${matchProgress.processed} of ${matchProgress.total} photos`
-            : "Looking for your face in every photo"}
+            ? `Scanned ${matchProgress.processed} of ${matchProgress.total} photos${
+                result?.matched.length ? ` · ${result.matched.length} found so far` : ""
+              }`
+            : guestMode
+              ? "This can take a moment for large albums — matches appear as we find them"
+              : "Looking for your face in every photo"}
         </p>
+        {matchProgress && matchProgress.total > 0 && (
+          <div className="results__progress results__progress--loading" role="status">
+            <div
+              className="results__progress-bar"
+              style={{
+                width: `${Math.round((matchProgress.processed / matchProgress.total) * 100)}%`,
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -254,12 +270,15 @@ export function ResultsGrid({
 
         {result.matched.length === 0 ? (
           <p className="results__no-matches">
-            We couldn&apos;t find matching photos. Try adjusting sensitivity in the sidebar, or add
-            clearer gallery images.
+            {guestMode
+              ? "We couldn't find you in the album yet. Try a clearer, well-lit selfie facing the camera."
+              : "We couldn't find matching photos. Try adjusting sensitivity in the sidebar, or add clearer gallery images."}
           </p>
         ) : visibleMatches.length === 0 ? (
           <p className="results__no-matches">
-            No photos match this filter. Try another tab or lower the sensitivity.
+            {guestMode
+              ? "No photos match this filter. Try another tab above."
+              : "No photos match this filter. Try another tab or lower the sensitivity."}
           </p>
         ) : (
           <div className="results__grid">

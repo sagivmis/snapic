@@ -463,7 +463,7 @@ export function EventManagePage() {
               </button>
             </div>
             <p className="event-manage__hint">Share this link or QR code with wedding guests at the venue.</p>
-            <GuestQrCode url={guestUrl} />
+            <GuestQrCode url={guestUrl} eventTitle={event.title} coupleNames={coupleNames || undefined} />
           </section>
 
           <form className="event-manage__section" onSubmit={handleSaveSettings}>

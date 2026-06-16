@@ -3,18 +3,31 @@
 .guest-qr {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  align-items: stretch;
+  gap: 0.75rem;
   margin-top: 1rem;
 }
 
 .guest-qr__canvas {
+  align-self: center;
   border-radius: $radius-lg;
   border: 1px solid $cream-300;
   background: $white;
   padding: 0.5rem;
 }
 
+.guest-qr__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .guest-qr__download {
   width: auto;
+}
+
+.guest-qr__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: $taupe-400;
 }

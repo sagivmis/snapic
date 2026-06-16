@@ -110,6 +110,41 @@
   color: var(--event-accent, #{$champagne-600}) !important;
 }
 
+.event-guest__state-icon {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+}
+
+.event-guest__tips {
+  margin-top: 1.25rem;
+  padding: 1rem 1.125rem;
+  border-radius: $radius-xl;
+  background: rgba($cream-100, 0.85);
+  text-align: left;
+
+  ul {
+    margin: 0;
+    padding-left: 1.125rem;
+    color: $taupe-500;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  li + li {
+    margin-top: 0.375rem;
+  }
+}
+
+.event-guest__tips-title {
+  margin: 0 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $taupe-500;
+}
+
 .event-guest__empty-results {
   padding: 1.25rem;
   border-radius: $radius-xl;
