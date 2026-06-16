@@ -63,6 +63,24 @@
   text-align: center;
 }
 
+.results__progress {
+  margin-bottom: 1rem;
+}
+
+.results__progress-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--event-accent, #{$champagne-400});
+  transition: width 0.2s ease;
+}
+
+.results__progress-label {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: $taupe-400;
+  text-align: center;
+}
+
 .results__summary-title {
   margin: 0;
   font-family: $font-display;

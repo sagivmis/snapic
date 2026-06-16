@@ -12,8 +12,9 @@ class MatchedPhoto(BaseModel):
     filename: str | None = None
     url: str | None = None
     preview_base64: str
-    image_base64: str
+    image_base64: str | None = None
     image_mime: str = "image/jpeg"
+    gallery_photo_id: str | None = None
     matched_person: Literal[1, 2, "both"] | None = None
     person_1_score: float | None = Field(default=None, ge=0.0, le=1.0)
     person_2_score: float | None = Field(default=None, ge=0.0, le=1.0)

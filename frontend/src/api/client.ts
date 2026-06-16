@@ -9,6 +9,7 @@ import type {
   MatchRequest,
   MatchResponse,
   MatchRunSummary,
+  MatchedPhoto,
   PortraitQualityResponse,
   SignupRequest,
   SignupRequestCreate,
@@ -87,6 +88,103 @@ export async function matchEventPhotos(
     await parseError(response, "Failed to match photos");
   }
   return response.json() as Promise<MatchResponse>;
+}
+
+export interface GalleryPhotoImageResponse {
+  signed_url: string;
+  mime_type: string;
+  filename?: string | null;
+}
+
+export async function fetchEventGalleryPhotoImage(
+  eventId: string,
+  photoId: string,
+  auth: AuthFetchOptions = {},
+): Promise<GalleryPhotoImageResponse> {
+  const response = await authFetch(`/api/events/${eventId}/gallery/${photoId}/image`, {}, auth);
+  if (!response.ok) {
+    await parseError(response, "Could not load photo");
+  }
+  return response.json() as Promise<GalleryPhotoImageResponse>;
+}
+
+export type MatchStreamEvent =
+  | { type: "progress"; processed: number; total: number; matched_count: number }
+  | { type: "match"; photo: MatchedPhoto }
+  | { type: "complete"; result: MatchResponse }
+  | { type: "error"; message: string };
+
+export async function matchEventPhotosStream(
+  eventId: string,
+  request: Omit<MatchRequest, "galleryFiles" | "galleryUrls">,
+  auth: AuthFetchOptions,
+  onEvent: (event: MatchStreamEvent) => void,
+): Promise<MatchResponse> {
+  const formData = new FormData();
+  formData.append("selfie", request.selfie);
+  formData.append("threshold", String(request.threshold));
+  if (request.partnerSelfie) {
+    formData.append("partner_selfie", request.partnerSelfie);
+  }
+
+  const response = await authFetch(
+    `/api/events/${eventId}/match/stream`,
+    { method: "POST", body: formData },
+    auth,
+  );
+  if (response.status === 404) {
+    const result = await matchEventPhotos(eventId, request, auth);
+    onEvent({
+      type: "progress",
+      processed: result.total_gallery,
+      total: result.total_gallery,
+      matched_count: result.matched.length,
+    });
+    for (const photo of result.matched) {
+      onEvent({ type: "match", photo });
+    }
+    onEvent({ type: "complete", result });
+    return result;
+  }
+  if (!response.ok) {
+    await parseError(response, "Failed to match photos");
+  }
+  if (!response.body) {
+    throw new Error("Match stream unavailable");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: MatchResponse | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      const event = JSON.parse(line) as MatchStreamEvent;
+      if (event.type === "error") {
+        throw new Error(event.message);
+      }
+      onEvent(event);
+      if (event.type === "complete") {
+        finalResult = event.result;
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error("Match ended before completion");
+  }
+  return finalResult;
 }
 
 export async function fetchEventBySlug(

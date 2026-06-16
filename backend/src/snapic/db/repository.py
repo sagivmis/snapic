@@ -97,6 +97,28 @@ def download_storage_bytes(storage_path: str) -> bytes:
     return client.storage.from_("events").download(storage_path)
 
 
+def gallery_thumbnail_path(event_id: str, photo_id: str) -> str:
+    return f"{event_id}/thumbnails/{photo_id}.jpg"
+
+
+def upload_gallery_thumbnail(event_id: str, photo_id: str, data: bytes) -> str:
+    client = get_supabase()
+    path = gallery_thumbnail_path(event_id, photo_id)
+    client.storage.from_("events").upload(
+        path,
+        data,
+        file_options={"content-type": "image/jpeg", "upsert": "true"},
+    )
+    return path
+
+
+def download_gallery_thumbnail_bytes(event_id: str, photo_id: str) -> bytes | None:
+    try:
+        return download_storage_bytes(gallery_thumbnail_path(event_id, photo_id))
+    except Exception:
+        return None
+
+
 def create_gallery_signed_url(storage_path: str, expires_in: int = 3600) -> str | None:
     client = get_supabase()
     try:
@@ -158,7 +180,9 @@ def update_gallery_face_index(
 
 
 def index_gallery_photo_faces(photo_id: str, storage_path: str) -> str:
-    from snapic.face.images import decode_image_bytes
+    import base64
+
+    from snapic.face.images import decode_image_bytes, encode_thumbnail_base64
     from snapic.face.indexing import detect_face_embeddings, embeddings_to_json
 
     try:
@@ -169,6 +193,10 @@ def index_gallery_photo_faces(photo_id: str, storage_path: str) -> str:
             update_gallery_face_index(photo_id, [], "no_face")
             return "no_face"
         update_gallery_face_index(photo_id, embeddings_to_json(embeddings), "indexed")
+        event_id = storage_path.split("/")[0] if "/" in storage_path else None
+        if event_id:
+            thumb_bytes = base64.b64decode(encode_thumbnail_base64(image_bgr))
+            upload_gallery_thumbnail(event_id, photo_id, thumb_bytes)
         return "indexed"
     except Exception:
         update_gallery_face_index(photo_id, None, "failed")
@@ -365,8 +393,9 @@ def load_match_response_from_run(match_run_id: str) -> dict[str, Any] | None:
                 "filename": filename,
                 "url": None,
                 "preview_base64": preview_b64,
-                "image_base64": preview_b64,
+                "image_base64": None,
                 "image_mime": image_mime,
+                "gallery_photo_id": row.get("gallery_photo_id"),
                 "matched_person": _normalize_matched_person(row.get("matched_person")),
                 "person_1_score": _normalize_optional_score(row.get("person_1_score")),
                 "person_2_score": _normalize_optional_score(row.get("person_2_score")),

@@ -9,6 +9,7 @@ export interface MatchedPhoto {
   preview_base64: string;
   image_base64?: string;
   image_mime?: string;
+  gallery_photo_id?: string | null;
   matched_person?: MatchedPerson | null;
   person_1_score?: number | null;
   person_2_score?: number | null;

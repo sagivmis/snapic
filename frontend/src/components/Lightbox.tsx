@@ -1,15 +1,72 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { fetchEventGalleryPhotoImage } from "../api/client";
+import { useAuth } from "../auth/AuthProvider";
 import { getImageDataUrl } from "../utils/downloadZip";
 import { formatMatchedPerson, formatPersonScores } from "../utils/matchedPerson";
 import type { MatchedPhoto } from "../types";
+import type { AuthFetchOptions } from "../api/client";
 import "../styles/Lightbox.scss";
 
 interface LightboxProps {
   photo: MatchedPhoto | null;
+  eventId?: string | null;
+  auth?: AuthFetchOptions;
   onClose: () => void;
 }
 
-export function Lightbox({ photo, onClose }: LightboxProps) {
+export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxProps) {
+  const { getAccessToken, anonymousSessionId } = useAuth();
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [loadingFull, setLoadingFull] = useState(false);
+
+  useEffect(() => {
+    if (!photo) {
+      setImageSrc(null);
+      setLoadingFull(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    if (photo.image_base64) {
+      setImageSrc(getImageDataUrl(photo));
+      setLoadingFull(false);
+      return;
+    }
+
+    setImageSrc(`data:image/jpeg;base64,${photo.preview_base64}`);
+    setLoadingFull(Boolean(eventId && photo.gallery_photo_id));
+
+    if (eventId && photo.gallery_photo_id) {
+      void (async () => {
+        try {
+          const token = authProp?.token ?? (await getAccessToken());
+          const auth: AuthFetchOptions = {
+            token,
+            anonymousSessionId: authProp?.anonymousSessionId ?? anonymousSessionId,
+          };
+          const meta = await fetchEventGalleryPhotoImage(eventId, photo.gallery_photo_id!, auth);
+          if (cancelled) {
+            return;
+          }
+          setImageSrc(meta.signed_url);
+        } catch {
+          if (!cancelled) {
+            setImageSrc(`data:image/jpeg;base64,${photo.preview_base64}`);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingFull(false);
+          }
+        }
+      })();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photo, eventId, authProp, getAccessToken, anonymousSessionId]);
+
   useEffect(() => {
     if (!photo) {
       return;
@@ -50,7 +107,16 @@ export function Lightbox({ photo, onClose }: LightboxProps) {
           Close ✕
         </button>
 
-        <img src={getImageDataUrl(photo)} alt={title} className="lightbox__image" />
+        {imageSrc ? (
+          <img src={imageSrc} alt={title} className="lightbox__image" />
+        ) : (
+          <div className="lightbox__loading">
+            <span className="spinner spinner-lg" />
+          </div>
+        )}
+        {loadingFull && imageSrc && (
+          <p className="lightbox__loading-label">Loading full resolution…</p>
+        )}
 
         <div className="lightbox__caption">
           <p className="lightbox__title">{title}</p>

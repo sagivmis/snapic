@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 import io
+import json
 import uuid
 import zipfile
 from typing import Annotated, Any
 
-import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
@@ -19,8 +18,6 @@ from snapic.api.schemas import (
     GalleryPhotoSectionUpdate,
     MatchResponse,
     MatchRunSummary,
-    MatchedPhoto,
-    SkippedPhoto,
     UserEventSummary,
 )
 from snapic.auth.jwt import AuthUser, get_anonymous_session_id, get_optional_user, get_required_user
@@ -29,8 +26,6 @@ from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     count_gallery_photos,
     create_gallery_signed_url,
-    create_match_run,
-    create_share_token,
     delete_gallery_photo,
     download_storage_bytes,
     fetch_event_by_id,
@@ -45,20 +40,12 @@ from snapic.db.repository import (
     list_user_events,
     list_user_match_runs,
     maybe_auto_archive_event,
-    save_match_results,
     update_event,
-    update_gallery_face_index,
     update_gallery_photo_section,
     upload_gallery_photo,
-    upload_preview_bytes,
 )
-from snapic.face.images import decode_image_bytes, encode_thumbnail_base64
-from snapic.face.gallery_match import (
-    evaluate_photo_for_match,
-    evaluate_photo_match,
-    load_photo_face_embeddings,
-    serialize_embeddings_for_db,
-)
+from snapic.face.event_match import iter_event_gallery_matches
+from snapic.face.images import decode_image_bytes
 from snapic.face.pipeline import NoFaceInSelfieError, extract_reference_embedding
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -72,6 +59,77 @@ async def _read_upload_limited(upload: UploadFile) -> bytes:
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=400, detail=f"Image too large: {upload.filename}")
     return data
+
+
+def _assert_event_available_for_match(
+    event_row: dict[str, Any],
+    event_id: str,
+    user: AuthUser | None,
+) -> dict[str, Any]:
+    event_row = maybe_auto_archive_event(event_row)
+    status = event_row["status"]
+    if status == "archived":
+        raise HTTPException(status_code=403, detail="This event has ended")
+    if status == "draft":
+        if user is None or not is_event_admin(user.id, event_id):
+            raise HTTPException(status_code=403, detail="Event not active yet")
+    elif status != "active":
+        raise HTTPException(status_code=403, detail="Event is not available")
+    return event_row
+
+
+async def _prepare_event_match_context(
+    event_id: str,
+    selfie: UploadFile,
+    partner_selfie: UploadFile | None,
+    threshold: float | None,
+    user: AuthUser | None,
+) -> tuple[dict[str, Any], list[Any], bool, float, list[dict[str, Any]]]:
+    if not is_supabase_configured():
+        raise HTTPException(status_code=503, detail="Event service not configured")
+
+    event_row = fetch_event_by_id(event_id)
+    if not event_row:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event_row = _assert_event_available_for_match(event_row, event_id, user)
+
+    effective_threshold = threshold if threshold is not None else event_row.get("default_threshold", DEFAULT_THRESHOLD)
+    if effective_threshold < 0.0 or effective_threshold > 1.0:
+        raise HTTPException(status_code=400, detail="threshold must be between 0 and 1")
+
+    gallery = list_gallery_photos(event_id)
+    if not gallery:
+        raise HTTPException(status_code=400, detail="Album still uploading — check back soon")
+
+    selfie_bytes = await _read_upload_limited(selfie)
+    try:
+        selfie_image = decode_image_bytes(selfie_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Could not decode selfie image") from exc
+
+    try:
+        references: list[Any] = [extract_reference_embedding(selfie_image)]
+    except NoFaceInSelfieError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    couple_mode = False
+    if partner_selfie is not None and partner_selfie.filename:
+        partner_bytes = await _read_upload_limited(partner_selfie)
+        try:
+            partner_image = decode_image_bytes(partner_bytes)
+            references.append(extract_reference_embedding(partner_image))
+            couple_mode = True
+        except NoFaceInSelfieError as exc:
+            raise HTTPException(status_code=400, detail="No face detected in partner portrait") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Could not decode partner portrait") from exc
+
+    return event_row, references, couple_mode, effective_threshold, gallery
+
+
+def _ndjson_line(payload: dict[str, Any]) -> bytes:
+    return (json.dumps(payload) + "\n").encode("utf-8")
 
 
 def _event_public(row: dict[str, Any]) -> EventPublicResponse:
@@ -165,16 +223,31 @@ async def reindex_event_gallery_faces(
     event_id: str,
     user: Annotated[AuthUser, Depends(get_required_user)],
 ) -> dict[str, int]:
+    import base64
+
+    from snapic.db.repository import download_gallery_thumbnail_bytes, upload_gallery_thumbnail
+    from snapic.face.images import decode_image_bytes, encode_thumbnail_base64
+
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
     photos = list_gallery_photos(event_id)
     processed = 0
+    thumbs_backfilled = 0
     for photo in photos:
         if photo.get("face_index_status") == "indexed":
+            if download_gallery_thumbnail_bytes(event_id, photo["id"]) is None:
+                try:
+                    data = download_storage_bytes(photo["storage_path"])
+                    image_bgr = decode_image_bytes(data)
+                    thumb_bytes = base64.b64decode(encode_thumbnail_base64(image_bgr))
+                    upload_gallery_thumbnail(event_id, photo["id"], thumb_bytes)
+                    thumbs_backfilled += 1
+                except Exception:
+                    pass
             continue
         index_gallery_photo_faces(photo["id"], photo["storage_path"])
         processed += 1
-    return {"processed": processed}
+    return {"processed": processed, "thumbs_backfilled": thumbs_backfilled}
 
 
 @router.patch("/{event_id}/gallery/{photo_id}/section", response_model=GalleryPhotoResponse)
@@ -336,6 +409,67 @@ async def patch_event(
     return _event_public(row)
 
 
+@router.get("/{event_id}/gallery/{photo_id}/image")
+async def get_gallery_photo_image(
+    event_id: str,
+    photo_id: str,
+    user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
+) -> dict[str, str | None]:
+    if not is_supabase_configured():
+        raise HTTPException(status_code=503, detail="Event service not configured")
+
+    event_row = fetch_event_by_id(event_id)
+    if not event_row:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    _assert_event_available_for_match(event_row, event_id, user)
+
+    photo = fetch_gallery_photo_by_id(photo_id)
+    if not photo or photo.get("event_id") != event_id:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    signed_url = create_gallery_signed_url(photo["storage_path"])
+    if not signed_url:
+        raise HTTPException(status_code=500, detail="Could not create image URL")
+
+    return {
+        "signed_url": signed_url,
+        "mime_type": photo.get("mime_type") or "image/jpeg",
+        "filename": photo.get("filename"),
+    }
+
+
+@router.post("/{event_id}/match/stream")
+async def match_event_gallery_stream(
+    event_id: str,
+    selfie: Annotated[UploadFile, File()],
+    partner_selfie: Annotated[UploadFile | None, File()] = None,
+    threshold: Annotated[float | None, Form()] = None,
+    user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
+    anonymous_session_id: Annotated[str | None, Depends(get_anonymous_session_id)] = None,
+) -> StreamingResponse:
+    _, references, couple_mode, effective_threshold, gallery = await _prepare_event_match_context(
+        event_id, selfie, partner_selfie, threshold, user
+    )
+
+    def generate() -> Any:
+        try:
+            for event in iter_event_gallery_matches(
+                event_id,
+                gallery,
+                references,
+                couple_mode,
+                effective_threshold,
+                user_id=user.id if user else None,
+                anonymous_session_id=anonymous_session_id,
+            ):
+                yield _ndjson_line(event)
+        except Exception as exc:
+            yield _ndjson_line({"type": "error", "message": str(exc)})
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
 @router.post("/{event_id}/match", response_model=MatchResponse)
 async def match_event_gallery(
     event_id: str,
@@ -345,183 +479,23 @@ async def match_event_gallery(
     user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
     anonymous_session_id: Annotated[str | None, Depends(get_anonymous_session_id)] = None,
 ) -> MatchResponse:
-    if not is_supabase_configured():
-        raise HTTPException(status_code=503, detail="Event service not configured")
+    _, references, couple_mode, effective_threshold, gallery = await _prepare_event_match_context(
+        event_id, selfie, partner_selfie, threshold, user
+    )
 
-    event_row = fetch_event_by_id(event_id)
-    if not event_row:
-        raise HTTPException(status_code=404, detail="Event not found")
-
-    event_row = maybe_auto_archive_event(event_row)
-    status = event_row["status"]
-    if status == "archived":
-        raise HTTPException(status_code=403, detail="This event has ended")
-    if status == "draft":
-        if user is None or not is_event_admin(user.id, event_id):
-            raise HTTPException(status_code=403, detail="Event not active yet")
-    elif status != "active":
-        raise HTTPException(status_code=403, detail="Event is not available")
-
-    effective_threshold = threshold if threshold is not None else event_row.get("default_threshold", DEFAULT_THRESHOLD)
-    if effective_threshold < 0.0 or effective_threshold > 1.0:
-        raise HTTPException(status_code=400, detail="threshold must be between 0 and 1")
-
-    gallery = list_gallery_photos(event_id)
-    if not gallery:
-        raise HTTPException(status_code=400, detail="Album still uploading — check back soon")
-
-    selfie_bytes = await _read_upload_limited(selfie)
-    try:
-        selfie_image = decode_image_bytes(selfie_bytes)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Could not decode selfie image") from exc
-
-    try:
-        references: list[np.ndarray] = [extract_reference_embedding(selfie_image)]
-    except NoFaceInSelfieError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    couple_mode = False
-    if partner_selfie is not None and partner_selfie.filename:
-        partner_bytes = await _read_upload_limited(partner_selfie)
-        try:
-            partner_image = decode_image_bytes(partner_bytes)
-            references.append(extract_reference_embedding(partner_image))
-            couple_mode = True
-        except NoFaceInSelfieError as exc:
-            raise HTTPException(status_code=400, detail="No face detected in partner portrait") from exc
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="Could not decode partner portrait") from exc
-
-    matched: list[MatchedPhoto] = []
-    skipped: list[SkippedPhoto] = []
-    db_matched: list[dict[str, Any]] = []
-    db_skipped: list[dict[str, Any]] = []
-
-    for index, photo in enumerate(gallery):
-        filename = photo.get("filename") or f"photo_{index}"
-        precomputed = load_photo_face_embeddings(photo)
-
-        try:
-            if precomputed is not None:
-                evaluation = evaluate_photo_match(references, precomputed, effective_threshold, couple_mode)
-                if not evaluation.had_faces:
-                    skipped.append(
-                        SkippedPhoto(source="upload", index=index, reason="no_face_detected", filename=filename)
-                    )
-                    db_skipped.append(
-                        {
-                            "match_run_id": "",
-                            "gallery_photo_id": photo["id"],
-                            "reason": "no_face_detected",
-                            "filename": filename,
-                            "sort_index": index,
-                        }
-                    )
-                    continue
-                if evaluation.score is None:
-                    continue
-                image_bytes = download_storage_bytes(photo["storage_path"])
-            else:
-                image_bytes = download_storage_bytes(photo["storage_path"])
-                image_bgr = decode_image_bytes(image_bytes)
-                evaluation, embeddings, index_status = evaluate_photo_for_match(
-                    references, image_bgr, effective_threshold, couple_mode
-                )
-                update_gallery_face_index(
-                    photo["id"],
-                    serialize_embeddings_for_db(embeddings) if index_status == "indexed" else [],
-                    index_status,
-                )
-                if not evaluation.had_faces:
-                    skipped.append(
-                        SkippedPhoto(source="upload", index=index, reason="no_face_detected", filename=filename)
-                    )
-                    db_skipped.append(
-                        {
-                            "match_run_id": "",
-                            "gallery_photo_id": photo["id"],
-                            "reason": "no_face_detected",
-                            "filename": filename,
-                            "sort_index": index,
-                        }
-                    )
-                    continue
-                if evaluation.score is None:
-                    continue
-        except Exception:
-            skipped.append(
-                SkippedPhoto(source="upload", index=index, reason="decode_failed", filename=filename)
-            )
-            db_skipped.append(
-                {"match_run_id": "", "gallery_photo_id": photo["id"], "reason": "decode_failed", "filename": filename, "sort_index": index}
-            )
-            continue
-
-        image_bgr = decode_image_bytes(image_bytes)
-
-        preview_b64 = encode_thumbnail_base64(image_bgr)
-        preview_bytes = base64.b64decode(preview_b64)
-        result_id = str(uuid.uuid4())
-        preview_path = upload_preview_bytes(event_id, result_id, preview_bytes)
-
-        matched_person = evaluation.matched_person if couple_mode else None
-        mp = MatchedPhoto(
-            source="upload",
-            index=index,
-            filename=filename,
-            score=round(evaluation.score, 4),
-            preview_base64=preview_b64,
-            image_base64=base64.b64encode(image_bytes).decode("ascii"),
-            image_mime=photo.get("mime_type", "image/jpeg"),
-            matched_person=matched_person,
-            person_1_score=evaluation.person_1_score if couple_mode else None,
-            person_2_score=evaluation.person_2_score if couple_mode else None,
-        )
-        matched.append(mp)
-        db_matched.append(
-            {
-                "id": result_id,
-                "match_run_id": "",
-                "gallery_photo_id": photo["id"],
-                "score": mp.score,
-                "matched_person": matched_person,
-                "person_1_score": mp.person_1_score,
-                "person_2_score": mp.person_2_score,
-                "preview_path": preview_path,
-                "filename": filename,
-                "sort_index": index,
-            }
-        )
-
-    matched.sort(key=lambda item: item.score, reverse=True)
-
-    user_id = user.id if user else None
-    run_id = create_match_run(
-        event_id=event_id,
-        user_id=user_id,
+    result: MatchResponse | None = None
+    for event in iter_event_gallery_matches(
+        event_id,
+        gallery,
+        references,
+        couple_mode,
+        effective_threshold,
+        user_id=user.id if user else None,
         anonymous_session_id=anonymous_session_id,
-        couple_mode=couple_mode,
-        threshold=effective_threshold,
-        total_gallery=len(gallery),
-        matched_count=len(matched),
-        skipped_count=len(skipped),
-    )
-    for row in db_matched:
-        row["match_run_id"] = run_id
-    for row in db_skipped:
-        row["match_run_id"] = run_id
-    save_match_results(run_id, db_matched, db_skipped)
-    share_id = create_share_token(run_id)
+    ):
+        if event["type"] == "complete":
+            result = MatchResponse(**event["result"])
 
-    return MatchResponse(
-        reference_face_detected=True,
-        threshold=effective_threshold,
-        total_gallery=len(gallery),
-        matched=matched,
-        skipped=skipped,
-        couple_mode=couple_mode,
-        share_id=share_id,
-        event_id=event_id,
-        match_run_id=run_id,
-    )
+    if result is None:
+        raise HTTPException(status_code=500, detail="Match did not complete")
+    return result

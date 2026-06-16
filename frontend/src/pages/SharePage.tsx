@@ -58,6 +58,7 @@ export function SharePage() {
           canMatch={false}
           readOnly
           guestMode
+          eventId={result?.event_id}
         />
         {error && <p className="error-banner">{error}</p>}
       </div>

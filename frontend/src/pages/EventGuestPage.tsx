@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotos } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
@@ -36,6 +36,9 @@ export function EventGuestPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResponse | null>(null);
+  const [matchProgress, setMatchProgress] = useState<{ processed: number; total: number } | null>(
+    null,
+  );
   const [pastRuns, setPastRuns] = useState<MatchRunSummary[]>([]);
 
   const loginNext = slug ? `/e/${slug}` : "/";
@@ -111,26 +114,58 @@ export function EventGuestPage() {
 
     setLoading(true);
     setError(null);
+    setStep("results");
+    setMatchProgress({ processed: 0, total: photoCount });
+    setResult({
+      reference_face_detected: true,
+      threshold: event.default_threshold,
+      total_gallery: photoCount,
+      matched: [],
+      skipped: [],
+      couple_mode: coupleMode,
+      event_id: event.id,
+    });
 
     try {
       const token = await getAccessToken();
-      const response = await matchEventPhotos(
+      const auth = { token, anonymousSessionId };
+      const response = await matchEventPhotosStream(
         event.id,
         {
           selfie,
           partnerSelfie: coupleMode ? partnerSelfie : null,
           threshold: event.default_threshold,
         },
-        { token, anonymousSessionId },
+        auth,
+        (event) => {
+          if (event.type === "progress") {
+            setMatchProgress({ processed: event.processed, total: event.total });
+          }
+          if (event.type === "match") {
+            setResult((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    matched: [...prev.matched, event.photo],
+                  }
+                : null,
+            );
+          }
+          if (event.type === "complete") {
+            setResult(event.result);
+          }
+        },
       );
       setResult(response);
-      setStep("results");
-      const runs = await fetchMyEventRuns(event.id, { token, anonymousSessionId });
+      const runs = await fetchMyEventRuns(event.id, auth);
       setPastRuns(runs);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setStep("portrait");
+      setResult(null);
     } finally {
       setLoading(false);
+      setMatchProgress(null);
     }
   }
 
@@ -277,6 +312,9 @@ export function EventGuestPage() {
                 onStartSearch={handleMatch}
                 canMatch={hasPortrait}
                 guestMode
+                eventId={event.id}
+                auth={{ anonymousSessionId }}
+                matchProgress={matchProgress}
               />
             )}
 

@@ -8,6 +8,8 @@ import {
   type SortMode,
 } from "../utils/matchedPerson";
 import { buildShareUrl } from "../api/client";
+import type { AuthFetchOptions } from "../api/client";
+import { useAuth } from "../auth/AuthProvider";
 import { downloadMatchesAsZip } from "../utils/downloadZip";
 import { Lightbox } from "./Lightbox";
 import type { MatchedPhoto, MatchResponse, SkippedPhoto } from "../types";
@@ -20,6 +22,9 @@ interface ResultsGridProps {
   canMatch: boolean;
   readOnly?: boolean;
   guestMode?: boolean;
+  eventId?: string | null;
+  auth?: AuthFetchOptions;
+  matchProgress?: { processed: number; total: number } | null;
 }
 
 const COUPLE_FILTERS: { id: CoupleFilter; label: string }[] = [
@@ -50,7 +55,11 @@ export function ResultsGrid({
   canMatch,
   readOnly = false,
   guestMode = false,
+  eventId = null,
+  auth,
+  matchProgress = null,
 }: ResultsGridProps) {
+  const { getAccessToken, anonymousSessionId: sessionId } = useAuth();
   const [lightboxPhoto, setLightboxPhoto] = useState<MatchedPhoto | null>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -88,15 +97,26 @@ export function ResultsGrid({
     if (!items.length) {
       return;
     }
-    await downloadMatchesAsZip(items, archiveName);
+    const token = auth?.token ?? (await getAccessToken());
+    await downloadMatchesAsZip(items, archiveName, {
+      eventId,
+      auth: {
+        token,
+        anonymousSessionId: auth?.anonymousSessionId ?? sessionId,
+      },
+    });
   }
 
-  if (loading) {
+  if (loading && !result?.matched.length) {
     return (
       <div className="results results--loading">
         <span className="spinner spinner-lg" />
         <p className="results__loading-title">Searching your gallery...</p>
-        <p className="results__loading-desc">Looking for your face in every photo</p>
+        <p className="results__loading-desc">
+          {matchProgress && matchProgress.total > 0
+            ? `Scanned ${matchProgress.processed} of ${matchProgress.total} photos`
+            : "Looking for your face in every photo"}
+        </p>
       </div>
     );
   }
@@ -124,6 +144,17 @@ export function ResultsGrid({
   return (
     <>
       <div className="results">
+        {loading && matchProgress && matchProgress.total > 0 && (
+          <div className="results__progress" role="status">
+            <div
+              className="results__progress-bar"
+              style={{ width: `${Math.round((matchProgress.processed / matchProgress.total) * 100)}%` }}
+            />
+            <p className="results__progress-label">
+              Found {result.matched.length} so far · {matchProgress.processed}/{matchProgress.total} scanned
+            </p>
+          </div>
+        )}
         <div className="card-wedding results__summary">
           <p className="results__summary-title">
             {result.matched.length === 0
@@ -151,7 +182,7 @@ export function ResultsGrid({
                     setDownloading(false);
                   }
                 }}
-                disabled={downloading}
+                disabled={downloading || loading}
                 className={guestMode ? "btn-primary results__download-guest" : "btn-primary"}
               >
                 {downloading
@@ -297,7 +328,12 @@ export function ResultsGrid({
         )}
       </div>
 
-      <Lightbox photo={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
+      <Lightbox
+        photo={lightboxPhoto}
+        eventId={eventId}
+        auth={auth}
+        onClose={() => setLightboxPhoto(null)}
+      />
     </>
   );
 }
