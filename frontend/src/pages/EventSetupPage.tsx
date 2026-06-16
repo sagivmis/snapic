@@ -9,11 +9,8 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, EventSetupStatus } from "../types";
+import { parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
 import "../styles/EventSetup.scss";
-
-type SetupStep = "welcome" | "branding" | "invite" | "ready";
-
-const STEPS: SetupStep[] = ["welcome", "branding", "invite", "ready"];
 
 const STEP_LABELS: Record<SetupStep, string> = {
   welcome: "Welcome",
@@ -21,6 +18,13 @@ const STEP_LABELS: Record<SetupStep, string> = {
   invite: "Partner",
   ready: "Go live",
 };
+
+function buildBrandingPatch(
+  event: EventPublic,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...(event.branding ?? {}), ...patch };
+}
 
 export function EventSetupPage() {
   const { slug = "" } = useParams();
@@ -41,7 +45,8 @@ export function EventSetupPage() {
   const [accentColor, setAccentColor] = useState("#c9a962");
   const [inviteEmail, setInviteEmail] = useState("");
 
-  const stepIndex = STEPS.indexOf(step);
+  const stepIndex = SETUP_STEPS.indexOf(step);
+  const manageHref = `/e/${slug}/manage?from=setup`;
 
   const refreshSetupStatus = useCallback(async () => {
     if (!event) {
@@ -53,6 +58,35 @@ export function EventSetupPage() {
     }
     setSetupStatus(await fetchEventSetupStatus(event.id, token));
   }, [event, getAccessToken]);
+
+  const persistSetupStep = useCallback(
+    async (nextStep: SetupStep, eventRow: EventPublic = event!) => {
+      if (!eventRow) {
+        return;
+      }
+      const token = await getAccessToken();
+      if (!token) {
+        return;
+      }
+      const updated = await updateEvent(
+        eventRow.id,
+        {
+          branding: buildBrandingPatch(eventRow, { onboarding_step: nextStep }),
+        },
+        token,
+      );
+      setEvent(updated);
+    },
+    [event, getAccessToken],
+  );
+
+  const goToStep = useCallback(
+    (nextStep: SetupStep) => {
+      setStep(nextStep);
+      void persistSetupStep(nextStep);
+    },
+    [persistSetupStep],
+  );
 
   const load = useCallback(async () => {
     if (!slug || !session) {
@@ -72,6 +106,11 @@ export function EventSetupPage() {
       const eventBranding = ev.branding ?? {};
       setCoupleNames(typeof eventBranding.couple_names === "string" ? eventBranding.couple_names : "");
       setAccentColor(typeof eventBranding.accent_color === "string" ? eventBranding.accent_color : "#c9a962");
+
+      const savedStep = parseSetupStep(eventBranding.onboarding_step);
+      if (savedStep) {
+        setStep(savedStep);
+      }
 
       if (ev.onboarding_completed_at) {
         navigate(`/e/${slug}/manage`, { replace: true });
@@ -107,9 +146,29 @@ export function EventSetupPage() {
   }, [load]);
 
   useEffect(() => {
-    if (step === "ready") {
-      void refreshSetupStatus();
+    if (step !== "ready") {
+      return;
     }
+    void refreshSetupStatus();
+  }, [step, refreshSetupStatus]);
+
+  useEffect(() => {
+    if (step !== "ready") {
+      return;
+    }
+
+    function handleReturn() {
+      if (document.visibilityState === "visible") {
+        void refreshSetupStatus();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleReturn);
+    window.addEventListener("focus", handleReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", handleReturn);
+      window.removeEventListener("focus", handleReturn);
+    };
   }, [step, refreshSetupStatus]);
 
   async function handleBrandingSubmit(formEvent: FormEvent) {
@@ -129,16 +188,17 @@ export function EventSetupPage() {
         {
           title,
           wedding_date: weddingDate || null,
-          branding: {
+          branding: buildBrandingPatch(event, {
             couple_names: coupleNames,
             accent_color: accentColor,
-          },
+            onboarding_step: "invite",
+          }),
         },
         token,
       );
       setEvent(updated);
-      await refreshSetupStatus();
       setStep("invite");
+      await refreshSetupStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save branding");
     } finally {
@@ -179,8 +239,15 @@ export function EventSetupPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      await updateEvent(event.id, { complete_onboarding: true }, token);
-      navigate(`/e/${slug}/manage`, { replace: true });
+      await updateEvent(
+        event.id,
+        {
+          complete_onboarding: true,
+          branding: buildBrandingPatch(event, { onboarding_step: "ready" }),
+        },
+        token,
+      );
+      navigate(manageHref, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish setup");
     } finally {
@@ -229,7 +296,7 @@ export function EventSetupPage() {
           </div>
           <h1>{displayNames}</h1>
           <div className="event-setup__progress" aria-hidden="true">
-            {STEPS.map((item, index) => (
+            {SETUP_STEPS.map((item, index) => (
               <span
                 key={item}
                 className={`event-setup__progress-dot${
@@ -239,7 +306,7 @@ export function EventSetupPage() {
             ))}
           </div>
           <p className="event-setup__step-label">
-            Step {stepIndex + 1} of {STEPS.length} · {STEP_LABELS[step]}
+            Step {stepIndex + 1} of {SETUP_STEPS.length} · {STEP_LABELS[step]}
           </p>
         </header>
 
@@ -256,7 +323,7 @@ export function EventSetupPage() {
                 <li>Optionally invite your partner as co-admin</li>
                 <li>Upload photos and go live when you&apos;re ready</li>
               </ul>
-              <button type="button" className="btn btn-primary" onClick={() => setStep("branding")}>
+              <button type="button" className="btn btn-primary" onClick={() => goToStep("branding")}>
                 Get started
               </button>
             </section>
@@ -305,7 +372,7 @@ export function EventSetupPage() {
                 </div>
 
                 <div className="event-setup__actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setStep("welcome")}>
+                  <button type="button" className="btn btn-ghost" onClick={() => goToStep("welcome")}>
                     Back
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -336,14 +403,10 @@ export function EventSetupPage() {
                   <p className="event-setup__success">Invite sent — they&apos;ll get an email to join.</p>
                 )}
                 <div className="event-setup__actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setStep("branding")}>
+                  <button type="button" className="btn btn-ghost" onClick={() => goToStep("branding")}>
                     Back
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setStep("ready")}
-                  >
+                  <button type="button" className="btn btn-secondary" onClick={() => goToStep("ready")}>
                     Skip for now
                   </button>
                   <button
@@ -356,7 +419,11 @@ export function EventSetupPage() {
                 </div>
               </form>
               {inviteSent && (
-                <button type="button" className="btn btn-primary event-setup__continue" onClick={() => setStep("ready")}>
+                <button
+                  type="button"
+                  className="btn btn-primary event-setup__continue"
+                  onClick={() => goToStep("ready")}
+                >
                   Continue
                 </button>
               )}
@@ -403,7 +470,7 @@ export function EventSetupPage() {
               </ul>
 
               <div className="event-setup__actions event-setup__actions--stack">
-                <Link to={`/e/${slug}/manage`} className="btn btn-secondary">
+                <Link to={manageHref} className="btn btn-secondary">
                   Open album dashboard
                 </Link>
                 <button
@@ -416,7 +483,7 @@ export function EventSetupPage() {
                 </button>
               </div>
               <p className="event-setup__hint">
-                You can return anytime from your manage dashboard to upload photos or go live.
+                Return here anytime from your dashboard — we&apos;ll pick up where you left off.
               </p>
             </section>
           )}
@@ -425,7 +492,7 @@ export function EventSetupPage() {
         </div>
 
         <p className="event-setup__footer">
-          <Link to={`/e/${slug}/manage`}>Skip to dashboard</Link>
+          <Link to={manageHref}>Skip to dashboard</Link>
         </p>
       </div>
     </div>

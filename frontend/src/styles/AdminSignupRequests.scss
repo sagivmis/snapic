@@ -132,6 +132,70 @@
   }
 }
 
+.admin-signups__preview {
+  flex: 1 1 100%;
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.85);
+  background: rgba($cream-50, 0.9);
+
+  label {
+    display: block;
+    margin-top: 0.625rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $taupe-500;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  input {
+    width: 100%;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    background: $white;
+  }
+}
+
+.admin-signups__slug-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  span {
+    font-size: 0.875rem;
+    color: $taupe-400;
+    white-space: nowrap;
+  }
+
+  input {
+    flex: 1;
+  }
+}
+
+.admin-signups__preview-links {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: $taupe-500;
+
+  a {
+    color: $champagne-600;
+    word-break: break-all;
+  }
+
+  code {
+    font-size: 0.8125rem;
+    color: $taupe-600;
+  }
+}
+
 .admin-signups__actions {
   display: flex;
   flex-wrap: wrap;

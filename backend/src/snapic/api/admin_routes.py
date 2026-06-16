@@ -17,6 +17,7 @@ from snapic.api.schemas import (
     SignupReviewRequest,
 )
 from snapic.auth.jwt import AuthUser, require_super_admin
+from snapic.db.approval_email import send_gallery_approval_email
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     add_event_member,
@@ -273,6 +274,7 @@ async def admin_review_signup(
             update_profile_role(profile["id"], "event_admin")
         else:
             invite_event_admin(target["email"], event["id"], event["slug"], "admin")
+        send_gallery_approval_email(target["email"], target["couple_names"], event["slug"])
         row = update_signup_request(
             request_id,
             {

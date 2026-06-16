@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { buildEventGuestUrl } from "../api/client";
 import type { AdminEventSummary, SignupRequest } from "../types";
+import { defaultEventTitle, slugifyEventName } from "../utils/onboarding";
 import "../styles/AdminSignupRequests.scss";
 
 const CREATE_NEW_EVENT = "";
 
 type SignupTab = "pending" | "approved" | "rejected";
+
+interface ApproveDraft {
+  title: string;
+  slug: string;
+}
 
 interface AdminSignupRequestsProps {
   requests: SignupRequest[];
@@ -15,7 +22,7 @@ interface AdminSignupRequestsProps {
   onReview: (
     requestId: string,
     action: "approve" | "reject",
-    linkedEventId?: string,
+    options?: { linkedEventId?: string; slug?: string; title?: string },
   ) => void | Promise<void>;
 }
 
@@ -39,6 +46,18 @@ function eventForRequest(events: AdminEventSummary[], eventId?: string | null): 
   return events.find((event) => event.id === eventId);
 }
 
+function draftForRequest(
+  drafts: Record<string, ApproveDraft>,
+  request: SignupRequest,
+): ApproveDraft {
+  return (
+    drafts[request.id] ?? {
+      title: defaultEventTitle(request.couple_names),
+      slug: slugifyEventName(request.couple_names),
+    }
+  );
+}
+
 export function AdminSignupRequests({
   requests,
   events,
@@ -48,6 +67,7 @@ export function AdminSignupRequests({
 }: AdminSignupRequestsProps) {
   const [tab, setTab] = useState<SignupTab>(initialTab);
   const [approvePlan, setApprovePlan] = useState<Record<string, string>>({});
+  const [approveDrafts, setApproveDrafts] = useState<Record<string, ApproveDraft>>({});
 
   useEffect(() => {
     setTab(initialTab);
@@ -69,8 +89,27 @@ export function AdminSignupRequests({
 
   async function handleReview(requestId: string, action: "approve" | "reject") {
     const linkedEventId = approvePlan[requestId];
-    await onReview(requestId, action, action === "approve" && linkedEventId ? linkedEventId : undefined);
+    const request = requests.find((item) => item.id === requestId);
+    const draft = request ? draftForRequest(approveDrafts, request) : null;
+
+    await onReview(
+      requestId,
+      action,
+      action === "approve"
+        ? linkedEventId
+          ? { linkedEventId }
+          : draft
+            ? { slug: draft.slug.trim(), title: draft.title.trim() }
+            : undefined
+        : undefined,
+    );
+
     setApprovePlan((prev) => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+    setApproveDrafts((prev) => {
       const next = { ...prev };
       delete next[requestId];
       return next;
@@ -109,6 +148,10 @@ export function AdminSignupRequests({
         <ul className="admin-signups__list">
           {visible.map((req) => {
             const linkedEvent = eventForRequest(events, req.created_event_id);
+            const plan = approvePlan[req.id] ?? CREATE_NEW_EVENT;
+            const draft = draftForRequest(approveDrafts, req);
+            const guestPreviewUrl = draft.slug ? buildEventGuestUrl(draft.slug) : "";
+
             return (
               <li key={req.id} className="admin-signups__item">
                 <div className="admin-signups__main">
@@ -139,14 +182,21 @@ export function AdminSignupRequests({
                       <label htmlFor={`approve-event-${req.id}`}>On approve</label>
                       <select
                         id={`approve-event-${req.id}`}
-                        value={approvePlan[req.id] ?? CREATE_NEW_EVENT}
+                        value={plan}
                         disabled={busy}
-                        onChange={(event) =>
-                          setApprovePlan((prev) => ({
-                            ...prev,
-                            [req.id]: event.target.value,
-                          }))
-                        }
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setApprovePlan((prev) => ({ ...prev, [req.id]: value }));
+                          if (value === CREATE_NEW_EVENT) {
+                            setApproveDrafts((prev) => ({
+                              ...prev,
+                              [req.id]: {
+                                title: defaultEventTitle(req.couple_names),
+                                slug: slugifyEventName(req.couple_names),
+                              },
+                            }));
+                          }
+                        }}
                       >
                         <option value={CREATE_NEW_EVENT}>Create new event</option>
                         {events.map((ev) => (
@@ -156,11 +206,56 @@ export function AdminSignupRequests({
                         ))}
                       </select>
                     </div>
+
+                    {plan === CREATE_NEW_EVENT && (
+                      <div className="admin-signups__preview">
+                        <label htmlFor={`approve-title-${req.id}`}>Event title</label>
+                        <input
+                          id={`approve-title-${req.id}`}
+                          value={draft.title}
+                          disabled={busy}
+                          onChange={(event) =>
+                            setApproveDrafts((prev) => ({
+                              ...prev,
+                              [req.id]: { ...draft, title: event.target.value },
+                            }))
+                          }
+                        />
+
+                        <label htmlFor={`approve-slug-${req.id}`}>Guest URL slug</label>
+                        <div className="admin-signups__slug-row">
+                          <span>/e/</span>
+                          <input
+                            id={`approve-slug-${req.id}`}
+                            value={draft.slug}
+                            disabled={busy}
+                            onChange={(event) =>
+                              setApproveDrafts((prev) => ({
+                                ...prev,
+                                [req.id]: {
+                                  ...draft,
+                                  slug: slugifyEventName(event.target.value),
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        {guestPreviewUrl && (
+                          <p className="admin-signups__preview-links">
+                            Guest page: <a href={guestPreviewUrl}>{guestPreviewUrl}</a>
+                            <br />
+                            Setup: <code>/e/{draft.slug}/setup</code>
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="admin-signups__actions">
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={busy}
+                        disabled={busy || (plan === CREATE_NEW_EVENT && (!draft.title.trim() || !draft.slug.trim()))}
                         onClick={() => void handleReview(req.id, "approve")}
                       >
                         Approve

@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   buildEventGuestUrl,
   bulkDeleteEventGalleryPhotos,
@@ -28,6 +28,8 @@ const DEFAULT_SECTIONS = ["general", "ceremony", "reception", "portraits", "part
 
 export function EventManagePage() {
   const { slug = "" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { getAccessToken, session, isSuperAdmin } = useAuth();
   const [event, setEvent] = useState<EventPublic | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
@@ -120,6 +122,17 @@ export function EventManagePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (loading || !event || !isAdmin || event.onboarding_completed_at || event.status !== "draft") {
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    if (params.get("from") === "setup") {
+      return;
+    }
+    navigate(`/e/${slug}/setup`, { replace: true });
+  }, [loading, event, isAdmin, location.search, navigate, slug]);
 
   async function handleSaveSettings(eventForm: FormEvent) {
     eventForm.preventDefault();

@@ -461,6 +461,10 @@ async def patch_event(
     payload = body.model_dump(exclude_unset=True)
     if payload.pop("complete_onboarding", None):
         payload["onboarding_completed_at"] = datetime.now(UTC).isoformat()
+    if "branding" in payload and payload["branding"] is not None:
+        existing = fetch_event_by_id(event_id)
+        if existing:
+            payload["branding"] = {**(existing.get("branding") or {}), **payload["branding"]}
     row = update_event(event_id, payload)
     return _event_public(row)
 

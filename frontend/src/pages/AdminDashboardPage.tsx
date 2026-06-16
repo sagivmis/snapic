@@ -178,7 +178,7 @@ export function AdminDashboardPage() {
   async function handleSignupReview(
     requestId: string,
     action: "approve" | "reject",
-    linkedEventId?: string,
+    options?: { linkedEventId?: string; slug?: string; title?: string },
   ) {
     setBusy(true);
     setError(null);
@@ -188,7 +188,13 @@ export function AdminDashboardPage() {
         throw new Error("Not signed in");
       }
       const extra =
-        action === "approve" && linkedEventId ? { event_id: linkedEventId } : undefined;
+        action === "approve"
+          ? options?.linkedEventId
+            ? { event_id: options.linkedEventId }
+            : options?.slug || options?.title
+              ? { slug: options.slug, title: options.title }
+              : undefined
+          : undefined;
       await reviewSignupRequest(requestId, action, token, extra);
       await load();
     } catch (err) {
