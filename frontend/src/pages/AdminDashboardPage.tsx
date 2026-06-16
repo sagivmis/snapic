@@ -2,22 +2,24 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   createAdminEvent,
+  fetchAdminAttention,
   fetchAdminEvents,
   fetchAdminStats,
   fetchSignupRequests,
   reviewSignupRequest,
   updateAdminEvent,
 } from "../api/client";
-import { AdminEventsTable } from "../components/AdminEventsTable";
+import { AdminAttentionStrip, type AttentionFocus } from "../components/AdminAttentionStrip";
+import { AdminEventsTable, type EventAttentionFilter } from "../components/AdminEventsTable";
+import { AdminSignupRequests } from "../components/AdminSignupRequests";
 import { useAuth } from "../auth/AuthProvider";
-import type { AdminEventSummary, SignupRequest } from "../types";
+import type { AdminAttention, AdminEventSummary, SignupRequest } from "../types";
 import "../styles/AdminDashboard.scss";
-
-const CREATE_NEW_EVENT = "";
 
 export function AdminDashboardPage() {
   const { getAccessToken } = useAuth();
   const [stats, setStats] = useState({ events_count: 0, pending_requests: 0, total_gallery_photos: 0, total_match_runs: 0 });
+  const [attention, setAttention] = useState<AdminAttention | null>(null);
   const [events, setEvents] = useState<AdminEventSummary[]>([]);
   const [requests, setRequests] = useState<SignupRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,9 @@ export function AdminDashboardPage() {
   const [title, setTitle] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
-  const [approvePlan, setApprovePlan] = useState<Record<string, string>>({});
+
+  const [signupTab, setSignupTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const [attentionFilter, setAttentionFilter] = useState<EventAttentionFilter>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,12 +42,14 @@ export function AdminDashboardPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      const [statsRow, eventRows, requestRows] = await Promise.all([
+      const [statsRow, attentionRow, eventRows, requestRows] = await Promise.all([
         fetchAdminStats(token),
+        fetchAdminAttention(token),
         fetchAdminEvents(token),
         fetchSignupRequests(token),
       ]);
       setStats(statsRow);
+      setAttention(attentionRow);
       setEvents(eventRows);
       setRequests(requestRows);
     } catch (err) {
@@ -102,6 +108,8 @@ export function AdminDashboardPage() {
       }
       const updated = await updateAdminEvent(eventId, { status }, token);
       setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
+      const attentionRow = await fetchAdminAttention(token);
+      setAttention(attentionRow);
     } catch (err) {
       setEvents(previous);
       setError(err instanceof Error ? err.message : "Could not update status");
@@ -110,7 +118,11 @@ export function AdminDashboardPage() {
     }
   }
 
-  async function handleReview(requestId: string, action: "approve" | "reject") {
+  async function handleSignupReview(
+    requestId: string,
+    action: "approve" | "reject",
+    linkedEventId?: string,
+  ) {
     setBusy(true);
     setError(null);
     try {
@@ -118,22 +130,26 @@ export function AdminDashboardPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      const linkedEventId = approvePlan[requestId];
       const extra =
-        action === "approve" && linkedEventId
-          ? { event_id: linkedEventId }
-          : undefined;
+        action === "approve" && linkedEventId ? { event_id: linkedEventId } : undefined;
       await reviewSignupRequest(requestId, action, token, extra);
-      setApprovePlan((prev) => {
-        const next = { ...prev };
-        delete next[requestId];
-        return next;
-      });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function handleAttentionFocus(focus: AttentionFocus) {
+    if (focus === "pending_signups") {
+      setSignupTab("pending");
+      document.getElementById("admin-signup-requests")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (focus === "empty_album" || focus === "unindexed" || focus === "archive_due") {
+      setAttentionFilter(focus);
+      document.getElementById("admin-events-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 
@@ -176,6 +192,8 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
+      {attention && <AdminAttentionStrip attention={attention} onFocus={handleAttentionFocus} />}
+
       <form className="admin__section" onSubmit={handleCreateEvent}>
         <h2>Create event</h2>
         <label htmlFor="slug">Slug</label>
@@ -205,71 +223,21 @@ export function AdminDashboardPage() {
         </button>
       </form>
 
-      <section className="admin__section">
-        <h2>Signup requests</h2>
-        {requests.filter((r) => r.status === "pending").length === 0 ? (
-          <p>No pending requests.</p>
-        ) : (
-          <ul className="admin__list">
-            {requests
-              .filter((r) => r.status === "pending")
-              .map((req) => (
-                <li key={req.id} className="admin__list-item">
-                  <div>
-                    <strong>{req.couple_names}</strong>
-                    <span>{req.email}</span>
-                    {req.message && <p>{req.message}</p>}
-                  </div>
-                  <div className="admin__approve-plan">
-                    <label htmlFor={`approve-event-${req.id}`}>On approve</label>
-                    <select
-                      id={`approve-event-${req.id}`}
-                      value={approvePlan[req.id] ?? CREATE_NEW_EVENT}
-                      disabled={busy}
-                      onChange={(event) =>
-                        setApprovePlan((prev) => ({
-                          ...prev,
-                          [req.id]: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value={CREATE_NEW_EVENT}>Create new event</option>
-                      {events.map((ev) => (
-                        <option key={ev.id} value={ev.id}>
-                          Link to {ev.title} (/e/{ev.slug})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="admin__actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={busy}
-                      onClick={() => void handleReview(req.id, "approve")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={busy}
-                      onClick={() => void handleReview(req.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        )}
-      </section>
+      <AdminSignupRequests
+        requests={requests}
+        events={events}
+        busy={busy}
+        initialTab={signupTab}
+        onReview={handleSignupReview}
+      />
 
       <section className="admin__section">
         <h2>Events</h2>
         <AdminEventsTable
           events={events}
           busy={busy}
+          attentionFilter={attentionFilter}
+          onClearAttentionFilter={() => setAttentionFilter(null)}
           onStatusChange={handleStatusChange}
         />
       </section>

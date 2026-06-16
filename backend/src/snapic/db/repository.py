@@ -513,6 +513,37 @@ def update_profile_role(user_id: str, global_role: str) -> None:
     client.table("profiles").update({"global_role": global_role}).eq("id", user_id).execute()
 
 
+def count_unindexed_gallery_photos(event_id: str) -> int:
+    client = get_supabase()
+    try:
+        result = (
+            client.table("gallery_photos")
+            .select("id", count="exact")
+            .eq("event_id", event_id)
+            .in_("face_index_status", ["pending", "failed"])
+            .execute()
+        )
+        return result.count or 0
+    except Exception:
+        photos = list_gallery_photos(event_id)
+        return sum(1 for p in photos if p.get("face_index_status") in ("pending", "failed", None))
+
+
+def event_archive_due(event_row: dict[str, Any]) -> bool:
+    """True when an active event is past its auto-archive window (no DB update)."""
+    if event_row.get("status") != "active":
+        return False
+    wedding_date = event_row.get("wedding_date")
+    if not wedding_date:
+        return False
+    archive_days = int(event_row.get("auto_archive_days") or 90)
+    if isinstance(wedding_date, str):
+        wedding = date.fromisoformat(wedding_date[:10])
+    else:
+        wedding = wedding_date
+    return date.today() > wedding + timedelta(days=archive_days)
+
+
 def maybe_auto_archive_event(event_row: dict[str, Any]) -> dict[str, Any]:
     if event_row.get("status") == "archived":
         return event_row

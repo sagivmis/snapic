@@ -132,6 +132,7 @@ export interface SignupRequest {
   message?: string | null;
   status: "pending" | "approved" | "rejected";
   created_at?: string | null;
+  reviewed_at?: string | null;
   created_event_id?: string | null;
 }
 
@@ -156,6 +157,26 @@ export interface AdminEventSummary {
   match_run_count: number;
   unique_guest_sessions: number;
   last_match_at?: string | null;
+  unindexed_photo_count: number;
+  archive_due: boolean;
+}
+
+export interface AdminAttentionEventRef {
+  id: string;
+  slug: string;
+  title: string;
+  count?: number | null;
+}
+
+export interface AdminAttention {
+  pending_signups: number;
+  active_empty_albums: number;
+  events_with_unindexed: number;
+  unindexed_photos: number;
+  archive_due_events: number;
+  empty_albums: AdminAttentionEventRef[];
+  unindexed: AdminAttentionEventRef[];
+  archive_due: AdminAttentionEventRef[];
 }
 
 export type CoupleFilter = "all" | "1" | "2" | "both";

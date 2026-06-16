@@ -1,0 +1,139 @@
+@use "variables" as *;
+
+.admin-signups__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.admin-signups__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.admin-signups__tab {
+  border: 1px solid $cream-300;
+  border-radius: 999px;
+  padding: 0.375rem 0.75rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $taupe-500;
+  background: $white;
+  cursor: pointer;
+
+  &--active {
+    border-color: $champagne-400;
+    background: rgba($blush-100, 0.6);
+    color: $taupe-700;
+  }
+}
+
+.admin-signups__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: $taupe-500;
+}
+
+.admin-signups__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-signups__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid $cream-200;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.admin-signups__main {
+  flex: 1 1 14rem;
+  min-width: 0;
+
+  strong {
+    display: block;
+    color: $taupe-700;
+  }
+}
+
+.admin-signups__email {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: $taupe-500;
+}
+
+.admin-signups__meta {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.admin-signups__message {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: $taupe-500;
+}
+
+.admin-signups__linked {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: $taupe-600;
+
+  a {
+    font-weight: 600;
+  }
+}
+
+.admin-signups__slug {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.6875rem;
+  color: $taupe-400;
+}
+
+.admin-signups__approve-plan {
+  flex: 1 1 100%;
+
+  label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $taupe-500;
+  }
+
+  select {
+    width: 100%;
+    max-width: 28rem;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    background: $white;
+  }
+}
+
+.admin-signups__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

@@ -1,5 +1,6 @@
 import { apiUrl } from "./config";
 import type {
+  AdminAttention,
   AdminEventSummary,
   AdminStats,
   EventCreateRequest,
@@ -346,6 +347,14 @@ export async function fetchAdminStats(token: string): Promise<AdminStats> {
     await parseError(response, "Could not load stats");
   }
   return response.json() as Promise<AdminStats>;
+}
+
+export async function fetchAdminAttention(token: string): Promise<AdminAttention> {
+  const response = await authFetch("/api/admin/attention", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load attention items");
+  }
+  return response.json() as Promise<AdminAttention>;
 }
 
 export async function fetchAdminEvents(token: string): Promise<AdminEventSummary[]> {

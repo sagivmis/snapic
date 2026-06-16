@@ -6,10 +6,13 @@ import "../styles/AdminEventsTable.scss";
 
 type StatusFilter = "all" | "draft" | "active" | "archived";
 type SortKey = "created" | "title" | "wedding" | "photos" | "searches" | "activity";
+export type EventAttentionFilter = "empty_album" | "unindexed" | "archive_due" | null;
 
 interface AdminEventsTableProps {
   events: AdminEventSummary[];
   busy?: boolean;
+  attentionFilter?: EventAttentionFilter;
+  onClearAttentionFilter?: () => void;
   onStatusChange: (eventId: string, status: AdminEventSummary["status"]) => void | Promise<void>;
 }
 
@@ -45,7 +48,13 @@ function eventSearchText(event: AdminEventSummary): string {
   return [event.title, event.slug, coupleNames(event)].filter(Boolean).join(" ").toLowerCase();
 }
 
-export function AdminEventsTable({ events, busy = false, onStatusChange }: AdminEventsTableProps) {
+export function AdminEventsTable({
+  events,
+  busy = false,
+  attentionFilter = null,
+  onClearAttentionFilter,
+  onStatusChange,
+}: AdminEventsTableProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("created");
@@ -60,6 +69,14 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
 
     if (normalizedQuery) {
       rows = rows.filter((event) => eventSearchText(event).includes(normalizedQuery));
+    }
+
+    if (attentionFilter === "empty_album") {
+      rows = rows.filter((event) => event.status === "active" && event.gallery_photo_count === 0);
+    } else if (attentionFilter === "unindexed") {
+      rows = rows.filter((event) => event.unindexed_photo_count > 0 && event.status !== "archived");
+    } else if (attentionFilter === "archive_due") {
+      rows = rows.filter((event) => event.archive_due);
     }
 
     const sorted = [...rows];
@@ -82,7 +99,7 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
     });
 
     return sorted;
-  }, [events, query, sortKey, statusFilter]);
+  }, [events, query, sortKey, statusFilter, attentionFilter]);
 
   const statusCounts = useMemo(() => {
     return events.reduce(
@@ -99,7 +116,22 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
   }
 
   return (
-    <div className="admin-events">
+    <div className="admin-events" id="admin-events-table">
+      {attentionFilter && (
+        <div className="admin-events__attention-banner">
+          <span>
+            {attentionFilter === "empty_album" && "Showing active events with no photos"}
+            {attentionFilter === "unindexed" && "Showing events with photos needing face index"}
+            {attentionFilter === "archive_due" && "Showing events past their archive date"}
+          </span>
+          {onClearAttentionFilter && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClearAttentionFilter}>
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="admin-events__toolbar">
         <input
           type="search"
@@ -157,6 +189,7 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
               <th scope="col">Status</th>
               <th scope="col">Wedding</th>
               <th scope="col">Photos</th>
+              <th scope="col">Index</th>
               <th scope="col">Searches</th>
               <th scope="col">Guests</th>
               <th scope="col">Last search</th>
@@ -166,7 +199,7 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="admin-events__no-results">
+                <td colSpan={9} className="admin-events__no-results">
                   No events match your filters.
                 </td>
               </tr>
@@ -197,9 +230,21 @@ export function AdminEventsTable({ events, busy = false, onStatusChange }: Admin
                         <option value="active">Active</option>
                         <option value="archived">Archived</option>
                       </select>
+                      {event.archive_due && event.status !== "archived" && (
+                        <span className="admin-events__archive-badge">Archive due</span>
+                      )}
                     </td>
                     <td>{formatDate(event.wedding_date)}</td>
                     <td>{event.gallery_photo_count}</td>
+                    <td>
+                      {event.gallery_photo_count === 0 ? (
+                        "—"
+                      ) : event.unindexed_photo_count > 0 ? (
+                        <span className="admin-events__index-warn">{event.unindexed_photo_count} pending</span>
+                      ) : (
+                        <span className="admin-events__index-ok">Indexed</span>
+                      )}
+                    </td>
                     <td>{event.match_run_count}</td>
                     <td>{event.unique_guest_sessions}</td>
                     <td>{formatDateTime(event.last_match_at)}</td>

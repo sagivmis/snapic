@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from snapic.api.schemas import (
+    AdminAttentionResponse,
     AdminEventSummary,
     AdminStatsResponse,
     EventCreateRequest,
@@ -21,7 +22,9 @@ from snapic.db.repository import (
     add_event_member,
     allocate_event_slug,
     count_gallery_photos,
+    count_unindexed_gallery_photos,
     create_event,
+    event_archive_due,
     fetch_event_by_id,
     fetch_event_by_slug,
     find_profile_by_email,
@@ -73,9 +76,11 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     )
 
 
-def _admin_event_summary(row: dict[str, Any]) -> AdminEventSummary:
-    row = maybe_auto_archive_event(row)
+def _admin_event_summary(row: dict[str, Any], *, apply_auto_archive: bool = True) -> AdminEventSummary:
+    if apply_auto_archive:
+        row = maybe_auto_archive_event(row)
     stats = get_event_stats(row["id"])
+    unindexed = count_unindexed_gallery_photos(row["id"])
     return AdminEventSummary(
         id=row["id"],
         slug=row["slug"],
@@ -90,6 +95,54 @@ def _admin_event_summary(row: dict[str, Any]) -> AdminEventSummary:
         match_run_count=stats["match_run_count"],
         unique_guest_sessions=stats["unique_guest_sessions"],
         last_match_at=stats["last_match_at"],
+        unindexed_photo_count=unindexed,
+        archive_due=event_archive_due(row),
+    )
+
+
+@router.get("/attention", response_model=AdminAttentionResponse)
+async def admin_attention(_: Annotated[AuthUser, Depends(require_super_admin)]) -> AdminAttentionResponse:
+    client = get_supabase()
+    pending = client.table("signup_requests").select("id", count="exact").eq("status", "pending").execute()
+
+    empty_albums = []
+    unindexed = []
+    archive_due = []
+    unindexed_photos = 0
+
+    for row in list_events():
+        photo_count = count_gallery_photos(row["id"])
+        if row.get("status") == "active" and photo_count == 0:
+            empty_albums.append(
+                {"id": row["id"], "slug": row["slug"], "title": row["title"], "count": None}
+            )
+
+        unindexed_count = count_unindexed_gallery_photos(row["id"])
+        if unindexed_count > 0 and row.get("status") != "archived":
+            unindexed.append(
+                {
+                    "id": row["id"],
+                    "slug": row["slug"],
+                    "title": row["title"],
+                    "count": unindexed_count,
+                }
+            )
+            unindexed_photos += unindexed_count
+
+        if event_archive_due(row):
+            archive_due.append(
+                {"id": row["id"], "slug": row["slug"], "title": row["title"], "count": None}
+            )
+
+    return AdminAttentionResponse(
+        pending_signups=pending.count or 0,
+        active_empty_albums=len(empty_albums),
+        events_with_unindexed=len(unindexed),
+        unindexed_photos=unindexed_photos,
+        archive_due_events=len(archive_due),
+        empty_albums=empty_albums,
+        unindexed=unindexed,
+        archive_due=archive_due,
     )
 
 
@@ -156,6 +209,7 @@ async def admin_list_signup_requests(
             message=r.get("message"),
             status=r["status"],
             created_at=r.get("created_at"),
+            reviewed_at=r.get("reviewed_at"),
             created_event_id=r.get("created_event_id"),
         )
         for r in rows
@@ -223,6 +277,7 @@ async def admin_review_signup(
         message=row.get("message"),
         status=row["status"],
         created_at=row.get("created_at"),
+        reviewed_at=row.get("reviewed_at"),
         created_event_id=row.get("created_event_id"),
     )
 

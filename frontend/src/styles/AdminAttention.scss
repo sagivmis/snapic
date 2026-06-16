@@ -1,0 +1,71 @@
+@use "variables" as *;
+
+.admin-attention {
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($blush-300, 0.8);
+  background: rgba($blush-100, 0.45);
+
+  &--clear {
+    border-color: rgba($champagne-400, 0.45);
+    background: rgba($cream-100, 0.7);
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: $taupe-500;
+    }
+  }
+}
+
+.admin-attention__title {
+  margin: 0 0 0.75rem;
+  font-family: $font-display;
+  font-size: 1rem;
+  color: $taupe-700;
+}
+
+.admin-attention__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.admin-attention__chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid rgba($blush-400, 0.7);
+  border-radius: $radius-lg;
+  background: $white;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: $champagne-400;
+    box-shadow: $shadow-card;
+  }
+}
+
+.admin-attention__chip-count {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: $blush-500;
+}
+
+.admin-attention__chip-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $taupe-700;
+}
+
+.admin-attention__chip-detail {
+  flex: 1 0 100%;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}

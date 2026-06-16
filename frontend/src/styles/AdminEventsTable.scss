@@ -6,6 +6,41 @@
   color: $taupe-500;
 }
 
+.admin-events__attention-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: $radius-lg;
+  background: rgba($blush-100, 0.55);
+  font-size: 0.8125rem;
+  color: $taupe-600;
+}
+
+.admin-events__index-warn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $blush-500;
+}
+
+.admin-events__index-ok {
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.admin-events__archive-badge {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $champagne-600;
+}
+
 .admin-events__toolbar {
   display: flex;
   flex-wrap: wrap;

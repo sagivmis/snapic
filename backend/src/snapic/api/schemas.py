@@ -146,6 +146,7 @@ class SignupRequestResponse(BaseModel):
     message: str | None = None
     status: Literal["pending", "approved", "rejected"]
     created_at: str | None = None
+    reviewed_at: str | None = None
     created_event_id: str | None = None
 
 
@@ -177,6 +178,26 @@ class AdminEventSummary(BaseModel):
     match_run_count: int = 0
     unique_guest_sessions: int = 0
     last_match_at: str | None = None
+    unindexed_photo_count: int = 0
+    archive_due: bool = False
+
+
+class AdminAttentionEventRef(BaseModel):
+    id: str
+    slug: str
+    title: str
+    count: int | None = None
+
+
+class AdminAttentionResponse(BaseModel):
+    pending_signups: int
+    active_empty_albums: int
+    events_with_unindexed: int
+    unindexed_photos: int
+    archive_due_events: int
+    empty_albums: list[AdminAttentionEventRef] = Field(default_factory=list)
+    unindexed: list[AdminAttentionEventRef] = Field(default_factory=list)
+    archive_due: list[AdminAttentionEventRef] = Field(default_factory=list)
 
 
 class HealthResponse(BaseModel):

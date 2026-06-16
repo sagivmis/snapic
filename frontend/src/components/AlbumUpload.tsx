@@ -60,7 +60,7 @@ function formatUploadStatus(progress: GalleryUploadProgress): string {
   }
 
   if (activeCount > 1) {
-    return `Uploading ${activeCount} at once — ${base}${detail}`;
+    return `Uploading  — ${base}${detail}`;
   }
 
   return `${base}${detail}`;
