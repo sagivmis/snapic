@@ -256,8 +256,30 @@ def upload_gallery_photo(
 
 def delete_gallery_photo(photo_id: str, storage_path: str) -> None:
     client = get_supabase()
-    client.storage.from_("events").remove([storage_path])
+    paths = [storage_path]
+    if "/" in storage_path:
+        event_id = storage_path.split("/")[0]
+        paths.append(gallery_thumbnail_path(event_id, photo_id))
+    client.storage.from_("events").remove(paths)
     client.table("gallery_photos").delete().eq("id", photo_id).execute()
+
+
+def bulk_delete_gallery_photos(event_id: str, photo_ids: list[str]) -> tuple[int, int]:
+    """Delete gallery photos belonging to event_id. Returns (deleted, not_found)."""
+    unique_ids = list(dict.fromkeys(photo_ids))
+    photos = list_gallery_photos(event_id)
+    by_id = {photo["id"]: photo for photo in photos}
+
+    deleted = 0
+    not_found = 0
+    for photo_id in unique_ids:
+        target = by_id.get(photo_id)
+        if not target:
+            not_found += 1
+            continue
+        delete_gallery_photo(photo_id, target["storage_path"])
+        deleted += 1
+    return deleted, not_found
 
 
 def is_event_admin(user_id: str, event_id: str) -> bool:

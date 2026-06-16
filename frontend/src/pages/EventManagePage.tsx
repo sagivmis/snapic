@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   buildEventGuestUrl,
+  bulkDeleteEventGalleryPhotos,
   deleteEventGalleryPhoto,
   downloadEventGalleryZip,
   fetchEventBySlug,
@@ -160,6 +161,9 @@ export function EventManagePage() {
     if (!event) {
       return;
     }
+    if (!window.confirm("Remove this photo from the album?")) {
+      return;
+    }
     setBusy(true);
     try {
       const token = await getAccessToken();
@@ -170,6 +174,33 @@ export function EventManagePage() {
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBulkDelete(photoIds: string[]) {
+    if (!event || photoIds.length === 0) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const result = await bulkDeleteEventGalleryPhotos(event.id, photoIds, token);
+      const removed = new Set(photoIds);
+      setPhotos((prev) => prev.filter((photo) => !removed.has(photo.id)));
+      const parts = [`Removed ${result.deleted} photo${result.deleted === 1 ? "" : "s"}.`];
+      if (result.not_found > 0) {
+        parts.push(`${result.not_found} were already gone.`);
+      }
+      setSuccess(parts.join(" "));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bulk delete failed");
     } finally {
       setBusy(false);
     }
@@ -403,6 +434,7 @@ export function EventManagePage() {
           <AlbumGrid
             photos={filteredPhotos}
             onDelete={(id) => void handleDelete(id)}
+            onBulkDelete={(ids) => handleBulkDelete(ids)}
             onSectionChange={(id, section) => void handleSectionChange(id, section)}
             sectionOptions={sections.filter((section) => section !== "all")}
             disabled={busy}

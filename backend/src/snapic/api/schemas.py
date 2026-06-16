@@ -98,6 +98,15 @@ class GalleryPhotoSectionUpdate(BaseModel):
     section: str = Field(min_length=1, max_length=80)
 
 
+class GalleryBulkDeleteRequest(BaseModel):
+    photo_ids: list[str] = Field(min_length=1, max_length=500)
+
+
+class GalleryBulkDeleteResponse(BaseModel):
+    deleted: int
+    not_found: int
+
+
 class MatchRunSummary(BaseModel):
     id: str
     share_id: str | None = None

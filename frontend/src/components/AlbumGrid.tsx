@@ -5,6 +5,7 @@ import "../styles/AlbumGrid.scss";
 interface AlbumGridProps {
   photos: GalleryPhoto[];
   onDelete: (photoId: string) => void;
+  onBulkDelete?: (photoIds: string[]) => void | Promise<void>;
   onSectionChange?: (photoId: string, section: string) => void;
   sectionOptions?: string[];
   disabled?: boolean;
@@ -19,11 +20,14 @@ interface PreviewPhoto {
 export function AlbumGrid({
   photos,
   onDelete,
+  onBulkDelete,
   onSectionChange,
   sectionOptions = ["general", "ceremony", "reception", "portraits", "party"],
   disabled = false,
 }: AlbumGridProps) {
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const urls = useMemo(() => {
     const map: Record<string, string> = {};
@@ -36,6 +40,14 @@ export function AlbumGrid({
   }, [photos]);
 
   const missingUrls = photos.length > 0 && photos.some((photo) => !urls[photo.id]);
+
+  const sortedPhotos = useMemo(
+    () => [...photos].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id)),
+    [photos],
+  );
+
+  const allSelected = sortedPhotos.length > 0 && selected.size === sortedPhotos.length;
+  const someSelected = selected.size > 0;
 
   useEffect(() => {
     if (!preview) {
@@ -56,10 +68,53 @@ export function AlbumGrid({
     };
   }, [preview]);
 
-  const sortedPhotos = useMemo(
-    () => [...photos].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id)),
-    [photos],
-  );
+  useEffect(() => {
+    setSelected((current) => {
+      const visible = new Set(sortedPhotos.map((photo) => photo.id));
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [sortedPhotos]);
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  function toggleSelected(photoId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(photoId)) {
+        next.delete(photoId);
+      } else {
+        next.add(photoId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(sortedPhotos.map((photo) => photo.id)));
+  }
+
+  async function handleBulkDelete() {
+    if (!onBulkDelete || selected.size === 0) {
+      return;
+    }
+    const ids = [...selected];
+    const confirmed = window.confirm(
+      `Remove ${ids.length} photo${ids.length === 1 ? "" : "s"} from the album? This cannot be undone.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    await onBulkDelete(ids);
+    exitSelectMode();
+  }
 
   if (photos.length === 0) {
     return (
@@ -71,25 +126,87 @@ export function AlbumGrid({
 
   return (
     <>
+      {onBulkDelete && (
+        <div className="album-grid__toolbar">
+          {!selectMode ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={disabled}
+              onClick={() => setSelectMode(true)}
+            >
+              Select photos
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn btn-ghost" disabled={disabled} onClick={exitSelectMode}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={disabled || sortedPhotos.length === 0}
+                onClick={toggleSelectAll}
+              >
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary album-grid__delete-selected"
+                disabled={disabled || !someSelected}
+                onClick={() => void handleBulkDelete()}
+              >
+                Delete selected{someSelected ? ` (${selected.size})` : ""}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {missingUrls && (
         <p className="album-grid__warn">
           Some previews could not be loaded. Refresh the page after the API redeploys.
         </p>
       )}
 
-      <div className="album-grid">
+      <div className={`album-grid${selectMode ? " album-grid--selecting" : ""}`}>
         {sortedPhotos.map((photo) => {
           const url = urls[photo.id];
           const label = photo.filename ?? "Wedding photo";
+          const isSelected = selected.has(photo.id);
 
           return (
-            <figure key={photo.id} className="album-grid__item">
+            <figure
+              key={photo.id}
+              className={`album-grid__item${isSelected ? " album-grid__item--selected" : ""}`}
+            >
+              {selectMode && (
+                <label className="album-grid__select">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={disabled}
+                    onChange={() => toggleSelected(photo.id)}
+                  />
+                  <span className="sr-only">Select {label}</span>
+                </label>
+              )}
+
               <button
                 type="button"
                 className="album-grid__thumb"
-                disabled={!url}
-                onClick={() => url && setPreview({ id: photo.id, url, filename: label })}
-                aria-label={`View ${label}`}
+                disabled={!url || (selectMode && disabled)}
+                onClick={() => {
+                  if (selectMode) {
+                    toggleSelected(photo.id);
+                    return;
+                  }
+                  if (url) {
+                    setPreview({ id: photo.id, url, filename: label });
+                  }
+                }}
+                aria-label={selectMode ? `Select ${label}` : `View ${label}`}
+                aria-pressed={selectMode ? isSelected : undefined}
               >
                 {url ? (
                   <img src={url} alt={label} loading="lazy" />
@@ -97,11 +214,12 @@ export function AlbumGrid({
                   <span className="album-grid__placeholder">…</span>
                 )}
               </button>
+
               <figcaption className="album-grid__caption">
                 <span className="album-grid__name" title={label}>
                   {label}
                 </span>
-                {onSectionChange && (
+                {onSectionChange && !selectMode && (
                   <select
                     className="album-grid__section"
                     value={photo.section ?? "general"}
@@ -116,21 +234,23 @@ export function AlbumGrid({
                     ))}
                   </select>
                 )}
-                <button
-                  type="button"
-                  className="album-grid__remove btn btn-ghost"
-                  disabled={disabled}
-                  onClick={() => onDelete(photo.id)}
-                >
-                  Remove
-                </button>
+                {!selectMode && (
+                  <button
+                    type="button"
+                    className="album-grid__remove btn btn-ghost"
+                    disabled={disabled}
+                    onClick={() => onDelete(photo.id)}
+                  >
+                    Remove
+                  </button>
+                )}
               </figcaption>
             </figure>
           );
         })}
       </div>
 
-      {preview && (
+      {preview && !selectMode && (
         <div className="album-grid__lightbox" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
           <div className="album-grid__lightbox-inner" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="album-grid__lightbox-close btn btn-ghost" onClick={() => setPreview(null)}>

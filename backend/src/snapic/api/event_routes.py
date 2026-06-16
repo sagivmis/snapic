@@ -14,6 +14,8 @@ from snapic.api.schemas import (
     EventPublicResponse,
     EventStatsResponse,
     EventUpdateRequest,
+    GalleryBulkDeleteRequest,
+    GalleryBulkDeleteResponse,
     GalleryPhotoResponse,
     GalleryPhotoSectionUpdate,
     MatchResponse,
@@ -24,6 +26,7 @@ from snapic.auth.jwt import AuthUser, get_anonymous_session_id, get_optional_use
 from snapic.db import is_supabase_configured
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
+    bulk_delete_gallery_photos,
     count_gallery_photos,
     create_gallery_signed_url,
     delete_gallery_photo,
@@ -248,6 +251,20 @@ async def reindex_event_gallery_faces(
         index_gallery_photo_faces(photo["id"], photo["storage_path"])
         processed += 1
     return {"processed": processed, "thumbs_backfilled": thumbs_backfilled}
+
+
+@router.post("/{event_id}/gallery/bulk-delete", response_model=GalleryBulkDeleteResponse)
+async def bulk_remove_event_gallery_photos(
+    event_id: str,
+    body: GalleryBulkDeleteRequest,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> GalleryBulkDeleteResponse:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    deleted, not_found = bulk_delete_gallery_photos(event_id, body.photo_ids)
+    if deleted == 0 and not_found > 0:
+        raise HTTPException(status_code=404, detail="No matching photos found")
+    return GalleryBulkDeleteResponse(deleted=deleted, not_found=not_found)
 
 
 @router.patch("/{event_id}/gallery/{photo_id}/section", response_model=GalleryPhotoResponse)

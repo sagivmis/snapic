@@ -269,6 +269,26 @@ export async function deleteEventGalleryPhoto(
   }
 }
 
+export async function bulkDeleteEventGalleryPhotos(
+  eventId: string,
+  photoIds: string[],
+  token: string,
+): Promise<{ deleted: number; not_found: number }> {
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery/bulk-delete`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photo_ids: photoIds }),
+    },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Bulk delete failed");
+  }
+  return response.json() as Promise<{ deleted: number; not_found: number }>;
+}
+
 export async function updateEvent(
   eventId: string,
   body: EventUpdateRequest,
