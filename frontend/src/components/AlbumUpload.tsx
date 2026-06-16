@@ -26,10 +26,32 @@ const INITIAL_PROGRESS: GalleryUploadProgress = {
   activeCount: 0,
   currentFileNames: [],
   overallProgress: 0,
+  processed: 0,
   uploaded: 0,
   failed: 0,
   skippedDuplicates: 0,
 };
+
+function formatUploadStatus(progress: GalleryUploadProgress): string {
+  const { processed, fileTotal, uploaded, skippedDuplicates, failed, activeCount } = progress;
+  const base = `${processed}/${fileTotal} processed`;
+
+  if (activeCount > 1) {
+    const detail =
+      skippedDuplicates > 0 || failed > 0
+        ? ` · ${uploaded} uploaded${skippedDuplicates > 0 ? `, ${skippedDuplicates} skipped` : ""}${failed > 0 ? `, ${failed} failed` : ""}`
+        : uploaded !== processed
+          ? ` · ${uploaded} uploaded`
+          : "";
+    return `Uploading ${activeCount} at once — ${base}${detail}`;
+  }
+
+  if (skippedDuplicates > 0 || failed > 0) {
+    return `${base} · ${uploaded} uploaded${skippedDuplicates > 0 ? `, ${skippedDuplicates} skipped` : ""}${failed > 0 ? `, ${failed} failed` : ""}`;
+  }
+
+  return `${uploaded}/${fileTotal} uploaded`;
+}
 
 export function AlbumUpload({
   eventId,
@@ -196,11 +218,7 @@ export function AlbumUpload({
             <strong>
               {phase === "paused"
                 ? "Upload paused — return to this tab to continue"
-                : progress.activeCount > 1
-                  ? `Uploading ${progress.activeCount} photos at once (${progress.uploaded}/${progress.fileTotal} done)`
-                  : progress.currentFileNames[0]
-                    ? `Uploading ${progress.currentFileNames[0]}`
-                    : `Uploading (${progress.uploaded}/${progress.fileTotal} done)`}
+                : formatUploadStatus(progress)}
             </strong>
             <span>{progress.overallProgress}%</span>
           </div>

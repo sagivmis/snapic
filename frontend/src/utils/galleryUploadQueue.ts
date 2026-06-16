@@ -8,6 +8,8 @@ export interface GalleryUploadProgress {
   activeCount: number;
   currentFileNames: string[];
   overallProgress: number;
+  /** Files fully handled (uploaded + failed + skipped). Matches the progress bar. */
+  processed: number;
   uploaded: number;
   failed: number;
   skippedDuplicates: number;
@@ -164,11 +166,11 @@ export class GalleryUploadQueue {
   }
 
   private emitProgress(phase: GalleryUploadProgress["phase"]): void {
-    const finished = this.uploaded + this.failed + this.skippedDuplicates;
+    const processed = this.uploaded + this.failed + this.skippedDuplicates;
     const inFlightSum = [...this.inFlightProgress.values()].reduce((sum, value) => sum + value, 0);
     const overall =
       this.totalFiles > 0
-        ? Math.min(100, Math.round(((finished + inFlightSum) / this.totalFiles) * 100))
+        ? Math.min(100, Math.round(((processed + inFlightSum) / this.totalFiles) * 100))
         : 0;
 
     this.callbacks.onProgress({
@@ -177,6 +179,7 @@ export class GalleryUploadQueue {
       activeCount: this.running,
       currentFileNames: [...this.activeNames],
       overallProgress: overall,
+      processed,
       uploaded: this.uploaded,
       failed: this.failed,
       skippedDuplicates: this.skippedDuplicates,
