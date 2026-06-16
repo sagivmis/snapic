@@ -7,7 +7,7 @@ import uuid
 import zipfile
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from snapic.api.schemas import (
@@ -327,6 +327,7 @@ async def my_event_match_runs(
 async def upload_event_gallery_photo(
     event_id: str,
     file: Annotated[UploadFile, File()],
+    background_tasks: BackgroundTasks,
     user: Annotated[AuthUser, Depends(get_required_user)],
     section: Annotated[str, Form()] = "general",
 ) -> GalleryPhotoResponse:
@@ -355,7 +356,7 @@ async def upload_event_gallery_photo(
         section.strip() or "general",
     )
     try:
-        index_gallery_photo_faces(photo_id, row["storage_path"])
+        background_tasks.add_task(index_gallery_photo_faces, photo_id, row["storage_path"])
     except Exception:
         pass
     refreshed = fetch_gallery_photo_by_id(photo_id) or row

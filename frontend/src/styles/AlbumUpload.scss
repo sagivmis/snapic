@@ -85,4 +85,9 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: $blush-500;
+
+  &--muted {
+    font-weight: 500;
+    color: $taupe-500;
+  }
 }

@@ -1,36 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { uploadEventGalleryPhoto } from "../api/client";
 import type { GalleryPhoto } from "../types";
 import { prepareAlbumUploads } from "../utils/albumUpload";
+import {
+  bindUploadVisibilityHandlers,
+  GalleryUploadQueue,
+  type GalleryUploadProgress,
+} from "../utils/galleryUploadQueue";
 import "../styles/AlbumUpload.scss";
 
-type UploadPhase = "idle" | "scanning" | "uploading";
-
-interface UploadProgress {
-  phase: UploadPhase;
-  scanCompleted: number;
-  scanTotal: number;
-  fileIndex: number;
-  fileTotal: number;
-  currentFileName: string;
-  fileProgress: number;
-  overallProgress: number;
-  uploaded: number;
-  skippedDuplicates: number;
-}
-
-const INITIAL_PROGRESS: UploadProgress = {
-  phase: "idle",
-  scanCompleted: 0,
-  scanTotal: 0,
-  fileIndex: 0,
-  fileTotal: 0,
-  currentFileName: "",
-  fileProgress: 0,
-  overallProgress: 0,
-  uploaded: 0,
-  skippedDuplicates: 0,
-};
+type UploadPhase = "idle" | "uploading" | "paused";
 
 interface AlbumUploadProps {
   eventId: string;
@@ -42,6 +20,17 @@ interface AlbumUploadProps {
   onError: (message: string | null) => void;
 }
 
+const INITIAL_PROGRESS: GalleryUploadProgress = {
+  phase: "uploading",
+  fileTotal: 0,
+  activeCount: 0,
+  currentFileNames: [],
+  overallProgress: 0,
+  uploaded: 0,
+  failed: 0,
+  skippedDuplicates: 0,
+};
+
 export function AlbumUpload({
   eventId,
   photos,
@@ -52,9 +41,12 @@ export function AlbumUpload({
   onError,
 }: AlbumUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [progress, setProgress] = useState<UploadProgress>(INITIAL_PROGRESS);
+  const queueRef = useRef<GalleryUploadQueue | null>(null);
+
+  const [phase, setPhase] = useState<UploadPhase>("idle");
+  const [progress, setProgress] = useState<GalleryUploadProgress>(INITIAL_PROGRESS);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const uploading = progress.phase !== "idle";
+  const uploading = phase !== "idle";
 
   useEffect(() => {
     if (!uploading) {
@@ -62,12 +54,29 @@ export function AlbumUpload({
     }
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
+      if (queueRef.current?.hasPending) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
     };
 
+    const unbindVisibility = bindUploadVisibilityHandlers(
+      () => Boolean(queueRef.current?.hasPending),
+      () => {
+        queueRef.current?.resumeIfNeeded();
+        setPhase("uploading");
+      },
+      () => {
+        queueRef.current?.pause();
+        setPhase("paused");
+      },
+    );
+
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      unbindVisibility();
+    };
   }, [uploading]);
 
   async function handleFilesSelected(fileList: FileList | null) {
@@ -78,123 +87,76 @@ export function AlbumUpload({
     onError(null);
     setStatusMessage(null);
 
-    const token = await getToken();
-    if (!token) {
-      onError("Not signed in");
+    const files = Array.from(fileList);
+    const existingFilenames = photos
+      .map((photo) => photo.filename)
+      .filter((name): name is string => Boolean(name));
+
+    const prepared = prepareAlbumUploads(files, existingFilenames);
+
+    if (prepared.toUpload.length === 0) {
+      setStatusMessage(
+        prepared.skippedDuplicates > 0
+          ? `All ${prepared.skippedDuplicates} selected photo(s) are already in the album.`
+          : "No photos selected.",
+      );
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
       return;
     }
 
-    const files = Array.from(fileList);
+    setPhase("uploading");
     setProgress({
       ...INITIAL_PROGRESS,
-      phase: "scanning",
-      scanTotal: files.length,
+      fileTotal: prepared.toUpload.length,
+      skippedDuplicates: prepared.skippedDuplicates,
     });
 
-    try {
-      const existingFilenames = photos
-        .map((photo) => photo.filename)
-        .filter((name): name is string => Boolean(name));
-      const existingHashes = photos
-        .map((photo) => photo.content_hash)
-        .filter((hash): hash is string => Boolean(hash));
+    const batchPhotos = [...photos];
 
-      const prepared = await prepareAlbumUploads(
-        files,
-        existingFilenames,
-        existingHashes,
-        (completed, total) => {
-          setProgress((current) => ({
-            ...current,
-            phase: "scanning",
-            scanCompleted: completed,
-            scanTotal: total,
-            overallProgress: Math.round((completed / total) * 10),
-          }));
+    const queue = new GalleryUploadQueue(
+      eventId,
+      section,
+      prepared.toUpload.length,
+      prepared.skippedDuplicates,
+      {
+        getToken,
+        onProgress: (next) => setProgress(next),
+        onPhotoUploaded: (photo) => {
+          batchPhotos.push(photo);
+          onPhotosChange([...batchPhotos]);
         },
-      );
+        onError: (message) => onError(message),
+        onComplete: ({ uploaded, failed, skippedDuplicates }) => {
+          queueRef.current = null;
+          setPhase("idle");
 
-      if (prepared.toUpload.length === 0) {
-        setProgress(INITIAL_PROGRESS);
-        setStatusMessage(
-          prepared.skippedDuplicates > 0
-            ? `All ${prepared.skippedDuplicates} selected photo(s) are already in the album.`
-            : "No photos selected.",
-        );
-        if (inputRef.current) {
-          inputRef.current.value = "";
-        }
-        return;
-      }
-
-      const nextPhotos = [...photos];
-      let uploadedCount = 0;
-
-      setProgress({
-        phase: "uploading",
-        scanCompleted: files.length,
-        scanTotal: files.length,
-        fileIndex: 0,
-        fileTotal: prepared.toUpload.length,
-        currentFileName: prepared.toUpload[0]?.file.name ?? "",
-        fileProgress: 0,
-        overallProgress: 10,
-        uploaded: 0,
-        skippedDuplicates: prepared.skippedDuplicates,
-      });
-
-      for (let index = 0; index < prepared.toUpload.length; index += 1) {
-        const item = prepared.toUpload[index];
-        setProgress((current) => ({
-          ...current,
-          phase: "uploading",
-          fileIndex: index + 1,
-          fileTotal: prepared.toUpload.length,
-          currentFileName: item.file.name,
-          fileProgress: 0,
-        }));
-
-        try {
-          const photo = await uploadEventGalleryPhoto(
-            eventId,
-            item.file,
-            token,
-            (loaded, total) => {
-              const filePct = total > 0 ? loaded / total : 0;
-              const overall = 10 + ((index + filePct) / prepared.toUpload.length) * 90;
-              setProgress((current) => ({
-                ...current,
-                fileProgress: Math.round(filePct * 100),
-                overallProgress: Math.min(100, Math.round(overall)),
-              }));
-            },
-            section,
-          );
-          nextPhotos.push(photo);
-          uploadedCount += 1;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Upload failed";
-          if (message.toLowerCase().includes("already in the album")) {
-            prepared.skippedDuplicates += 1;
-            continue;
+          const parts: string[] = [];
+          if (uploaded > 0) {
+            parts.push(`Uploaded ${uploaded} photo${uploaded === 1 ? "" : "s"}.`);
           }
-          throw err;
-        }
-      }
+          if (skippedDuplicates > 0) {
+            parts.push(
+              `Skipped ${skippedDuplicates} duplicate${skippedDuplicates === 1 ? "" : "s"}.`,
+            );
+          }
+          if (failed > 0) {
+            parts.push(`${failed} failed — try again or check your connection.`);
+          }
+          setStatusMessage(parts.join(" "));
+        },
+      },
+    );
 
-      onPhotosChange(nextPhotos);
-      setProgress(INITIAL_PROGRESS);
+    queueRef.current = queue;
+    queue.enqueue(prepared.toUpload);
 
-      const parts: string[] = [];
-      if (uploadedCount > 0) {
-        parts.push(`Uploaded ${uploadedCount} photo${uploadedCount === 1 ? "" : "s"}.`);
-      }
-      if (prepared.skippedDuplicates > 0) {
-        parts.push(`Skipped ${prepared.skippedDuplicates} duplicate${prepared.skippedDuplicates === 1 ? "" : "s"}.`);
-      }
-      setStatusMessage(parts.join(" "));
+    try {
+      await queue.start();
     } catch (err) {
-      setProgress(INITIAL_PROGRESS);
+      queueRef.current = null;
+      setPhase("idle");
       onError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       if (inputRef.current) {
@@ -216,28 +178,40 @@ export function AlbumUpload({
         onChange={(event) => void handleFilesSelected(event.target.files)}
       />
 
-      <label htmlFor="album-upload-input" className={`album-upload__picker${uploading ? " album-upload__picker--disabled" : ""}`}>
+      <label
+        htmlFor="album-upload-input"
+        className={`album-upload__picker${uploading ? " album-upload__picker--disabled" : ""}`}
+      >
         {uploading ? "Upload in progress…" : "Choose photos to upload"}
       </label>
 
       <p className="album-upload__hint">
-        Duplicate photos are skipped automatically by filename and file content. Keep this tab open until
-        the upload finishes — closing the browser will stop the upload.
+        Uploads start immediately. Duplicates are skipped by filename; identical files are caught
+        on the server. You can switch apps — return to this tab to resume if uploads pause.
       </p>
 
       {uploading && (
         <div className="album-upload__progress" role="status" aria-live="polite">
           <div className="album-upload__progress-header">
             <strong>
-              {progress.phase === "scanning"
-                ? `Checking duplicates (${progress.scanCompleted}/${progress.scanTotal})…`
-                : `Uploading ${progress.fileIndex} of ${progress.fileTotal}`}
+              {phase === "paused"
+                ? "Upload paused — return to this tab to continue"
+                : progress.activeCount > 1
+                  ? `Uploading ${progress.activeCount} photos at once (${progress.uploaded}/${progress.fileTotal} done)`
+                  : progress.currentFileNames[0]
+                    ? `Uploading ${progress.currentFileNames[0]}`
+                    : `Uploading (${progress.uploaded}/${progress.fileTotal} done)`}
             </strong>
             <span>{progress.overallProgress}%</span>
           </div>
 
-          {progress.phase === "uploading" && (
-            <p className="album-upload__current-file">{progress.currentFileName}</p>
+          {progress.currentFileNames.length > 1 && phase === "uploading" && (
+            <p className="album-upload__current-file">
+              {progress.currentFileNames.slice(0, 3).join(", ")}
+              {progress.currentFileNames.length > 3
+                ? ` +${progress.currentFileNames.length - 3} more`
+                : ""}
+            </p>
           )}
 
           <div className="album-upload__bar" aria-hidden="true">
@@ -247,13 +221,17 @@ export function AlbumUpload({
             />
           </div>
 
-          {progress.phase === "uploading" && (
-            <p className="album-upload__file-progress">Current file: {progress.fileProgress}%</p>
+          {phase === "paused" ? (
+            <p className="album-upload__warning album-upload__warning--muted">
+              On iPhone, Safari pauses uploads when you leave the app. Open Snapic again to
+              continue — nothing is lost.
+            </p>
+          ) : (
+            <p className="album-upload__warning album-upload__warning--muted">
+              Keep this page open for fastest uploads. Closing the browser will cancel remaining
+              files.
+            </p>
           )}
-
-          <p className="album-upload__warning">
-            Do not close this browser tab until the upload completes.
-          </p>
         </div>
       )}
 
