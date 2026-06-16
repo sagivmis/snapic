@@ -64,6 +64,13 @@
   }
 }
 
+.event-manage__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .event-manage__header {
   display: flex;
   align-items: flex-start;

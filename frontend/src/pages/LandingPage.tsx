@@ -31,6 +31,11 @@ export function LandingPage() {
               Try demo
             </Link>
           )}
+          {session && isSuperAdmin && (
+            <Link className="btn btn-secondary" to="/admin">
+              Admin dashboard
+            </Link>
+          )}
           {isSupabaseConfigured && (
             <Link className="btn btn-secondary" to="/request-access">
               Request your wedding gallery

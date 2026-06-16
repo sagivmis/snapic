@@ -17,6 +17,26 @@
   margin: 0 auto;
 }
 
+.event-setup__header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.event-setup__admin-link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $taupe-400;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--event-accent, #{$champagne-600});
+  }
+}
+
 .event-setup__header {
   margin-bottom: 1.5rem;
   text-align: center;

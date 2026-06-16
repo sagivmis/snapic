@@ -344,9 +344,16 @@ export function EventManagePage() {
           <p className="event-manage__eyebrow">Event admin</p>
           <h1>{event.title}</h1>
         </div>
-        <Link className="btn btn-secondary" to={`/e/${slug}`}>
-          Guest view
-        </Link>
+        <div className="event-manage__header-actions">
+          <Link className="btn btn-secondary" to={`/e/${slug}`}>
+            Guest view
+          </Link>
+          {isSuperAdmin && (
+            <Link className="btn btn-ghost" to="/admin">
+              Admin dashboard
+            </Link>
+          )}
+        </div>
       </header>
 
       {stats && (

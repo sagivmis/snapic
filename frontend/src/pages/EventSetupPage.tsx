@@ -219,7 +219,14 @@ export function EventSetupPage() {
     >
       <div className="event-setup__shell">
         <header className="event-setup__header">
-          <p className="event-setup__eyebrow">Snapic setup</p>
+          <div className="event-setup__header-top">
+            <p className="event-setup__eyebrow">Snapic setup</p>
+            {isSuperAdmin && (
+              <Link className="event-setup__admin-link" to="/admin">
+                Admin dashboard
+              </Link>
+            )}
+          </div>
           <h1>{displayNames}</h1>
           <div className="event-setup__progress" aria-hidden="true">
             {STEPS.map((item, index) => (

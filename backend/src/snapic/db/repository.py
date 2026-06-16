@@ -549,9 +549,15 @@ def fetch_profile_role(user_id: str) -> str | None:
     return None
 
 
-def update_profile_role(user_id: str, global_role: str) -> None:
+def update_profile_role(user_id: str, global_role: str) -> bool:
+    """Update profile global_role. Skips downgrading super_admin to event_admin."""
+    if global_role == "event_admin":
+        current = fetch_profile_role(user_id)
+        if current == "super_admin":
+            return False
     client = get_supabase()
     client.table("profiles").update({"global_role": global_role}).eq("id", user_id).execute()
+    return True
 
 
 def count_unindexed_gallery_photos(event_id: str) -> int:
