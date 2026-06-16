@@ -7,9 +7,11 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from snapic.api.schemas import (
+    AdminEventSummary,
     AdminStatsResponse,
     EventCreateRequest,
     EventPublicResponse,
+    EventUpdateRequest,
     SignupRequestResponse,
     SignupReviewRequest,
 )
@@ -23,9 +25,11 @@ from snapic.db.repository import (
     fetch_event_by_id,
     fetch_event_by_slug,
     find_profile_by_email,
+    get_event_stats,
     list_events,
     list_signup_requests,
     maybe_auto_archive_event,
+    update_event,
     update_profile_role,
     update_signup_request,
 )
@@ -69,10 +73,48 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     )
 
 
-@router.get("/events", response_model=list[EventPublicResponse])
-async def admin_list_events(_: Annotated[AuthUser, Depends(require_super_admin)]) -> list[EventPublicResponse]:
+def _admin_event_summary(row: dict[str, Any]) -> AdminEventSummary:
+    row = maybe_auto_archive_event(row)
+    stats = get_event_stats(row["id"])
+    return AdminEventSummary(
+        id=row["id"],
+        slug=row["slug"],
+        title=row["title"],
+        wedding_date=row.get("wedding_date"),
+        status=row["status"],
+        branding=row.get("branding") or {},
+        default_threshold=row.get("default_threshold", 0.4),
+        auto_archive_days=int(row.get("auto_archive_days") or 90),
+        created_at=row.get("created_at"),
+        gallery_photo_count=stats["gallery_photo_count"],
+        match_run_count=stats["match_run_count"],
+        unique_guest_sessions=stats["unique_guest_sessions"],
+        last_match_at=stats["last_match_at"],
+    )
+
+
+@router.get("/events", response_model=list[AdminEventSummary])
+async def admin_list_events(_: Annotated[AuthUser, Depends(require_super_admin)]) -> list[AdminEventSummary]:
     rows = list_events()
-    return [_event_public(r) for r in rows]
+    return [_admin_event_summary(r) for r in rows]
+
+
+@router.patch("/events/{event_id}", response_model=AdminEventSummary)
+async def admin_update_event(
+    event_id: str,
+    body: EventUpdateRequest,
+    _: Annotated[AuthUser, Depends(require_super_admin)],
+) -> AdminEventSummary:
+    if not fetch_event_by_id(event_id):
+        raise HTTPException(status_code=404, detail="Event not found")
+    payload = body.model_dump(exclude_unset=True)
+    if not payload:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update_event(event_id, payload)
+    row = fetch_event_by_id(event_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _admin_event_summary(row)
 
 
 @router.post("/events", response_model=EventPublicResponse)

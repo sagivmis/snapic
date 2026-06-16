@@ -1,5 +1,6 @@
 import { apiUrl } from "./config";
 import type {
+  AdminEventSummary,
   AdminStats,
   EventCreateRequest,
   EventPublic,
@@ -347,12 +348,32 @@ export async function fetchAdminStats(token: string): Promise<AdminStats> {
   return response.json() as Promise<AdminStats>;
 }
 
-export async function fetchAdminEvents(token: string): Promise<EventPublic[]> {
+export async function fetchAdminEvents(token: string): Promise<AdminEventSummary[]> {
   const response = await authFetch("/api/admin/events", {}, { token });
   if (!response.ok) {
     await parseError(response, "Could not load events");
   }
-  return response.json() as Promise<EventPublic[]>;
+  return response.json() as Promise<AdminEventSummary[]>;
+}
+
+export async function updateAdminEvent(
+  eventId: string,
+  body: EventUpdateRequest,
+  token: string,
+): Promise<AdminEventSummary> {
+  const response = await authFetch(
+    `/api/admin/events/${eventId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not update event");
+  }
+  return response.json() as Promise<AdminEventSummary>;
 }
 
 export async function createAdminEvent(body: EventCreateRequest, token: string): Promise<EventPublic> {

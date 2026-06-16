@@ -163,6 +163,22 @@ class AdminStatsResponse(BaseModel):
     total_match_runs: int
 
 
+class AdminEventSummary(BaseModel):
+    id: str
+    slug: str
+    title: str
+    wedding_date: str | None = None
+    status: Literal["draft", "active", "archived"]
+    branding: dict = Field(default_factory=dict)
+    default_threshold: float = 0.4
+    auto_archive_days: int = 90
+    created_at: str | None = None
+    gallery_photo_count: int = 0
+    match_run_count: int = 0
+    unique_guest_sessions: int = 0
+    last_match_at: str | None = None
+
+
 class HealthResponse(BaseModel):
     status: str
 

@@ -1,15 +1,16 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  buildEventGuestUrl,
   createAdminEvent,
   fetchAdminEvents,
   fetchAdminStats,
   fetchSignupRequests,
   reviewSignupRequest,
+  updateAdminEvent,
 } from "../api/client";
+import { AdminEventsTable } from "../components/AdminEventsTable";
 import { useAuth } from "../auth/AuthProvider";
-import type { EventPublic, SignupRequest } from "../types";
+import type { AdminEventSummary, SignupRequest } from "../types";
 import "../styles/AdminDashboard.scss";
 
 const CREATE_NEW_EVENT = "";
@@ -17,7 +18,7 @@ const CREATE_NEW_EVENT = "";
 export function AdminDashboardPage() {
   const { getAccessToken } = useAuth();
   const [stats, setStats] = useState({ events_count: 0, pending_requests: 0, total_gallery_photos: 0, total_match_runs: 0 });
-  const [events, setEvents] = useState<EventPublic[]>([]);
+  const [events, setEvents] = useState<AdminEventSummary[]>([]);
   const [requests, setRequests] = useState<SignupRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +83,28 @@ export function AdminDashboardPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleStatusChange(eventId: string, status: AdminEventSummary["status"]) {
+    const previous = events;
+    setEvents((current) =>
+      current.map((event) => (event.id === eventId ? { ...event, status } : event)),
+    );
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const updated = await updateAdminEvent(eventId, { status }, token);
+      setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
+    } catch (err) {
+      setEvents(previous);
+      setError(err instanceof Error ? err.message : "Could not update status");
     } finally {
       setBusy(false);
     }
@@ -244,30 +267,11 @@ export function AdminDashboardPage() {
 
       <section className="admin__section">
         <h2>Events</h2>
-        {events.length === 0 ? (
-          <p>No events yet.</p>
-        ) : (
-          <ul className="admin__list">
-            {events.map((ev) => (
-              <li key={ev.id} className="admin__list-item">
-                <div>
-                  <strong>{ev.title}</strong>
-                  <span>
-                    {ev.status} · /e/{ev.slug}
-                  </span>
-                </div>
-                <div className="admin__actions">
-                  <Link className="btn btn-secondary" to={`/e/${ev.slug}/manage`}>
-                    Manage
-                  </Link>
-                  <a className="btn btn-ghost" href={buildEventGuestUrl(ev.slug)}>
-                    Guest link
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AdminEventsTable
+          events={events}
+          busy={busy}
+          onStatusChange={handleStatusChange}
+        />
       </section>
 
       {error && <p className="error-banner">{error}</p>}

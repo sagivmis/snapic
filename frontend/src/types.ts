@@ -142,4 +142,20 @@ export interface AdminStats {
   total_match_runs: number;
 }
 
+export interface AdminEventSummary {
+  id: string;
+  slug: string;
+  title: string;
+  wedding_date?: string | null;
+  status: "draft" | "active" | "archived";
+  branding: Record<string, unknown>;
+  default_threshold: number;
+  auto_archive_days?: number;
+  created_at?: string | null;
+  gallery_photo_count: number;
+  match_run_count: number;
+  unique_guest_sessions: number;
+  last_match_at?: string | null;
+}
+
 export type CoupleFilter = "all" | "1" | "2" | "both";
