@@ -139,6 +139,16 @@ button {
   color: $blush-500;
 }
 
+.success-banner {
+  margin-top: 1.5rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-400, 0.6);
+  background: rgba($cream-100, 0.95);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: $champagne-600;
+}
+
 .font-display {
   font-family: $font-display;
 }

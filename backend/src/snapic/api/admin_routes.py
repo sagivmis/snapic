@@ -24,6 +24,7 @@ from snapic.db.repository import (
     count_gallery_photos,
     count_unindexed_gallery_photos,
     create_event,
+    delete_event,
     event_archive_due,
     fetch_event_by_id,
     fetch_event_by_slug,
@@ -170,6 +171,17 @@ async def admin_update_event(
     return _admin_event_summary(row)
 
 
+@router.delete("/events/{event_id}")
+async def admin_delete_event(
+    event_id: str,
+    _: Annotated[AuthUser, Depends(require_super_admin)],
+) -> dict[str, str]:
+    if not fetch_event_by_id(event_id):
+        raise HTTPException(status_code=404, detail="Event not found")
+    delete_event(event_id)
+    return {"status": "deleted", "event_id": event_id}
+
+
 @router.post("/events", response_model=EventPublicResponse)
 async def admin_create_event(
     body: EventCreateRequest,
@@ -287,10 +299,12 @@ async def admin_add_event_member(
     event_id: str,
     email: str,
     _: Annotated[AuthUser, Depends(require_super_admin)],
-    role: str = "co_admin",
+    role: str = "admin",
 ) -> dict[str, str]:
+    if role not in ("admin", "co_admin"):
+        raise HTTPException(status_code=400, detail="role must be admin or co_admin")
     event_row = fetch_event_by_id(event_id)
     if not event_row:
         raise HTTPException(status_code=404, detail="Event not found")
     invite_event_admin(email, event_id, event_row["slug"], role)
-    return {"status": "invited", "email": email.strip().lower()}
+    return {"status": "invited", "email": email.strip().lower(), "role": role}

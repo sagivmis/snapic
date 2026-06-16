@@ -401,6 +401,30 @@ export async function createAdminEvent(body: EventCreateRequest, token: string):
   return response.json() as Promise<EventPublic>;
 }
 
+export async function deleteAdminEvent(eventId: string, token: string): Promise<void> {
+  const response = await authFetch(`/api/admin/events/${eventId}`, { method: "DELETE" }, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not delete event");
+  }
+}
+
+export async function inviteAdminEventMember(
+  eventId: string,
+  email: string,
+  token: string,
+  role: "admin" | "co_admin" = "admin",
+): Promise<void> {
+  const params = new URLSearchParams({ email, role });
+  const response = await authFetch(
+    `/api/admin/events/${eventId}/members?${params}`,
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not invite admin");
+  }
+}
+
 export async function fetchSignupRequests(token: string): Promise<SignupRequest[]> {
   const response = await authFetch("/api/admin/signup-requests", {}, { token });
   if (!response.ok) {

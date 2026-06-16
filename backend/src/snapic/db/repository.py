@@ -468,6 +468,47 @@ def update_event(event_id: str, data: dict[str, Any]) -> dict[str, Any]:
     return (result.data or [{}])[0]
 
 
+def _list_storage_objects(prefix: str) -> list[str]:
+    client = get_supabase()
+    bucket = client.storage.from_("events")
+    paths: list[str] = []
+
+    def walk(folder: str) -> None:
+        try:
+            items = bucket.list(folder)
+        except Exception:
+            return
+        for item in items or []:
+            name = item.get("name")
+            if not name:
+                continue
+            path = f"{folder}/{name}" if folder else name
+            if item.get("id") is None and item.get("metadata") is None:
+                walk(path)
+            else:
+                paths.append(path)
+
+    walk(prefix)
+    return paths
+
+
+def delete_event(event_id: str) -> None:
+    client = get_supabase()
+    bucket = client.storage.from_("events")
+    paths: list[str] = []
+    for photo in list_gallery_photos(event_id):
+        paths.append(photo["storage_path"])
+        paths.append(gallery_thumbnail_path(event_id, photo["id"]))
+    paths.extend(_list_storage_objects(event_id))
+    unique = list(dict.fromkeys(path for path in paths if path))
+    for index in range(0, len(unique), 100):
+        try:
+            bucket.remove(unique[index : index + 100])
+        except Exception:
+            pass
+    client.table("events").delete().eq("id", event_id).execute()
+
+
 def list_signup_requests(status: str | None = None) -> list[dict[str, Any]]:
     client = get_supabase()
     query = client.table("signup_requests").select("*").order("created_at", desc=True)

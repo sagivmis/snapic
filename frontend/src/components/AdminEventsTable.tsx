@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { buildEventGuestUrl } from "../api/client";
 import type { AdminEventSummary } from "../types";
@@ -11,9 +12,13 @@ export type EventAttentionFilter = "empty_album" | "unindexed" | "archive_due" |
 interface AdminEventsTableProps {
   events: AdminEventSummary[];
   busy?: boolean;
+  indexingEventId?: string | null;
   attentionFilter?: EventAttentionFilter;
   onClearAttentionFilter?: () => void;
   onStatusChange: (eventId: string, status: AdminEventSummary["status"]) => void | Promise<void>;
+  onIndexFaces?: (eventId: string) => void | Promise<void>;
+  onInviteAdmin?: (eventId: string, email: string) => void | Promise<void>;
+  onDeleteEvent?: (eventId: string) => void | Promise<void>;
 }
 
 function formatDate(value?: string | null): string {
@@ -48,16 +53,71 @@ function eventSearchText(event: AdminEventSummary): string {
   return [event.title, event.slug, coupleNames(event)].filter(Boolean).join(" ").toLowerCase();
 }
 
+interface MenuAnchor {
+  top: number;
+  right: number;
+}
+
 export function AdminEventsTable({
   events,
   busy = false,
+  indexingEventId = null,
   attentionFilter = null,
   onClearAttentionFilter,
   onStatusChange,
+  onIndexFaces,
+  onInviteAdmin,
+  onDeleteEvent,
 }: AdminEventsTableProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [openMenuEventId, setOpenMenuEventId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
+  const [inviteEventId, setInviteEventId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+
+  function closeMenu() {
+    setOpenMenuEventId(null);
+    setMenuAnchor(null);
+  }
+
+  function toggleMenu(eventId: string, button: HTMLButtonElement) {
+    if (openMenuEventId === eventId) {
+      closeMenu();
+      return;
+    }
+    const rect = button.getBoundingClientRect();
+    setMenuAnchor({ top: rect.bottom + 4, right: rect.right });
+    setOpenMenuEventId(eventId);
+  }
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (menuPanelRef.current?.contains(target)) {
+        return;
+      }
+      if (target instanceof Element && target.closest("[data-admin-event-menu-trigger]")) {
+        return;
+      }
+      closeMenu();
+    }
+
+    function handleDismiss() {
+      closeMenu();
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("resize", handleDismiss);
+    window.addEventListener("scroll", handleDismiss, true);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("resize", handleDismiss);
+      window.removeEventListener("scroll", handleDismiss, true);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -111,9 +171,38 @@ export function AdminEventsTable({
     );
   }, [events]);
 
+  function startInvite(eventId: string) {
+    closeMenu();
+    setInviteEventId(eventId);
+    setInviteEmail("");
+  }
+
+  function cancelInvite() {
+    setInviteEventId(null);
+    setInviteEmail("");
+  }
+
+  async function handleInviteSubmit(eventForm: FormEvent, eventId: string) {
+    eventForm.preventDefault();
+    const email = inviteEmail.trim();
+    if (!email || !onInviteAdmin) {
+      return;
+    }
+    try {
+      await onInviteAdmin(eventId, email);
+      cancelInvite();
+    } catch {
+      // Parent surfaces the error banner.
+    }
+  }
+
   if (events.length === 0) {
     return <p className="admin-events__empty">No events yet.</p>;
   }
+
+  const openMenuEvent = openMenuEventId ? events.find((event) => event.id === openMenuEventId) : undefined;
+  const openMenuIsIndexing = openMenuEvent ? indexingEventId === openMenuEvent.id : false;
+  const openMenuCanIndex = Boolean(openMenuEvent && onIndexFaces && openMenuEvent.gallery_photo_count > 0);
 
   return (
     <div className="admin-events" id="admin-events-table">
@@ -206,6 +295,10 @@ export function AdminEventsTable({
             ) : (
               filtered.map((event) => {
                 const names = coupleNames(event);
+                const isIndexing = indexingEventId === event.id;
+                const rowBusy = busy || isIndexing;
+                const showInviteForm = inviteEventId === event.id;
+
                 return (
                   <tr key={event.id}>
                     <td className="admin-events__event-cell">
@@ -248,15 +341,56 @@ export function AdminEventsTable({
                     <td>{event.match_run_count}</td>
                     <td>{event.unique_guest_sessions}</td>
                     <td>{formatDateTime(event.last_match_at)}</td>
-                    <td>
-                      <div className="admin-events__actions">
-                        <Link className="btn btn-secondary btn-sm" to={`/e/${event.slug}/manage`}>
-                          Manage
-                        </Link>
-                        <a className="btn btn-ghost btn-sm" href={buildEventGuestUrl(event.slug)}>
-                          Guest
-                        </a>
-                      </div>
+                    <td className="admin-events__actions-cell">
+                      {showInviteForm ? (
+                        <form
+                          className="admin-events__invite-form"
+                          onSubmit={(eventForm) => handleInviteSubmit(eventForm, event.id)}
+                        >
+                          <input
+                            type="email"
+                            required
+                            placeholder="Admin email"
+                            value={inviteEmail}
+                            disabled={busy}
+                            onChange={(changeEvent) => setInviteEmail(changeEvent.target.value)}
+                            aria-label={`Admin email for ${event.title}`}
+                          />
+                          <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+                            Invite
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={busy}
+                            onClick={cancelInvite}
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="admin-events__actions">
+                          <Link className="btn btn-secondary btn-sm" to={`/e/${event.slug}/manage`}>
+                            Manage
+                          </Link>
+                          <a className="btn btn-ghost btn-sm" href={buildEventGuestUrl(event.slug)}>
+                            Guest
+                          </a>
+                          {(onIndexFaces || onInviteAdmin || onDeleteEvent) && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm admin-events__menu-trigger"
+                              data-admin-event-menu-trigger
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuEventId === event.id}
+                              disabled={rowBusy && openMenuEventId !== event.id}
+                              onClick={(clickEvent) => toggleMenu(event.id, clickEvent.currentTarget)}
+                            >
+                              More
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -265,6 +399,61 @@ export function AdminEventsTable({
           </tbody>
         </table>
       </div>
+
+      {openMenuEvent &&
+        menuAnchor &&
+        createPortal(
+          <div
+            ref={menuPanelRef}
+            className="admin-events__menu-panel admin-events__menu-panel--fixed"
+            role="menu"
+            style={{
+              top: menuAnchor.top,
+              left: menuAnchor.right,
+            }}
+          >
+            {openMenuCanIndex && (
+              <button
+                type="button"
+                role="menuitem"
+                className="admin-events__menu-item"
+                disabled={openMenuIsIndexing}
+                onClick={() => {
+                  closeMenu();
+                  void onIndexFaces?.(openMenuEvent.id);
+                }}
+              >
+                {openMenuIsIndexing ? "Indexing…" : "Index faces"}
+              </button>
+            )}
+            {onInviteAdmin && (
+              <button
+                type="button"
+                role="menuitem"
+                className="admin-events__menu-item"
+                disabled={busy}
+                onClick={() => startInvite(openMenuEvent.id)}
+              >
+                Invite admin
+              </button>
+            )}
+            {onDeleteEvent && (
+              <button
+                type="button"
+                role="menuitem"
+                className="admin-events__menu-item admin-events__menu-item--danger"
+                disabled={busy}
+                onClick={() => {
+                  closeMenu();
+                  void onDeleteEvent(openMenuEvent.id);
+                }}
+              >
+                Delete event
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

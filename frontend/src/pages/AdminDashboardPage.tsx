@@ -2,10 +2,13 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   createAdminEvent,
+  deleteAdminEvent,
   fetchAdminAttention,
   fetchAdminEvents,
   fetchAdminStats,
   fetchSignupRequests,
+  inviteAdminEventMember,
+  reindexEventGallery,
   reviewSignupRequest,
   updateAdminEvent,
 } from "../api/client";
@@ -24,7 +27,9 @@ export function AdminDashboardPage() {
   const [requests, setRequests] = useState<SignupRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [indexingEventId, setIndexingEventId] = useState<string | null>(null);
 
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
@@ -37,6 +42,7 @@ export function AdminDashboardPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       const token = await getAccessToken();
       if (!token) {
@@ -141,6 +147,79 @@ export function AdminDashboardPage() {
     }
   }
 
+  async function handleIndexFaces(eventId: string) {
+    const event = events.find((row) => row.id === eventId);
+    setIndexingEventId(eventId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      const result = await reindexEventGallery(eventId, token);
+      const [attentionRow, eventRows] = await Promise.all([
+        fetchAdminAttention(token),
+        fetchAdminEvents(token),
+      ]);
+      setAttention(attentionRow);
+      setEvents(eventRows);
+      setSuccess(
+        `Indexed faces in ${result.processed} photo${result.processed === 1 ? "" : "s"}${event ? ` for ${event.title}` : ""}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Indexing failed");
+    } finally {
+      setIndexingEventId(null);
+    }
+  }
+
+  async function handleInviteAdmin(eventId: string, email: string) {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      await inviteAdminEventMember(eventId, email, token, "admin");
+      setSuccess(`Invite sent to ${email}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not invite admin");
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteEvent(eventId: string) {
+    const event = events.find((row) => row.id === eventId);
+    if (
+      !window.confirm(
+        `Delete "${event?.title ?? "this event"}" permanently? Photos, searches, and storage will be removed.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      await deleteAdminEvent(eventId, token);
+      await load();
+      setSuccess(`Deleted ${event?.title ?? "event"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete event");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handleAttentionFocus(focus: AttentionFocus) {
     if (focus === "pending_signups") {
       setSignupTab("pending");
@@ -236,12 +315,17 @@ export function AdminDashboardPage() {
         <AdminEventsTable
           events={events}
           busy={busy}
+          indexingEventId={indexingEventId}
           attentionFilter={attentionFilter}
           onClearAttentionFilter={() => setAttentionFilter(null)}
           onStatusChange={handleStatusChange}
+          onIndexFaces={handleIndexFaces}
+          onInviteAdmin={handleInviteAdmin}
+          onDeleteEvent={handleDeleteEvent}
         />
       </section>
 
+      {success && <p className="success-banner">{success}</p>}
       {error && <p className="error-banner">{error}</p>}
     </div>
   );
