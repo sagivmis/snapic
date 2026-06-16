@@ -6,7 +6,8 @@
   inset: 0;
   z-index: 50;
   @include flex-center;
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background: rgba($taupe-700, 0.7);
   backdrop-filter: blur(4px);
 }
@@ -15,32 +16,57 @@
   position: relative;
   width: 100%;
   max-width: 56rem;
-  max-height: 90vh;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .lightbox__close {
   position: absolute;
-  top: -2.5rem;
-  right: 0;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
   border: none;
-  background: none;
-  padding: 0;
+  border-radius: 999px;
+  background: rgba($white, 0.92);
+  padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: $cream-100;
+  font-weight: 600;
+  color: $taupe-700;
+  box-shadow: $shadow-card;
 
   &:hover {
-    color: $white;
+    background: $white;
   }
 }
 
 .lightbox__image {
   display: block;
   width: 100%;
-  max-height: 85vh;
+  max-height: min(78vh, calc(100dvh - 8rem));
   border-radius: $radius-2xl;
   object-fit: contain;
   box-shadow: $shadow-soft;
+}
+
+.lightbox__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+}
+
+.lightbox__loading-label {
+  position: absolute;
+  left: 50%;
+  bottom: 5.5rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  background: rgba($white, 0.9);
+  font-size: 0.75rem;
+  color: $taupe-500;
 }
 
 .lightbox__caption {
@@ -49,7 +75,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
   border-radius: $radius-xl;
   background: rgba($white, 0.9);
   padding: 0.75rem 1rem;

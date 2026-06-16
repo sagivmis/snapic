@@ -153,6 +153,7 @@
   box-shadow: $shadow-card;
   cursor: pointer;
   transition: box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     box-shadow: $shadow-soft;
@@ -160,6 +161,10 @@
     .result-card__image {
       transform: scale(1.02);
     }
+  }
+
+  &:active {
+    transform: scale(0.985);
   }
 }
 

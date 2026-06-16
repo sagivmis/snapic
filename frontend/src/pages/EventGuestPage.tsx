@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream } from "../api/client";
@@ -6,6 +6,7 @@ import { InstallPrompt } from "../components/InstallPrompt";
 import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import "../styles/EventGuest.scss";
 
@@ -42,6 +43,9 @@ export function EventGuestPage() {
   );
   const [pastRuns, setPastRuns] = useState<MatchRunSummary[]>([]);
   const [refreshingEvent, setRefreshingEvent] = useState(false);
+  const [searchStale, setSearchStale] = useState(false);
+  const lastProgressAtRef = useRef(Date.now());
+  const network = useNetworkStatus();
 
   const loginNext = slug ? `/e/${slug}` : "/";
   const loginHref = `/login?next=${encodeURIComponent(loginNext)}`;
@@ -109,6 +113,31 @@ export function EventGuestPage() {
     })();
   }, [event, session, anonymousSessionId, getAccessToken]);
 
+  useEffect(() => {
+    if (!loading) {
+      setSearchStale(false);
+      return;
+    }
+
+    lastProgressAtRef.current = Date.now();
+    setSearchStale(false);
+
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastProgressAtRef.current > 12_000) {
+        setSearchStale(true);
+      }
+    }, 3_000);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    if (matchProgress) {
+      lastProgressAtRef.current = Date.now();
+      setSearchStale(false);
+    }
+  }, [matchProgress?.processed, matchProgress?.total]);
+
   async function refreshEvent() {
     if (!slug) {
       return;
@@ -126,7 +155,7 @@ export function EventGuestPage() {
   }
 
   async function handleMatch() {
-    if (!event || !selfie) {
+    if (!event || !selfie || !network.online) {
       return;
     }
 
@@ -259,6 +288,22 @@ export function EventGuestPage() {
     >
       <InstallPrompt />
 
+      {!network.online && (
+        <div className="event-guest__network-banner event-guest__network-banner--offline" role="status">
+          You&apos;re offline. Reconnect to search or download photos.
+        </div>
+      )}
+      {network.online && network.isSlowConnection && (loading || step === "portrait") && (
+        <div className="event-guest__network-banner" role="status">
+          Slow connection detected — searching may take a little longer.
+        </div>
+      )}
+      {searchStale && loading && (
+        <div className="event-guest__network-banner event-guest__network-banner--patience" role="status">
+          Still searching a large album. Matches will keep appearing as we find them.
+        </div>
+      )}
+
       {step === "portrait" && (
         <header className="event-guest__header">
           <p className="event-guest__eyebrow">{title}</p>
@@ -317,10 +362,10 @@ export function EventGuestPage() {
             <button
               type="button"
               className="btn btn-primary event-guest__match"
-              disabled={!hasPortrait || loading}
+              disabled={!hasPortrait || loading || !network.online}
               onClick={() => void handleMatch()}
             >
-              {loading ? "Searching…" : "Find my photos"}
+              {!network.online ? "Offline" : loading ? "Searching…" : "Find my photos"}
             </button>
           </>
         )}

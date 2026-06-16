@@ -43,10 +43,10 @@ export function RequestAccessPage() {
 
   return (
     <div className="auth-page">
-      <h1>Request event access</h1>
+      <h1>Request your wedding gallery</h1>
       <p className="auth-page__lead">
-        Couples can request a private wedding gallery. A Snapic admin will approve and set up your
-        event.
+        Couples can request a private Snapic gallery for their wedding. We&apos;ll review your
+        request and email you when your event is ready.
       </p>
 
       <form className="auth-page__form auth-page__form--wide" onSubmit={handleSubmit}>

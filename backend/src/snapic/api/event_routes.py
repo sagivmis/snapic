@@ -7,9 +7,10 @@ import uuid
 import zipfile
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
+from snapic.api.rate_limit import enforce_match_rate_limit
 from snapic.api.schemas import (
     EventPublicResponse,
     EventStatsResponse,
@@ -459,6 +460,7 @@ async def get_gallery_photo_image(
 
 @router.post("/{event_id}/match/stream")
 async def match_event_gallery_stream(
+    request: Request,
     event_id: str,
     selfie: Annotated[UploadFile, File()],
     partner_selfie: Annotated[UploadFile | None, File()] = None,
@@ -466,6 +468,7 @@ async def match_event_gallery_stream(
     user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
     anonymous_session_id: Annotated[str | None, Depends(get_anonymous_session_id)] = None,
 ) -> StreamingResponse:
+    enforce_match_rate_limit(request, event_id, anonymous_session_id)
     _, references, couple_mode, effective_threshold, gallery = await _prepare_event_match_context(
         event_id, selfie, partner_selfie, threshold, user
     )
@@ -490,6 +493,7 @@ async def match_event_gallery_stream(
 
 @router.post("/{event_id}/match", response_model=MatchResponse)
 async def match_event_gallery(
+    request: Request,
     event_id: str,
     selfie: Annotated[UploadFile, File()],
     partner_selfie: Annotated[UploadFile | None, File()] = None,
@@ -497,6 +501,7 @@ async def match_event_gallery(
     user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
     anonymous_session_id: Annotated[str | None, Depends(get_anonymous_session_id)] = None,
 ) -> MatchResponse:
+    enforce_match_rate_limit(request, event_id, anonymous_session_id)
     _, references, couple_mode, effective_threshold, gallery = await _prepare_event_match_context(
         event_id, selfie, partner_selfie, threshold, user
     )

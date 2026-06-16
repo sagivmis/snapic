@@ -211,3 +211,65 @@
   font-size: 0.8125rem;
   color: $taupe-400;
 }
+
+.event-guest__network-banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-400, 0.45);
+  background: rgba($cream-100, 0.95);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: $taupe-600;
+  text-align: center;
+
+  &--offline {
+    border-color: rgba($blush-400, 0.55);
+    background: rgba($blush-100, 0.9);
+    color: $blush-500;
+  }
+
+  &--patience {
+    border-color: rgba($champagne-400, 0.35);
+    background: rgba($white, 0.92);
+  }
+}
+
+.event-guest--results {
+  .results__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .result-card__meta {
+    padding: 0.75rem;
+  }
+
+  .result-card__title,
+  .result-card__hint {
+    font-size: 0.75rem;
+  }
+
+  .result-card__badge {
+    top: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+
+    &--score {
+      right: 0.5rem;
+    }
+
+    &--person {
+      left: 0.5rem;
+    }
+  }
+
+  .results__actions--guest {
+    flex-direction: column;
+
+    .btn {
+      width: 100%;
+      min-height: 3rem;
+    }
+  }
+}

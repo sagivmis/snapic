@@ -20,7 +20,7 @@ export function LandingPage() {
         <p className="landing__eyebrow">Snapic</p>
         <h1>Find yourself in every wedding photo</h1>
         <p className="landing__lead">
-          Upload a selfie and search the wedding gallery for photos that include you — no scrolling
+          Guests upload a selfie and instantly find every wedding photo they appear in — no scrolling
           through hundreds of shots.
         </p>
         <div className="landing__actions">
@@ -33,7 +33,7 @@ export function LandingPage() {
           )}
           {isSupabaseConfigured && (
             <Link className="btn btn-secondary" to="/request-access">
-              Request event access
+              Request your wedding gallery
             </Link>
           )}
         </div>
