@@ -74,6 +74,7 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         default_threshold=row.get("default_threshold", 0.4),
         gallery_photo_count=count_gallery_photos(row["id"]),
         auto_archive_days=int(row.get("auto_archive_days") or 90),
+        onboarding_completed_at=row.get("onboarding_completed_at"),
     )
 
 

@@ -59,6 +59,7 @@ export interface EventPublic {
   default_threshold: number;
   gallery_photo_count?: number;
   auto_archive_days?: number;
+  onboarding_completed_at?: string | null;
 }
 
 export interface EventCreateRequest {
@@ -78,6 +79,17 @@ export interface EventUpdateRequest {
   branding?: Record<string, unknown>;
   default_threshold?: number;
   auto_archive_days?: number;
+  complete_onboarding?: boolean;
+}
+
+export interface EventSetupStatus {
+  branding_ok: boolean;
+  has_photos: boolean;
+  photo_count: number;
+  faces_indexed: boolean;
+  unindexed_count: number;
+  is_active: boolean;
+  onboarding_completed: boolean;
 }
 
 export interface GalleryPhoto {
@@ -115,6 +127,7 @@ export interface UserEventSummary {
   is_admin: boolean;
   last_search_at?: string | null;
   search_count: number;
+  needs_onboarding?: boolean;
 }
 
 export interface SignupRequestCreate {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import hashlib
 import io
 import json
@@ -13,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from snapic.api.rate_limit import enforce_match_rate_limit
 from snapic.api.schemas import (
     EventPublicResponse,
+    EventSetupStatusResponse,
     EventStatsResponse,
     EventUpdateRequest,
     GalleryBulkDeleteRequest,
@@ -29,6 +31,7 @@ from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     bulk_delete_gallery_photos,
     count_gallery_photos,
+    count_unindexed_gallery_photos,
     create_gallery_signed_url,
     delete_gallery_photo,
     download_storage_bytes,
@@ -149,6 +152,25 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         default_threshold=row.get("default_threshold", 0.4),
         gallery_photo_count=count_gallery_photos(row["id"]),
         auto_archive_days=int(row.get("auto_archive_days") or 90),
+        onboarding_completed_at=row.get("onboarding_completed_at"),
+    )
+
+
+def _event_setup_status(event_id: str, row: dict[str, Any]) -> EventSetupStatusResponse:
+    branding = row.get("branding") or {}
+    couple_names = branding.get("couple_names")
+    branding_ok = isinstance(couple_names, str) and bool(couple_names.strip())
+    photo_count = count_gallery_photos(event_id)
+    unindexed = count_unindexed_gallery_photos(event_id)
+    has_photos = photo_count > 0
+    return EventSetupStatusResponse(
+        branding_ok=branding_ok,
+        has_photos=has_photos,
+        photo_count=photo_count,
+        faces_indexed=has_photos and unindexed == 0,
+        unindexed_count=unindexed,
+        is_active=row.get("status") == "active",
+        onboarding_completed=bool(row.get("onboarding_completed_at")),
     )
 
 
@@ -415,6 +437,19 @@ async def invite_event_member(
     return {"status": "invited", "email": email.strip().lower()}
 
 
+@router.get("/{event_id}/setup-status", response_model=EventSetupStatusResponse)
+async def get_event_setup_status(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> EventSetupStatusResponse:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    row = fetch_event_by_id(event_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _event_setup_status(event_id, row)
+
+
 @router.patch("/{event_id}", response_model=EventPublicResponse)
 async def patch_event(
     event_id: str,
@@ -424,6 +459,8 @@ async def patch_event(
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
     payload = body.model_dump(exclude_unset=True)
+    if payload.pop("complete_onboarding", None):
+        payload["onboarding_completed_at"] = datetime.now(UTC).isoformat()
     row = update_event(event_id, payload)
     return _event_public(row)
 

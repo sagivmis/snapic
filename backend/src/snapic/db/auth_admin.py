@@ -17,7 +17,7 @@ def app_base_url() -> str:
 
 def send_event_admin_invite(email: str, event_slug: str, event_id: str, role: str = "admin") -> None:
     client = get_supabase()
-    redirect_to = f"{app_base_url()}/login?next=/e/{event_slug}/manage"
+    redirect_to = f"{app_base_url()}/login?next=/e/{event_slug}/setup"
     metadata = {
         "pending_event_id": event_id,
         "pending_event_role": role,

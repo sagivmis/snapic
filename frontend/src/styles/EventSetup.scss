@@ -1,0 +1,246 @@
+@use "variables" as *;
+
+.event-setup {
+  min-height: 100dvh;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(2.5rem, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, $cream-50 0%, $cream-100 100%);
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.event-setup__shell {
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.event-setup__header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+
+  h1 {
+    margin: 0.35rem 0 1rem;
+    font-family: $font-display;
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    color: $taupe-700;
+  }
+}
+
+.event-setup__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--event-accent, #{$champagne-600});
+}
+
+.event-setup__progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.event-setup__progress-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba($cream-400, 0.8);
+  transition: background 0.2s ease, transform 0.2s ease;
+
+  &--active {
+    background: var(--event-accent, #{$champagne-600});
+    transform: scale(1.15);
+  }
+}
+
+.event-setup__step-label {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: $taupe-400;
+}
+
+.event-setup__card {
+  border-radius: $radius-2xl;
+  border: 1px solid rgba($cream-300, 0.75);
+  background: rgba($white, 0.94);
+  padding: 1.5rem;
+  box-shadow: $shadow-card;
+}
+
+.event-setup__section {
+  h2 {
+    margin: 0 0 0.5rem;
+    font-family: $font-display;
+    font-size: 1.5rem;
+    color: $taupe-700;
+  }
+}
+
+.event-setup__lead {
+  margin: 0 0 1.25rem;
+  color: $taupe-500;
+  line-height: 1.55;
+}
+
+.event-setup__bullets {
+  margin: 0 0 1.5rem;
+  padding-left: 1.125rem;
+  color: $taupe-500;
+  line-height: 1.55;
+
+  li + li {
+    margin-top: 0.375rem;
+  }
+}
+
+.event-setup__form {
+  label {
+    display: block;
+    margin-top: 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $taupe-600;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="date"] {
+    width: 100%;
+    margin-top: 0.25rem;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    padding: 0.625rem 0.75rem;
+    font: inherit;
+    background: $white;
+  }
+}
+
+.event-setup__color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+
+  input[type="color"] {
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0.125rem;
+    border: 1px solid $cream-400;
+    border-radius: $radius-lg;
+    background: $white;
+    cursor: pointer;
+  }
+
+  span {
+    flex: 1;
+    font-size: 0.8125rem;
+    color: $taupe-400;
+    line-height: 1.4;
+  }
+}
+
+.event-setup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 1.5rem;
+
+  &--stack {
+    flex-direction: column;
+
+    .btn {
+      width: 100%;
+    }
+  }
+}
+
+.event-setup__continue {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.event-setup__checklist {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.event-setup__checklist li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba($cream-300, 0.65);
+  font-size: 0.9375rem;
+  color: $taupe-500;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.event-setup__checkmark {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  border: 1.5px solid $cream-400;
+  background: $white;
+  position: relative;
+
+  .event-setup__checklist-item--done & {
+    border-color: var(--event-accent, #{$champagne-600});
+    background: rgba($champagne-400, 0.18);
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0.3rem;
+      top: 0.15rem;
+      width: 0.35rem;
+      height: 0.6rem;
+      border: solid var(--event-accent, #{$champagne-600});
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  }
+}
+
+.event-setup__checklist-item--done {
+  color: $taupe-700;
+  font-weight: 500;
+}
+
+.event-setup__success {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--event-accent, #{$champagne-600});
+}
+
+.event-setup__hint {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: $taupe-400;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.event-setup__footer {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  font-size: 0.875rem;
+
+  a {
+    color: $taupe-400;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--event-accent, #{$champagne-600});
+    }
+  }
+}

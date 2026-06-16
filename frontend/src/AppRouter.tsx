@@ -3,6 +3,7 @@ import { RequireAuth, RequireRole } from "./auth/RequireRole";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { EventGuestPage } from "./pages/EventGuestPage";
 import { EventManagePage } from "./pages/EventManagePage";
+import { EventSetupPage } from "./pages/EventSetupPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LegacyDemoPage } from "./pages/LegacyDemoPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -17,6 +18,14 @@ export function AppRouter() {
       <Route path="/request-access" element={<RequestAccessPage />} />
       <Route path="/demo" element={<LegacyDemoPage />} />
       <Route path="/e/:slug" element={<EventGuestPage />} />
+      <Route
+        path="/e/:slug/setup"
+        element={
+          <RequireAuth>
+            <EventSetupPage />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/e/:slug/manage"
         element={

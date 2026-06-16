@@ -324,8 +324,21 @@ export function EventManagePage() {
     );
   }
 
+  const needsSetup = !event.onboarding_completed_at && event.status === "draft";
+
   return (
     <div className="event-manage">
+      {needsSetup && (
+        <div className="event-manage__setup-banner">
+          <div>
+            <strong>Finish setting up your gallery</strong>
+            <p>Complete branding and review your launch checklist.</p>
+          </div>
+          <Link to={`/e/${slug}/setup`} className="btn btn-secondary">
+            Continue setup
+          </Link>
+        </div>
+      )}
       <header className="event-manage__header">
         <div>
           <p className="event-manage__eyebrow">Event admin</p>

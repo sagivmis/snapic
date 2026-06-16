@@ -80,7 +80,11 @@ export function MyEventsSelect() {
             return;
           }
           const event = events.find((item) => item.slug === slug);
-          const path = event?.is_admin ? `/e/${slug}/manage` : `/e/${slug}`;
+          const path = event?.is_admin
+            ? event.needs_onboarding
+              ? `/e/${slug}/setup`
+              : `/e/${slug}/manage`
+            : `/e/${slug}`;
           navigate(path);
           selectEvent.target.value = "";
         }}

@@ -16,6 +16,7 @@ import type {
   SignupRequest,
   SignupRequestCreate,
   UserEventSummary,
+  EventSetupStatus,
 } from "../types";
 
 export interface AuthFetchOptions {
@@ -526,6 +527,17 @@ export async function fetchEventStats(eventId: string, token: string): Promise<E
     await parseError(response, "Could not load stats");
   }
   return response.json() as Promise<EventStats>;
+}
+
+export async function fetchEventSetupStatus(
+  eventId: string,
+  token: string,
+): Promise<EventSetupStatus> {
+  const response = await authFetch(`/api/events/${eventId}/setup-status`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load setup status");
+  }
+  return response.json() as Promise<EventSetupStatus>;
 }
 
 export async function fetchMyEvents(token: string): Promise<UserEventSummary[]> {

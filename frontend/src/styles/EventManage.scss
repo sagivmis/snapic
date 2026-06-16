@@ -40,6 +40,30 @@
   }
 }
 
+.event-manage__setup-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.125rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-400, 0.45);
+  background: rgba($cream-100, 0.9);
+
+  strong {
+    display: block;
+    color: $taupe-700;
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: $taupe-500;
+  }
+}
+
 .event-manage__header {
   display: flex;
   align-items: flex-start;

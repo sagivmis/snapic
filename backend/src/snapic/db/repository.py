@@ -674,6 +674,14 @@ def is_super_admin(user_id: str) -> bool:
     return fetch_profile_role(user_id) == "super_admin"
 
 
+def _event_needs_onboarding(event: dict[str, Any], is_admin: bool) -> bool:
+    return (
+        is_admin
+        and event.get("status") == "draft"
+        and not event.get("onboarding_completed_at")
+    )
+
+
 def list_user_events(user_id: str) -> list[dict[str, Any]]:
     """Events the user administers or has searched, excluding archived."""
     client = get_supabase()
@@ -715,6 +723,7 @@ def list_user_events(user_id: str) -> list[dict[str, Any]]:
                     "is_admin": True,
                     "last_search_at": stats["last_at"],
                     "search_count": stats["count"],
+                    "needs_onboarding": _event_needs_onboarding(event, True),
                 }
             )
         return summaries
@@ -738,6 +747,7 @@ def list_user_events(user_id: str) -> list[dict[str, Any]]:
                 "is_admin": event_id in admin_event_ids,
                 "last_search_at": stats["last_at"],
                 "search_count": stats["count"],
+                "needs_onboarding": _event_needs_onboarding(event, event_id in admin_event_ids),
             }
         )
 

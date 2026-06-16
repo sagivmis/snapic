@@ -60,6 +60,7 @@ class EventPublicResponse(BaseModel):
     default_threshold: float = 0.4
     gallery_photo_count: int = 0
     auto_archive_days: int = 90
+    onboarding_completed_at: str | None = None
 
 
 class EventCreateRequest(BaseModel):
@@ -79,6 +80,17 @@ class EventUpdateRequest(BaseModel):
     branding: dict | None = None
     default_threshold: float | None = None
     auto_archive_days: int | None = None
+    complete_onboarding: bool | None = None
+
+
+class EventSetupStatusResponse(BaseModel):
+    branding_ok: bool
+    has_photos: bool
+    photo_count: int
+    faces_indexed: bool
+    unindexed_count: int
+    is_active: bool
+    onboarding_completed: bool
 
 
 class GalleryPhotoResponse(BaseModel):
@@ -122,6 +134,7 @@ class UserEventSummary(BaseModel):
     is_admin: bool = False
     last_search_at: str | None = None
     search_count: int = 0
+    needs_onboarding: bool = False
 
 
 class EventStatsResponse(BaseModel):
