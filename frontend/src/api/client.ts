@@ -21,6 +21,7 @@ import type {
   IndexScope,
   SlugCheckResult,
   AuditLogEntry,
+  SentryTestResult,
 } from "../types";
 
 export interface AuthFetchOptions {
@@ -645,6 +646,18 @@ export async function fetchAdminAuditLog(token: string, limit = 50): Promise<Aud
     await parseError(response, "Could not load audit log");
   }
   return response.json() as Promise<AuditLogEntry[]>;
+}
+
+export async function testAdminSentry(token: string): Promise<SentryTestResult> {
+  const response = await authFetch(
+    "/api/admin/monitoring/sentry-test",
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not send Sentry test");
+  }
+  return response.json() as Promise<SentryTestResult>;
 }
 
 export function buildShareUrl(shareId: string): string {

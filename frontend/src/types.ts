@@ -202,6 +202,12 @@ export interface AdminStats {
   total_match_runs: number;
 }
 
+export interface SentryTestResult {
+  backend_configured: boolean;
+  backend_sent: boolean;
+  message: string;
+}
+
 export interface AdminEventSummary {
   id: string;
   slug: string;

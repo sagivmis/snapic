@@ -15,4 +15,20 @@ export function initSentry(): void {
   });
 }
 
+export function isSentryConfigured(): boolean {
+  return Boolean(Sentry.getClient());
+}
+
+/** Send a one-off test event (super-admin monitoring check). */
+export function captureSentryTestEvent(): boolean {
+  if (!isSentryConfigured()) {
+    return false;
+  }
+  Sentry.captureMessage("Snapic admin Sentry test (frontend)", {
+    level: "info",
+    tags: { source: "admin_test" },
+  });
+  return true;
+}
+
 export { Sentry };

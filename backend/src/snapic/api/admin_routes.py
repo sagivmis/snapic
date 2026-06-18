@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -14,6 +15,7 @@ from snapic.api.schemas import (
     EventCreateRequest,
     EventPublicResponse,
     EventUpdateRequest,
+    SentryTestResponse,
     SignupRequestResponse,
     SignupReviewRequest,
     SlugCheckResponse,
@@ -87,6 +89,38 @@ async def admin_stats(_: Annotated[AuthUser, Depends(require_super_admin)]) -> A
         pending_requests=pending.count or 0,
         total_gallery_photos=photos.count or 0,
         total_match_runs=runs.count or 0,
+    )
+
+
+@router.post("/monitoring/sentry-test", response_model=SentryTestResponse)
+async def admin_sentry_test(
+    user: Annotated[AuthUser, Depends(require_super_admin)],
+) -> SentryTestResponse:
+    dsn = os.getenv("SENTRY_DSN", "").strip()
+    if not dsn:
+        return SentryTestResponse(
+            backend_configured=False,
+            backend_sent=False,
+            message="SENTRY_DSN is not set on the API service (Render).",
+        )
+
+    import sentry_sdk
+
+    event_id = sentry_sdk.capture_message(
+        "Snapic admin Sentry test (backend)",
+        level="info",
+        tags={"source": "admin_test"},
+    )
+    _audit(
+        user,
+        "sentry_test",
+        "monitoring",
+        metadata={"sentry_event_id": event_id, "target": "backend"},
+    )
+    return SentryTestResponse(
+        backend_configured=True,
+        backend_sent=bool(event_id),
+        message="Backend test event sent. Check your Python/FastAPI Sentry project (Issues or Discover).",
     )
 
 

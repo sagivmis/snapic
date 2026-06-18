@@ -83,6 +83,7 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 ## 9. Monitoring (optional)
 
 - [ ] `SENTRY_DSN` set on Render; `VITE_SENTRY_DSN` on Vercel — test errors appear in Sentry project
+- [ ] Admin dashboard → **Send Sentry test events** — backend + frontend messages in Sentry within ~1 min
 - [ ] `/api/health` returns 200
 
 ---

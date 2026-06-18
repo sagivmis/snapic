@@ -248,3 +248,15 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.admin__monitoring-hint {
+  margin: 0 0 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: $taupe-500;
+
+  code {
+    font-size: 0.75rem;
+    color: $taupe-600;
+  }
+}

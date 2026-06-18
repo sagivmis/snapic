@@ -213,6 +213,12 @@ class AdminStatsResponse(BaseModel):
     total_match_runs: int
 
 
+class SentryTestResponse(BaseModel):
+    backend_configured: bool
+    backend_sent: bool
+    message: str
+
+
 class AdminEventSummary(BaseModel):
     id: str
     slug: str
