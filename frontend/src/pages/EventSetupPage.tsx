@@ -7,9 +7,12 @@ import {
   reindexEventGallery,
   updateEvent,
 } from "../api/client";
+import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, EventSetupStatus } from "../types";
+import type { IndexStreamEvent } from "../api/client";
+import { formatIndexResult } from "../utils/galleryFaceIndex";
 import { getNextSetupAction, parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
 import "../styles/EventSetup.scss";
 
@@ -36,6 +39,10 @@ export function EventSetupPage() {
   const [step, setStep] = useState<SetupStep>("welcome");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [indexProgress, setIndexProgress] = useState<Extract<
+    IndexStreamEvent,
+    { type: "progress" }
+  > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -240,6 +247,7 @@ export function EventSetupPage() {
       return;
     }
     setBusy(true);
+    setIndexProgress(null);
     setError(null);
     setNotice(null);
     try {
@@ -247,30 +255,26 @@ export function EventSetupPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      const result = await reindexEventGallery(event.id, token);
+      const result = await reindexEventGallery(event.id, token, (progress) => {
+        setIndexProgress(progress);
+      });
       await refreshSetupStatus();
       const latest = await fetchEventSetupStatus(event.id, token);
       setSetupStatus(latest);
 
       if (latest.faces_indexed) {
-        setNotice(
-          result.processed > 0
-            ? `Indexed ${result.processed} photo${result.processed === 1 ? "" : "s"}. Your album is ready to go live.`
-            : "All photos are indexed. Your album is ready to go live.",
-        );
+        setNotice(`${formatIndexResult(result)} Your album is ready to go live.`);
         return;
       }
 
-      if (result.processed === 0) {
+      if (result.processed === 0 && result.indexed === 0) {
         setError(
           "No photos were indexed. Some images may be corrupted or missing faces — try re-uploading them.",
         );
         return;
       }
 
-      setNotice(
-        `Indexed ${result.processed} photo${result.processed === 1 ? "" : "s"}. ${latest.unindexed_count} still need attention.`,
-      );
+      setNotice(`${formatIndexResult(result)} ${latest.unindexed_count} still need attention.`);
     } catch (err) {
       setError(
         err instanceof Error
@@ -279,6 +283,7 @@ export function EventSetupPage() {
       );
     } finally {
       setBusy(false);
+      setIndexProgress(null);
     }
   }
 
@@ -551,14 +556,17 @@ export function EventSetupPage() {
                     </Link>
                   )}
                   {nextAction.action === "index" && (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={busy}
-                      onClick={() => void handleIndexFaces()}
-                    >
-                      {busy ? nextAction.busyLabel : nextAction.label}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={busy}
+                        onClick={() => void handleIndexFaces()}
+                      >
+                        {busy && indexProgress ? nextAction.busyLabel : nextAction.label}
+                      </button>
+                      <IndexFacesProgress progress={indexProgress} />
+                    </>
                   )}
                   {nextAction.action === "activate" && (
                     <button

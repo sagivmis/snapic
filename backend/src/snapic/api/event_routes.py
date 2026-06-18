@@ -53,6 +53,7 @@ from snapic.db.repository import (
     upload_gallery_photo,
 )
 from snapic.face.event_match import iter_event_gallery_matches
+from snapic.face.gallery_index import iter_gallery_face_index
 from snapic.face.images import decode_image_bytes
 from snapic.face.pipeline import NoFaceInSelfieError, extract_reference_embedding
 
@@ -109,6 +110,13 @@ async def _prepare_event_match_context(
     gallery = list_gallery_photos(event_id)
     if not gallery:
         raise HTTPException(status_code=400, detail="Album still uploading — check back soon")
+
+    unindexed = count_unindexed_gallery_photos(event_id)
+    if unindexed > 0:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Gallery still indexing — {unindexed} photo{'s' if unindexed != 1 else ''} remaining. Try again shortly.",
+        )
 
     selfie_bytes = await _read_upload_limited(selfie)
     try:
@@ -245,60 +253,73 @@ async def list_event_gallery_sections(
     return list_gallery_sections(event_id)
 
 
+def _maybe_send_album_ready_email(event_id: str) -> None:
+    row = fetch_event_by_id(event_id)
+    if not row:
+        return
+    branding = row.get("branding") or {}
+    photo_count = count_gallery_photos(event_id)
+    unindexed = count_unindexed_gallery_photos(event_id)
+    if (
+        photo_count > 0
+        and unindexed == 0
+        and row.get("status") != "active"
+        and not branding.get("album_ready_email_sent_at")
+    ):
+        couple_names = branding.get("couple_names") or row.get("title") or "Your gallery"
+        if send_album_ready_email(list_event_admin_emails(event_id), str(couple_names), row["slug"]):
+            update_event(
+                event_id,
+                {
+                    "branding": {
+                        **branding,
+                        "album_ready_email_sent_at": datetime.now(UTC).isoformat(),
+                    }
+                },
+            )
+
+
 @router.post("/{event_id}/gallery/index-faces")
 async def reindex_event_gallery_faces(
     event_id: str,
     user: Annotated[AuthUser, Depends(get_required_user)],
 ) -> dict[str, int]:
-    import base64
-
-    from snapic.db.repository import download_gallery_thumbnail_bytes, upload_gallery_thumbnail
-    from snapic.face.images import decode_image_bytes, encode_thumbnail_base64
-
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
     photos = list_gallery_photos(event_id)
-    processed = 0
-    thumbs_backfilled = 0
-    for photo in photos:
-        if photo.get("face_index_status") == "indexed":
-            if download_gallery_thumbnail_bytes(event_id, photo["id"]) is None:
-                try:
-                    data = download_storage_bytes(photo["storage_path"])
-                    image_bgr = decode_image_bytes(data)
-                    thumb_bytes = base64.b64decode(encode_thumbnail_base64(image_bgr))
-                    upload_gallery_thumbnail(event_id, photo["id"], thumb_bytes)
-                    thumbs_backfilled += 1
-                except Exception:
-                    pass
-            continue
-        index_gallery_photo_faces(photo["id"], photo["storage_path"])
-        processed += 1
+    result: dict[str, int] = {"processed": 0, "thumbs_backfilled": 0, "indexed": 0, "no_face": 0, "failed": 0}
+    for event in iter_gallery_face_index(event_id, photos):
+        if event["type"] == "complete":
+            result = {
+                "processed": event["processed"],
+                "thumbs_backfilled": event["thumbs_backfilled"],
+                "indexed": event["indexed"],
+                "no_face": event["no_face"],
+                "failed": event["failed"],
+            }
+    _maybe_send_album_ready_email(event_id)
+    return result
 
-    row = fetch_event_by_id(event_id)
-    if row:
-        branding = row.get("branding") or {}
-        photo_count = count_gallery_photos(event_id)
-        unindexed = count_unindexed_gallery_photos(event_id)
-        if (
-            photo_count > 0
-            and unindexed == 0
-            and row.get("status") != "active"
-            and not branding.get("album_ready_email_sent_at")
-        ):
-            couple_names = branding.get("couple_names") or row.get("title") or "Your gallery"
-            if send_album_ready_email(list_event_admin_emails(event_id), str(couple_names), row["slug"]):
-                update_event(
-                    event_id,
-                    {
-                        "branding": {
-                            **branding,
-                            "album_ready_email_sent_at": datetime.now(UTC).isoformat(),
-                        }
-                    },
-                )
 
-    return {"processed": processed, "thumbs_backfilled": thumbs_backfilled}
+@router.post("/{event_id}/gallery/index-faces/stream")
+async def reindex_event_gallery_faces_stream(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> StreamingResponse:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    photos = list_gallery_photos(event_id)
+
+    def generate() -> Any:
+        try:
+            for event in iter_gallery_face_index(event_id, photos):
+                yield _ndjson_line(event)
+                if event["type"] == "complete":
+                    _maybe_send_album_ready_email(event_id)
+        except Exception as exc:
+            yield _ndjson_line({"type": "error", "message": str(exc)})
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @router.post("/{event_id}/gallery/bulk-delete", response_model=GalleryBulkDeleteResponse)

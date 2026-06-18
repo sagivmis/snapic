@@ -17,9 +17,12 @@ import {
 import { AlbumGrid, type AlbumGridHandle } from "../components/AlbumGrid";
 import { AlbumUpload } from "../components/AlbumUpload";
 import { GuestQrCode } from "../components/GuestQrCode";
+import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, EventStats, GalleryPhoto } from "../types";
+import type { IndexStreamEvent } from "../api/client";
+import { formatIndexResult } from "../utils/galleryFaceIndex";
 import "../styles/EventManage.scss";
 
 type ManageTab = "album" | "settings";
@@ -40,6 +43,11 @@ export function EventManagePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [indexing, setIndexing] = useState(false);
+  const [indexProgress, setIndexProgress] = useState<Extract<
+    IndexStreamEvent,
+    { type: "progress" }
+  > | null>(null);
   const [activeTab, setActiveTab] = useState<ManageTab>("album");
   const [albumSection, setAlbumSection] = useState<string>("all");
 
@@ -277,7 +285,8 @@ export function EventManagePage() {
     if (!event) {
       return;
     }
-    setBusy(true);
+    setIndexing(true);
+    setIndexProgress(null);
     setError(null);
     setSuccess(null);
     try {
@@ -285,12 +294,15 @@ export function EventManagePage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      const result = await reindexEventGallery(event.id, token);
-      setSuccess(`Indexed faces in ${result.processed} photo${result.processed === 1 ? "" : "s"}.`);
+      const result = await reindexEventGallery(event.id, token, (progress) => {
+        setIndexProgress(progress);
+      });
+      setSuccess(formatIndexResult(result));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Indexing failed");
     } finally {
-      setBusy(false);
+      setIndexing(false);
+      setIndexProgress(null);
     }
   }
 
@@ -451,10 +463,10 @@ export function EventManagePage() {
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={busy || photos.length === 0}
+                disabled={busy || indexing || photos.length === 0}
                 onClick={() => void handleReindexFaces()}
               >
-                Index faces
+                {indexing ? "Indexing…" : "Index faces"}
               </button>
               <button
                 type="button"
@@ -466,6 +478,8 @@ export function EventManagePage() {
               </button>
             </div>
           </div>
+
+          <IndexFacesProgress progress={indexProgress} />
 
           <nav className="event-manage__sections" aria-label="Album sections">
             {sectionTabs.map((section) => (

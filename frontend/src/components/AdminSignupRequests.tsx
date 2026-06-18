@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { buildEventGuestUrl } from "../api/client";
-import type { AdminEventSummary, SignupRequest } from "../types";
+import type { AdminEventSummary, SignupRequest, SlugCheckResult } from "../types";
 import { defaultEventTitle, slugifyEventName } from "../utils/onboarding";
 import "../styles/AdminSignupRequests.scss";
 
@@ -24,6 +24,7 @@ interface AdminSignupRequestsProps {
     action: "approve" | "reject",
     options?: { linkedEventId?: string; slug?: string; title?: string },
   ) => void | Promise<void>;
+  onCheckSlug?: (slug: string) => Promise<SlugCheckResult>;
 }
 
 function formatDateTime(value?: string | null): string {
@@ -64,10 +65,53 @@ export function AdminSignupRequests({
   busy = false,
   initialTab = "pending",
   onReview,
+  onCheckSlug,
 }: AdminSignupRequestsProps) {
   const [tab, setTab] = useState<SignupTab>(initialTab);
   const [approvePlan, setApprovePlan] = useState<Record<string, string>>({});
   const [approveDrafts, setApproveDrafts] = useState<Record<string, ApproveDraft>>({});
+  const [slugChecks, setSlugChecks] = useState<Record<string, SlugCheckResult | "checking">>({});
+
+  useEffect(() => {
+    if (!onCheckSlug) {
+      return;
+    }
+    const pendingDrafts = Object.entries(approveDrafts).filter(([requestId]) => {
+      const plan = approvePlan[requestId] ?? CREATE_NEW_EVENT;
+      return plan === CREATE_NEW_EVENT;
+    });
+    if (pendingDrafts.length === 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      for (const [requestId, draft] of pendingDrafts) {
+        const slug = draft.slug.trim();
+        if (!slug) {
+          setSlugChecks((prev) => {
+            const next = { ...prev };
+            delete next[requestId];
+            return next;
+          });
+          continue;
+        }
+        setSlugChecks((prev) => ({ ...prev, [requestId]: "checking" }));
+        void onCheckSlug(slug)
+          .then((result) => {
+            setSlugChecks((prev) => ({ ...prev, [requestId]: result }));
+          })
+          .catch(() => {
+            setSlugChecks((prev) => {
+              const next = { ...prev };
+              delete next[requestId];
+              return next;
+            });
+          });
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [approveDrafts, approvePlan, onCheckSlug]);
 
   useEffect(() => {
     setTab(initialTab);
@@ -151,6 +195,10 @@ export function AdminSignupRequests({
             const plan = approvePlan[req.id] ?? CREATE_NEW_EVENT;
             const draft = draftForRequest(approveDrafts, req);
             const guestPreviewUrl = draft.slug ? buildEventGuestUrl(draft.slug) : "";
+            const slugCheck = slugChecks[req.id];
+            const slugUnavailable =
+              slugCheck && slugCheck !== "checking" && !slugCheck.available;
+            const slugChecking = slugCheck === "checking";
 
             return (
               <li key={req.id} className="admin-signups__item">
@@ -241,6 +289,41 @@ export function AdminSignupRequests({
                           />
                         </div>
 
+                        {slugChecking && (
+                          <p className="admin-signups__slug-status admin-signups__slug-status--checking">
+                            Checking slug availability…
+                          </p>
+                        )}
+                        {slugUnavailable && (
+                          <p className="admin-signups__slug-status admin-signups__slug-status--taken">
+                            Slug already taken.
+                            {slugCheck.suggestion ? (
+                              <>
+                                {" "}
+                                Try{" "}
+                                <button
+                                  type="button"
+                                  className="admin-signups__slug-suggestion"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    setApproveDrafts((prev) => ({
+                                      ...prev,
+                                      [req.id]: { ...draft, slug: slugCheck.suggestion ?? draft.slug },
+                                    }))
+                                  }
+                                >
+                                  {slugCheck.suggestion}
+                                </button>
+                              </>
+                            ) : null}
+                          </p>
+                        )}
+                        {slugCheck && slugCheck !== "checking" && slugCheck.available && draft.slug.trim() && (
+                          <p className="admin-signups__slug-status admin-signups__slug-status--available">
+                            Slug is available
+                          </p>
+                        )}
+
                         {guestPreviewUrl && (
                           <p className="admin-signups__preview-links">
                             Guest page: <a href={guestPreviewUrl}>{guestPreviewUrl}</a>
@@ -255,7 +338,12 @@ export function AdminSignupRequests({
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={busy || (plan === CREATE_NEW_EVENT && (!draft.title.trim() || !draft.slug.trim()))}
+                        disabled={
+                          busy ||
+                          slugChecking ||
+                          slugUnavailable ||
+                          (plan === CREATE_NEW_EVENT && (!draft.title.trim() || !draft.slug.trim()))
+                        }
                         onClick={() => void handleReview(req.id, "approve")}
                       >
                         Approve

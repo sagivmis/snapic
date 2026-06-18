@@ -10,14 +10,17 @@ from snapic.api.schemas import (
     AdminAttentionResponse,
     AdminEventSummary,
     AdminStatsResponse,
+    AuditLogEntry,
     EventCreateRequest,
     EventPublicResponse,
     EventUpdateRequest,
     SignupRequestResponse,
     SignupReviewRequest,
+    SlugCheckResponse,
 )
 from snapic.auth.jwt import AuthUser, require_super_admin
-from snapic.db.approval_email import send_gallery_approval_email
+from snapic.db.approval_email import send_gallery_approval_email, send_signup_rejection_email
+from snapic.db.audit_log import list_audit_log, record_audit_log
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     add_event_member,
@@ -46,6 +49,26 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:80] or "event"
+
+
+def _audit(
+    user: AuthUser,
+    action: str,
+    entity_type: str,
+    *,
+    entity_id: str | None = None,
+    event_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    record_audit_log(
+        actor_id=user.id,
+        actor_email=user.email,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        event_id=event_id,
+        metadata=metadata,
+    )
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
@@ -101,6 +124,40 @@ def _admin_event_summary(row: dict[str, Any], *, apply_auto_archive: bool = True
         unindexed_photo_count=unindexed,
         archive_due=event_archive_due(row),
     )
+
+
+@router.get("/slug-check", response_model=SlugCheckResponse)
+async def admin_slug_check(
+    slug: str,
+    _: Annotated[AuthUser, Depends(require_super_admin)],
+) -> SlugCheckResponse:
+    cleaned = _slugify(slug)
+    if fetch_event_by_slug(cleaned) is None:
+        return SlugCheckResponse(slug=cleaned, available=True)
+    suggestion = allocate_event_slug(cleaned)
+    return SlugCheckResponse(slug=cleaned, available=False, suggestion=suggestion)
+
+
+@router.get("/audit-log", response_model=list[AuditLogEntry])
+async def admin_audit_log(
+    _: Annotated[AuthUser, Depends(require_super_admin)],
+    limit: int = 50,
+) -> list[AuditLogEntry]:
+    rows = list_audit_log(limit)
+    return [
+        AuditLogEntry(
+            id=r["id"],
+            actor_id=r.get("actor_id"),
+            actor_email=r.get("actor_email"),
+            action=r["action"],
+            entity_type=r["entity_type"],
+            entity_id=r.get("entity_id"),
+            event_id=r.get("event_id"),
+            metadata=r.get("metadata") or {},
+            created_at=r.get("created_at"),
+        )
+        for r in rows
+    ]
 
 
 @router.get("/attention", response_model=AdminAttentionResponse)
@@ -159,14 +216,23 @@ async def admin_list_events(_: Annotated[AuthUser, Depends(require_super_admin)]
 async def admin_update_event(
     event_id: str,
     body: EventUpdateRequest,
-    _: Annotated[AuthUser, Depends(require_super_admin)],
+    user: Annotated[AuthUser, Depends(require_super_admin)],
 ) -> AdminEventSummary:
-    if not fetch_event_by_id(event_id):
+    existing = fetch_event_by_id(event_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Event not found")
     payload = body.model_dump(exclude_unset=True)
     if not payload:
         raise HTTPException(status_code=400, detail="No fields to update")
     update_event(event_id, payload)
+    _audit(
+        user,
+        "event.update",
+        "event",
+        entity_id=event_id,
+        event_id=event_id,
+        metadata={"changes": payload, "previous_status": existing.get("status")},
+    )
     row = fetch_event_by_id(event_id)
     if not row:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -176,11 +242,19 @@ async def admin_update_event(
 @router.delete("/events/{event_id}")
 async def admin_delete_event(
     event_id: str,
-    _: Annotated[AuthUser, Depends(require_super_admin)],
+    user: Annotated[AuthUser, Depends(require_super_admin)],
 ) -> dict[str, str]:
-    if not fetch_event_by_id(event_id):
+    existing = fetch_event_by_id(event_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Event not found")
     delete_event(event_id)
+    _audit(
+        user,
+        "event.delete",
+        "event",
+        entity_id=event_id,
+        metadata={"slug": existing.get("slug"), "title": existing.get("title")},
+    )
     return {"status": "deleted", "event_id": event_id}
 
 
@@ -205,6 +279,14 @@ async def admin_create_event(
     )
     if body.admin_email:
         invite_event_admin(body.admin_email, row["id"], row["slug"], "admin")
+    _audit(
+        user,
+        "event.create",
+        "event",
+        entity_id=row["id"],
+        event_id=row["id"],
+        metadata={"slug": row["slug"], "title": row["title"]},
+    )
     return _event_public(row)
 
 
@@ -242,7 +324,9 @@ async def admin_review_signup(
         raise HTTPException(status_code=404, detail="Pending request not found")
 
     welcome_email_sent: bool | None = None
+    rejection_email_sent: bool | None = None
     if body.action == "reject":
+        rejection_email_sent = send_signup_rejection_email(target["email"], target["couple_names"])
         row = update_signup_request(
             request_id,
             {
@@ -251,13 +335,26 @@ async def admin_review_signup(
                 "reviewed_at": datetime.now(UTC).isoformat(),
             },
         )
+        _audit(
+            user,
+            "signup.reject",
+            "signup_request",
+            entity_id=request_id,
+            metadata={
+                "email": target["email"],
+                "couple_names": target["couple_names"],
+                "rejection_email_sent": rejection_email_sent,
+            },
+        )
     else:
         if body.event_id:
             event = fetch_event_by_id(body.event_id)
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
         else:
-            slug = allocate_event_slug(_slugify(body.slug or target["couple_names"]))
+            slug = _slugify(body.slug or target["couple_names"])
+            if fetch_event_by_slug(slug):
+                raise HTTPException(status_code=409, detail=f"Event slug '{slug}' is already taken")
             title = body.title or f"{target['couple_names']} Wedding"
             event = create_event(
                 {
@@ -287,6 +384,20 @@ async def admin_review_signup(
                 "created_event_id": event["id"],
             },
         )
+        _audit(
+            user,
+            "signup.approve",
+            "signup_request",
+            entity_id=request_id,
+            event_id=event["id"],
+            metadata={
+                "email": target["email"],
+                "couple_names": target["couple_names"],
+                "event_slug": event["slug"],
+                "linked_existing": bool(body.event_id),
+                "welcome_email_sent": welcome_email_sent,
+            },
+        )
     return SignupRequestResponse(
         id=row["id"],
         email=row["email"],
@@ -298,6 +409,7 @@ async def admin_review_signup(
         reviewed_at=row.get("reviewed_at"),
         created_event_id=row.get("created_event_id"),
         welcome_email_sent=welcome_email_sent,
+        rejection_email_sent=rejection_email_sent,
     )
 
 
@@ -305,7 +417,7 @@ async def admin_review_signup(
 async def admin_add_event_member(
     event_id: str,
     email: str,
-    _: Annotated[AuthUser, Depends(require_super_admin)],
+    user: Annotated[AuthUser, Depends(require_super_admin)],
     role: str = "admin",
 ) -> dict[str, str]:
     if role not in ("admin", "co_admin"):
@@ -314,4 +426,12 @@ async def admin_add_event_member(
     if not event_row:
         raise HTTPException(status_code=404, detail="Event not found")
     invite_event_admin(email, event_id, event_row["slug"], role)
+    _audit(
+        user,
+        "event.invite",
+        "event",
+        entity_id=event_id,
+        event_id=event_id,
+        metadata={"email": email.strip().lower(), "role": role},
+    )
     return {"status": "invited", "email": email.strip().lower(), "role": role}

@@ -91,6 +91,26 @@ def send_gallery_approval_email(to_email: str, couple_names: str, event_slug: st
     )
 
 
+def send_signup_rejection_email(to_email: str, couple_names: str) -> bool:
+    """Notify a couple when their signup request is not approved."""
+    body = f"""
+      <p>Hi {couple_names},</p>
+      <p>
+        Thank you for your interest in Snapic. After reviewing your request, we're unable to offer
+        a gallery at this time.
+      </p>
+      <p style="font-size: 0.875rem; color: #6b5e52;">
+        If you believe this was a mistake or would like to discuss your wedding date and needs,
+        reply to this email and our team will take another look.
+      </p>
+    """
+    return _send_html_email(
+        [to_email],
+        f"Update on your Snapic gallery request — {couple_names}",
+        _email_shell("Gallery request update", body),
+    )
+
+
 def send_album_ready_email(to_emails: list[str], couple_names: str, event_slug: str) -> bool:
     """Notify admins that photos are indexed and the gallery can go live."""
     setup_url = f"{app_base_url()}/e/{event_slug}/setup"

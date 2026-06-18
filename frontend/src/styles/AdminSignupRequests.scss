@@ -179,6 +179,34 @@
   }
 }
 
+.admin-signups__slug-status {
+  margin: 0.375rem 0 0;
+  font-size: 0.75rem;
+
+  &--checking {
+    color: $taupe-400;
+  }
+
+  &--available {
+    color: #3d7a52;
+  }
+
+  &--taken {
+    color: #a04444;
+  }
+}
+
+.admin-signups__slug-suggestion {
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: $champagne-600;
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .admin-signups__preview-links {
   margin: 0.75rem 0 0;
   font-size: 0.8125rem;

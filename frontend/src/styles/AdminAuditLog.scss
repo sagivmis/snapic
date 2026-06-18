@@ -1,0 +1,46 @@
+@use "variables" as *;
+
+.admin-audit__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: $taupe-500;
+}
+
+.admin-audit__table-wrap {
+  overflow-x: auto;
+}
+
+.admin-audit__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid $cream-200;
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $taupe-400;
+  }
+}
+
+.admin-audit__action {
+  font-weight: 600;
+  color: $taupe-700;
+  text-transform: capitalize;
+}
+
+.admin-audit__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  color: $taupe-500;
+}

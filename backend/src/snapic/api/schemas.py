@@ -162,6 +162,25 @@ class SignupRequestResponse(BaseModel):
     reviewed_at: str | None = None
     created_event_id: str | None = None
     welcome_email_sent: bool | None = None
+    rejection_email_sent: bool | None = None
+
+
+class SlugCheckResponse(BaseModel):
+    slug: str
+    available: bool
+    suggestion: str | None = None
+
+
+class AuditLogEntry(BaseModel):
+    id: str
+    actor_id: str | None = None
+    actor_email: str | None = None
+    action: str
+    entity_type: str
+    entity_id: str | None = None
+    event_id: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    created_at: str | None = None
 
 
 class SignupReviewRequest(BaseModel):

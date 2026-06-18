@@ -4,15 +4,18 @@ import {
   createAdminEvent,
   deleteAdminEvent,
   fetchAdminAttention,
+  fetchAdminAuditLog,
   fetchAdminEvents,
   fetchAdminStats,
   fetchSignupRequests,
   inviteAdminEventMember,
   reindexEventGallery,
   reviewSignupRequest,
+  checkAdminSlug,
   updateAdminEvent,
 } from "../api/client";
 import { AdminAttentionStrip, type AttentionFocus } from "../components/AdminAttentionStrip";
+import { AdminAuditLog } from "../components/AdminAuditLog";
 import {
   AdminAttentionSkeleton,
   AdminEventsTableSkeleton,
@@ -21,8 +24,11 @@ import {
 } from "../components/AdminDashboardSkeletons";
 import { AdminEventsTable, type EventAttentionFilter } from "../components/AdminEventsTable";
 import { AdminSignupRequests } from "../components/AdminSignupRequests";
+import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
-import type { AdminAttention, AdminEventSummary, SignupRequest } from "../types";
+import type { AdminAttention, AdminEventSummary, AuditLogEntry, SignupRequest } from "../types";
+import type { IndexStreamEvent } from "../api/client";
+import { formatIndexResult } from "../utils/galleryFaceIndex";
 import "../styles/AdminDashboard.scss";
 
 export function AdminDashboardPage() {
@@ -39,6 +45,12 @@ export function AdminDashboardPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [indexingEventId, setIndexingEventId] = useState<string | null>(null);
+  const [indexProgress, setIndexProgress] = useState<Extract<
+    IndexStreamEvent,
+    { type: "progress" }
+  > | null>(null);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
 
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
@@ -98,7 +110,14 @@ export function AdminDashboardPage() {
         })
         .finally(() => setRequestsLoading(false));
 
-      await Promise.all([statsTask, attentionTask, eventsTask, requestsTask]);
+      const auditTask = fetchAdminAuditLog(token)
+        .then((rows) => setAuditLog(rows))
+        .catch(() => {
+          failures += 1;
+        })
+        .finally(() => setAuditLoading(false));
+
+      await Promise.all([statsTask, attentionTask, eventsTask, requestsTask, auditTask]);
 
       if (failures > 0) {
         setError(
@@ -112,6 +131,7 @@ export function AdminDashboardPage() {
       setAttentionLoading(false);
       setEventsLoading(false);
       setRequestsLoading(false);
+      setAuditLoading(false);
       setError(err instanceof Error ? err.message : "Could not load dashboard");
     }
   }, [getAccessToken]);
@@ -202,6 +222,12 @@ export function AdminDashboardPage() {
         );
       } else if (action === "approve") {
         setSuccess("Request approved and welcome email sent.");
+      } else if (action === "reject" && reviewed.rejection_email_sent === false) {
+        setSuccess(
+          "Request rejected. The rejection email could not be sent — check RESEND_API_KEY on Render.",
+        );
+      } else if (action === "reject") {
+        setSuccess("Request rejected and notification email sent.");
       }
       await load();
     } catch (err) {
@@ -214,6 +240,7 @@ export function AdminDashboardPage() {
   async function handleIndexFaces(eventId: string) {
     const event = events.find((row) => row.id === eventId);
     setIndexingEventId(eventId);
+    setIndexProgress(null);
     setError(null);
     setSuccess(null);
     try {
@@ -221,21 +248,34 @@ export function AdminDashboardPage() {
       if (!token) {
         throw new Error("Not signed in");
       }
-      const result = await reindexEventGallery(eventId, token);
-      const [attentionRow, eventRows] = await Promise.all([
+      const result = await reindexEventGallery(eventId, token, (progress) => {
+        setIndexProgress(progress);
+      });
+      const [attentionRow, eventRows, auditRows] = await Promise.all([
         fetchAdminAttention(token),
         fetchAdminEvents(token),
+        fetchAdminAuditLog(token),
       ]);
       setAttention(attentionRow);
       setEvents(eventRows);
+      setAuditLog(auditRows);
       setSuccess(
-        `Indexed faces in ${result.processed} photo${result.processed === 1 ? "" : "s"}${event ? ` for ${event.title}` : ""}.`,
+        `${formatIndexResult(result)}${event ? ` for ${event.title}` : ""}.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Indexing failed");
     } finally {
       setIndexingEventId(null);
+      setIndexProgress(null);
     }
+  }
+
+  async function handleCheckSlug(slugValue: string) {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error("Not signed in");
+    }
+    return checkAdminSlug(slugValue, token);
   }
 
   async function handleInviteAdmin(eventId: string, email: string) {
@@ -396,6 +436,7 @@ export function AdminDashboardPage() {
           busy={busy}
           initialTab={signupTab}
           onReview={handleSignupReview}
+          onCheckSlug={handleCheckSlug}
         />
       )}
 
@@ -417,6 +458,10 @@ export function AdminDashboardPage() {
           />
         )}
       </section>
+
+      {indexingEventId && <IndexFacesProgress progress={indexProgress} />}
+
+      <AdminAuditLog entries={auditLog} loading={auditLoading} />
 
       {success && <p className="success-banner">{success}</p>}
       {error && <p className="error-banner">{error}</p>}

@@ -148,6 +148,25 @@ export interface SignupRequest {
   reviewed_at?: string | null;
   created_event_id?: string | null;
   welcome_email_sent?: boolean | null;
+  rejection_email_sent?: boolean | null;
+}
+
+export interface SlugCheckResult {
+  slug: string;
+  available: boolean;
+  suggestion?: string | null;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id?: string | null;
+  actor_email?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  event_id?: string | null;
+  metadata: Record<string, unknown>;
+  created_at?: string | null;
 }
 
 export interface AdminStats {

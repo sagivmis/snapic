@@ -17,6 +17,8 @@ import type {
   SignupRequestCreate,
   UserEventSummary,
   EventSetupStatus,
+  SlugCheckResult,
+  AuditLogEntry,
 } from "../types";
 
 export interface AuthFetchOptions {
@@ -465,7 +467,95 @@ export async function reviewSignupRequest(
   return response.json() as Promise<SignupRequest>;
 }
 
-export async function reindexEventGallery(eventId: string, token: string): Promise<{ processed: number }> {
+export type IndexStreamEvent =
+  | {
+      type: "progress";
+      processed: number;
+      total: number;
+      indexed: number;
+      no_face: number;
+      failed: number;
+      thumbs_backfilled: number;
+    }
+  | {
+      type: "complete";
+      processed: number;
+      indexed: number;
+      no_face: number;
+      failed: number;
+      thumbs_backfilled: number;
+    }
+  | { type: "error"; message: string };
+
+export async function reindexEventGalleryStream(
+  eventId: string,
+  token: string,
+  onEvent: (event: IndexStreamEvent) => void,
+): Promise<Extract<IndexStreamEvent, { type: "complete" }>> {
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery/index-faces/stream`,
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not index album faces");
+  }
+  if (!response.body) {
+    throw new Error("Indexing stream unavailable");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: Extract<IndexStreamEvent, { type: "complete" }> | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      const event = JSON.parse(line) as IndexStreamEvent;
+      if (event.type === "error") {
+        throw new Error(event.message);
+      }
+      onEvent(event);
+      if (event.type === "complete") {
+        finalResult = event;
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error("Indexing ended before completion");
+  }
+  return finalResult;
+}
+
+export async function reindexEventGallery(
+  eventId: string,
+  token: string,
+  onProgress?: (event: Extract<IndexStreamEvent, { type: "progress" }>) => void,
+): Promise<{
+  processed: number;
+  indexed: number;
+  no_face: number;
+  failed: number;
+  thumbs_backfilled: number;
+}> {
+  if (onProgress) {
+    return reindexEventGalleryStream(eventId, token, (event) => {
+      if (event.type === "progress") {
+        onProgress(event);
+      }
+    });
+  }
   const response = await authFetch(
     `/api/events/${eventId}/gallery/index-faces`,
     { method: "POST" },
@@ -474,7 +564,31 @@ export async function reindexEventGallery(eventId: string, token: string): Promi
   if (!response.ok) {
     await parseError(response, "Could not index album faces");
   }
-  return response.json() as Promise<{ processed: number }>;
+  return response.json() as Promise<{
+    processed: number;
+    indexed: number;
+    no_face: number;
+    failed: number;
+    thumbs_backfilled: number;
+  }>;
+}
+
+export async function checkAdminSlug(slug: string, token: string): Promise<SlugCheckResult> {
+  const params = new URLSearchParams({ slug });
+  const response = await authFetch(`/api/admin/slug-check?${params}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not check slug");
+  }
+  return response.json() as Promise<SlugCheckResult>;
+}
+
+export async function fetchAdminAuditLog(token: string, limit = 50): Promise<AuditLogEntry[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await authFetch(`/api/admin/audit-log?${params}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load audit log");
+  }
+  return response.json() as Promise<AuditLogEntry[]>;
 }
 
 export function buildShareUrl(shareId: string): string {
