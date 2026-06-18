@@ -58,6 +58,8 @@ export class GalleryUploadQueue {
 
   private activeNames = new Set<string>();
 
+  private queuedClientKeys = new Set<string>();
+
   constructor(
     private eventId: string,
     private section: string | undefined,
@@ -69,11 +71,42 @@ export class GalleryUploadQueue {
   }
 
   enqueue(prepared: PreparedUpload[]): void {
+    for (const item of prepared) {
+      this.queuedClientKeys.add(item.clientKey);
+    }
     this.pending.push(...prepared.map((item) => ({ ...item, attempts: 0 })));
   }
 
+  /** Append a batch mid-session (multi-picker / drag-drop while uploading). */
+  addBatch(prepared: PreparedUpload[], skippedBeforeUpload = 0): void {
+    if (this.cancelled) {
+      return;
+    }
+    this.totalFiles += prepared.length;
+    this.skippedBeforeUpload += skippedBeforeUpload;
+    if (prepared.length > 0) {
+      this.enqueue(prepared);
+    }
+    this.emitProgress(this.processing ? "uploading" : "uploading");
+    void this.ensureProcessing();
+  }
+
+  getQueuedClientKeys(): string[] {
+    return [...this.queuedClientKeys];
+  }
+
   async start(concurrency = DEFAULT_CONCURRENCY): Promise<void> {
-    if (this.processing || this.cancelled || this.pending.length === 0) {
+    await this.ensureProcessing(concurrency);
+  }
+
+  private async ensureProcessing(concurrency = DEFAULT_CONCURRENCY): Promise<void> {
+    if (this.cancelled) {
+      return;
+    }
+    if (this.processing) {
+      return;
+    }
+    if (this.pending.length === 0 && this.running === 0) {
       return;
     }
 
@@ -84,14 +117,13 @@ export class GalleryUploadQueue {
     const workerCount = Math.min(concurrency, Math.max(this.pending.length, 1));
     await Promise.all(Array.from({ length: workerCount }, () => this.workerLoop()));
 
-    // Re-queued retry items may remain after workers exit — drain the queue.
-    if (!this.cancelled && this.pending.length > 0) {
-      this.processing = false;
-      await this.start(concurrency);
+    this.processing = false;
+
+    if (!this.cancelled && (this.pending.length > 0 || this.running > 0)) {
+      await this.ensureProcessing(concurrency);
       return;
     }
 
-    this.processing = false;
     await this.releaseWakeLock();
 
     if (!this.cancelled && this.pending.length === 0 && this.running === 0) {
@@ -107,7 +139,7 @@ export class GalleryUploadQueue {
     if (this.cancelled || (this.pending.length === 0 && this.running === 0)) {
       return;
     }
-    void this.acquireWakeLock().then(() => this.start());
+    void this.acquireWakeLock().then(() => this.ensureProcessing());
   }
 
   pause(): void {
@@ -117,6 +149,7 @@ export class GalleryUploadQueue {
   cancel(): void {
     this.cancelled = true;
     this.pending = [];
+    this.queuedClientKeys.clear();
     void this.releaseWakeLock();
   }
 
@@ -170,6 +203,7 @@ export class GalleryUploadQueue {
         this.running -= 1;
         this.activeNames.delete(item.file.name);
         this.inFlightProgress.delete(item.file.name);
+        this.queuedClientKeys.delete(item.clientKey);
         this.emitProgress("uploading");
       }
     }

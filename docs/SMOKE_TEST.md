@@ -27,6 +27,10 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] Invite link lands on `/e/{slug}/setup`
 - [ ] Complete **Branding** → lands on checklist (Go live step)
 - [ ] **Upload images** opens Album tab; upload 10–20 photos (or 100+ for scale test)
+- [ ] **Mobile (iPhone):** Add ~20–30 photos per batch; tap **Add photos** again while first batch uploads
+- [ ] **Desktop:** Drag a folder onto the drop zone (or **Add folder**) — 100+ photos queue within seconds
+- [ ] Upload progress shows combined total when multiple batches are queued
+- [ ] Duplicate picks in the same session are skipped (already in album or queue)
 - [ ] **Back to setup checklist** returns to setup with updated photo count
 - [ ] **Index faces** shows streaming progress; completes for large albums
 - [ ] Manage page loads quickly (skeleton shell → batch photo previews)
@@ -68,6 +72,7 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] **Archived** event: guest sees “event ended”
 - [ ] **Empty album:** guest sees “Photos coming soon”
 - [ ] **Active but unindexed:** guest sees “Gallery almost ready” with Check again
+- [ ] **Large mobile batch:** “Preparing N photos from your library…” appears after iOS picker returns
 - [ ] Zero-match search: tips shown, no false “no matches during search”
 
 ---

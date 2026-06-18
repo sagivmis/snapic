@@ -1,14 +1,26 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GalleryPhoto } from "../types";
-import { prepareAlbumUploads } from "../utils/albumUpload";
+import {
+  collectFilesFromDataTransfer,
+  filterImageFiles,
+  prepareAlbumUploads,
+} from "../utils/albumUpload";
 import {
   bindUploadVisibilityHandlers,
   GalleryUploadQueue,
+  type GalleryUploadCallbacks,
   type GalleryUploadProgress,
 } from "../utils/galleryUploadQueue";
+import {
+  desktopUploadHint,
+  isDesktopUpload,
+  isMobileDevice,
+  MOBILE_BATCH_RECOMMENDED,
+  mobileUploadHint,
+} from "../utils/uploadHints";
 import "../styles/AlbumUpload.scss";
 
-type UploadPhase = "idle" | "uploading" | "paused";
+type UploadPhase = "idle" | "preparing" | "uploading" | "paused";
 
 interface AlbumUploadProps {
   eventId: string;
@@ -32,6 +44,8 @@ const INITIAL_PROGRESS: GalleryUploadProgress = {
   skippedBeforeUpload: 0,
   skippedDuringUpload: 0,
 };
+
+const PREPARING_MESSAGE_MS = 1500;
 
 function formatUploadStatus(progress: GalleryUploadProgress): string {
   const processed = Math.min(
@@ -60,7 +74,7 @@ function formatUploadStatus(progress: GalleryUploadProgress): string {
   }
 
   if (activeCount > 1) {
-    return `Uploading  — ${base}${detail}`;
+    return `Uploading — ${base}${detail}`;
   }
 
   return `${base}${detail}`;
@@ -75,16 +89,27 @@ export function AlbumUpload({
   onPhotosChange,
   onError,
 }: AlbumUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const queueRef = useRef<GalleryUploadQueue | null>(null);
+  const batchPhotosRef = useRef<GalleryPhoto[]>([]);
 
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [progress, setProgress] = useState<GalleryUploadProgress>(INITIAL_PROGRESS);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const uploading = phase !== "idle";
+  const [preparingCount, setPreparingCount] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+
+  const desktopMode = useMemo(() => isDesktopUpload(), []);
+  const mobileMode = useMemo(() => isMobileDevice(), []);
+  const busy = phase === "preparing" || phase === "uploading" || phase === "paused";
 
   useEffect(() => {
-    if (!uploading) {
+    batchPhotosRef.current = photos;
+  }, [photos]);
+
+  useEffect(() => {
+    if (!busy) {
       return;
     }
 
@@ -112,76 +137,105 @@ export function AlbumUpload({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       unbindVisibility();
     };
-  }, [uploading]);
+  }, [busy]);
 
-  async function handleFilesSelected(fileList: FileList | null) {
-    if (!fileList?.length || uploading) {
+  function existingFilenames(): string[] {
+    return batchPhotosRef.current
+      .map((photo) => photo.filename)
+      .filter((name): name is string => Boolean(name));
+  }
+
+  function existingClientKeys(): string[] {
+    return queueRef.current?.getQueuedClientKeys() ?? [];
+  }
+
+  function createQueueCallbacks(): GalleryUploadCallbacks {
+    return {
+      getToken,
+      onProgress: (next: GalleryUploadProgress) => setProgress(next),
+      onPhotoUploaded: (photo: GalleryPhoto) => {
+        batchPhotosRef.current = [...batchPhotosRef.current, photo];
+        onPhotosChange([...batchPhotosRef.current]);
+      },
+      onError: (message: string) => onError(message),
+      onComplete: ({
+        uploaded,
+        failed,
+        skippedDuplicates,
+      }: {
+        uploaded: number;
+        failed: number;
+        skippedDuplicates: number;
+      }) => {
+        queueRef.current = null;
+        setPhase("idle");
+
+        const parts: string[] = [];
+        if (uploaded > 0) {
+          parts.push(`Uploaded ${uploaded} photo${uploaded === 1 ? "" : "s"}.`);
+        }
+        if (skippedDuplicates > 0) {
+          parts.push(
+            `Skipped ${skippedDuplicates} duplicate${skippedDuplicates === 1 ? "" : "s"}.`,
+          );
+        }
+        if (failed > 0) {
+          parts.push(`${failed} failed — try again or check your connection.`);
+        }
+        setStatusMessage(parts.join(" "));
+      },
+    };
+  }
+
+  async function ingestFiles(rawFiles: File[]) {
+    const files = filterImageFiles(rawFiles);
+    if (files.length === 0) {
+      setStatusMessage("No image files found.");
       return;
     }
 
     onError(null);
     setStatusMessage(null);
 
-    const files = Array.from(fileList);
-    const existingFilenames = photos
-      .map((photo) => photo.filename)
-      .filter((name): name is string => Boolean(name));
+    if (files.length >= MOBILE_BATCH_RECOMMENDED) {
+      setPreparingCount(files.length);
+      setPhase("preparing");
+      await new Promise((resolve) => window.setTimeout(resolve, PREPARING_MESSAGE_MS));
+    }
 
-    const prepared = prepareAlbumUploads(files, existingFilenames);
+    const prepared = prepareAlbumUploads(files, existingFilenames(), existingClientKeys());
 
     if (prepared.toUpload.length === 0) {
+      setPhase("idle");
+      setPreparingCount(0);
       setStatusMessage(
         prepared.skippedDuplicates > 0
-          ? `All ${prepared.skippedDuplicates} selected photo(s) are already in the album.`
+          ? `All ${prepared.skippedDuplicates} selected photo(s) are already in the album or queue.`
           : "No photos selected.",
       );
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
       return;
     }
 
     setPhase("uploading");
-    setProgress({
+    setPreparingCount(0);
+    setProgress((prev) => ({
       ...INITIAL_PROGRESS,
       fileTotal: prepared.toUpload.length,
       skippedBeforeUpload: prepared.skippedDuplicates,
-    });
+      ...(queueRef.current ? prev : {}),
+    }));
 
-    const batchPhotos = [...photos];
+    if (queueRef.current?.hasPending) {
+      queueRef.current.addBatch(prepared.toUpload, prepared.skippedDuplicates);
+      return;
+    }
 
     const queue = new GalleryUploadQueue(
       eventId,
       section,
       prepared.toUpload.length,
       prepared.skippedDuplicates,
-      {
-        getToken,
-        onProgress: (next) => setProgress(next),
-        onPhotoUploaded: (photo) => {
-          batchPhotos.push(photo);
-          onPhotosChange([...batchPhotos]);
-        },
-        onError: (message) => onError(message),
-        onComplete: ({ uploaded, failed, skippedDuplicates }) => {
-          queueRef.current = null;
-          setPhase("idle");
-
-          const parts: string[] = [];
-          if (uploaded > 0) {
-            parts.push(`Uploaded ${uploaded} photo${uploaded === 1 ? "" : "s"}.`);
-          }
-          if (skippedDuplicates > 0) {
-            parts.push(
-              `Skipped ${skippedDuplicates} duplicate${skippedDuplicates === 1 ? "" : "s"}.`,
-            );
-          }
-          if (failed > 0) {
-            parts.push(`${failed} failed — try again or check your connection.`);
-          }
-          setStatusMessage(parts.join(" "));
-        },
-      },
+      createQueueCallbacks(),
     );
 
     queueRef.current = queue;
@@ -193,39 +247,156 @@ export function AlbumUpload({
       queueRef.current = null;
       setPhase("idle");
       onError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
     }
+  }
+
+  async function handlePhotoInputChange(fileList: FileList | null) {
+    if (!fileList?.length || disabled) {
+      return;
+    }
+    await ingestFiles(Array.from(fileList));
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  }
+
+  async function handleFolderInputChange(fileList: FileList | null) {
+    if (!fileList?.length || disabled) {
+      return;
+    }
+    await ingestFiles(Array.from(fileList));
+    if (folderInputRef.current) {
+      folderInputRef.current.value = "";
+    }
+  }
+
+  function openPhotoPicker() {
+    if (disabled || phase === "preparing") {
+      return;
+    }
+    const queued = queueRef.current?.getQueuedClientKeys().length ?? 0;
+    if (
+      mobileMode &&
+      queued >= 50 &&
+      !window.confirm(
+        "You already have many photos queued. For best results on iPhone, wait for the current batch to finish or add smaller groups. Add more anyway?",
+      )
+    ) {
+      return;
+    }
+    photoInputRef.current?.click();
+  }
+
+  function openFolderPicker() {
+    if (disabled || phase === "preparing") {
+      return;
+    }
+    folderInputRef.current?.click();
+  }
+
+  async function handleDrop(event: React.DragEvent) {
+    event.preventDefault();
+    setDragOver(false);
+    if (disabled || phase === "preparing") {
+      return;
+    }
+    const files = await collectFilesFromDataTransfer(event.dataTransfer);
+    await ingestFiles(files);
   }
 
   return (
     <div className="album-upload">
       <input
-        ref={inputRef}
-        id="album-upload-input"
+        ref={photoInputRef}
+        id="album-upload-photos"
         className="hidden-input"
         type="file"
         accept="image/*"
         multiple
-        disabled={disabled || uploading}
-        onChange={(event) => void handleFilesSelected(event.target.files)}
+        disabled={disabled}
+        onChange={(event) => void handlePhotoInputChange(event.target.files)}
       />
 
-      <label
-        htmlFor="album-upload-input"
-        className={`album-upload__picker${uploading ? " album-upload__picker--disabled" : ""}`}
-      >
-        {uploading ? "Upload in progress…" : "Choose photos to upload"}
-      </label>
+      {desktopMode && (
+        <input
+          ref={folderInputRef}
+          id="album-upload-folder"
+          className="hidden-input"
+          type="file"
+          accept="image/*"
+          multiple
+          // @ts-expect-error non-standard directory picker attribute
+          webkitdirectory=""
+          directory=""
+          disabled={disabled}
+          onChange={(event) => void handleFolderInputChange(event.target.files)}
+        />
+      )}
+
+      <div className="album-upload__actions">
+        <button
+          type="button"
+          className="album-upload__picker"
+          disabled={disabled || phase === "preparing"}
+          onClick={openPhotoPicker}
+        >
+          Add photos
+        </button>
+
+        {desktopMode && (
+          <button
+            type="button"
+            className="album-upload__picker album-upload__picker--secondary"
+            disabled={disabled || phase === "preparing"}
+            onClick={openFolderPicker}
+          >
+            Add folder
+          </button>
+        )}
+      </div>
+
+      {desktopMode && (
+        <div
+          className={`album-upload__dropzone${dragOver ? " album-upload__dropzone--active" : ""}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (event.currentTarget === event.target) {
+              setDragOver(false);
+            }
+          }}
+          onDrop={(event) => void handleDrop(event)}
+        >
+          <p className="album-upload__dropzone-title">Drop photos or a folder here</p>
+          <p className="album-upload__dropzone-desc">{desktopUploadHint()}</p>
+        </div>
+      )}
 
       <p className="album-upload__hint">
-        Uploads start immediately. Duplicates are skipped by filename; identical files are caught
-        on the server. You can switch apps — return to this tab to resume if uploads pause.
+        {mobileMode ? mobileUploadHint() : desktopUploadHint()}{" "}
+        Duplicates are skipped by filename; identical files are caught on the server. You can add
+        more photos while uploads continue — return to this tab if uploads pause on iPhone.
       </p>
 
-      {uploading && (
+      {phase === "preparing" && (
+        <div className="album-upload__progress" role="status" aria-live="polite">
+          <strong>
+            Preparing {preparingCount} photo{preparingCount === 1 ? "" : "s"} from your library…
+          </strong>
+          <p className="album-upload__warning album-upload__warning--muted">
+            Your phone is loading the selected images — this can take a minute for large batches.
+          </p>
+        </div>
+      )}
+
+      {(phase === "uploading" || phase === "paused") && (
         <div className="album-upload__progress" role="status" aria-live="polite">
           <div className="album-upload__progress-header">
             <strong>
@@ -259,14 +430,16 @@ export function AlbumUpload({
             </p>
           ) : (
             <p className="album-upload__warning album-upload__warning--muted">
-              Keep this page open for fastest uploads. Closing the browser will cancel remaining
-              files.
+              Keep this page open for fastest uploads. You can tap Add photos to queue another
+              batch while these upload.
             </p>
           )}
         </div>
       )}
 
-      {statusMessage && !uploading && <p className="album-upload__status">{statusMessage}</p>}
+      {statusMessage && phase === "idle" && (
+        <p className="album-upload__status">{statusMessage}</p>
+      )}
     </div>
   );
 }
