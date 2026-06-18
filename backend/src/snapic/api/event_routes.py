@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from snapic.api.rate_limit import enforce_match_rate_limit
 from snapic.api.schemas import (
+    EventAlbumStatusResponse,
     EventPublicResponse,
     EventSetupStatusResponse,
     EventStatsResponse,
@@ -185,22 +186,49 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     )
 
 
+def _event_album_status(event_id: str, row: dict[str, Any]) -> EventAlbumStatusResponse:
+    photo_count = count_gallery_photos(event_id)
+    pending = count_pending_gallery_photos(event_id)
+    failed = count_failed_gallery_photos(event_id)
+    indexing = is_event_gallery_indexing(row)
+    return EventAlbumStatusResponse(
+        photo_count=photo_count,
+        pending_count=pending,
+        failed_count=failed,
+        indexing_in_progress=indexing,
+        gallery_search_ready=gallery_search_ready(row, photo_count=photo_count, pending=pending),
+    )
+
+
 def _event_setup_status(event_id: str, row: dict[str, Any]) -> EventSetupStatusResponse:
     branding = row.get("branding") or {}
     couple_names = branding.get("couple_names")
     branding_ok = isinstance(couple_names, str) and bool(couple_names.strip())
-    photo_count = count_gallery_photos(event_id)
-    pending = count_pending_gallery_photos(event_id)
-    has_photos = photo_count > 0
+    album = _event_album_status(event_id, row)
+    has_photos = album.photo_count > 0
     return EventSetupStatusResponse(
         branding_ok=branding_ok,
         has_photos=has_photos,
-        photo_count=photo_count,
-        faces_indexed=has_photos and pending == 0,
-        unindexed_count=pending,
+        photo_count=album.photo_count,
+        faces_indexed=has_photos and album.pending_count == 0 and not album.indexing_in_progress,
+        unindexed_count=album.pending_count,
+        failed_count=album.failed_count,
+        indexing_in_progress=album.indexing_in_progress,
+        gallery_search_ready=album.gallery_search_ready,
         is_active=row.get("status") == "active",
         onboarding_completed=bool(row.get("onboarding_completed_at")),
     )
+
+
+def _photos_for_index_scope(photos: list[dict[str, Any]], scope: str) -> list[dict[str, Any]]:
+    normalized = (scope or "all").strip().lower()
+    if normalized == "all":
+        return photos
+    if normalized == "failed":
+        return [p for p in photos if p.get("face_index_status") == "failed"]
+    if normalized == "pending":
+        return [p for p in photos if p.get("face_index_status") in ("pending", None)]
+    raise HTTPException(status_code=400, detail="scope must be all, pending, or failed")
 
 
 @router.get("/by-slug/{slug}", response_model=EventPublicResponse)
@@ -320,14 +348,28 @@ def _maybe_send_album_ready_email(event_id: str) -> None:
             )
 
 
+@router.get("/{event_id}/album-status", response_model=EventAlbumStatusResponse)
+async def get_event_album_status(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> EventAlbumStatusResponse:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    row = fetch_event_by_id(event_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _event_album_status(event_id, row)
+
+
 @router.post("/{event_id}/gallery/index-faces")
 async def reindex_event_gallery_faces(
     event_id: str,
     user: Annotated[AuthUser, Depends(get_required_user)],
+    scope: Annotated[str, Query()] = "all",
 ) -> dict[str, int]:
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
-    photos = list_gallery_photos(event_id)
+    photos = _photos_for_index_scope(list_gallery_photos(event_id), scope)
     result: dict[str, int] = {"processed": 0, "thumbs_backfilled": 0, "indexed": 0, "no_face": 0, "failed": 0}
     set_event_gallery_indexing(event_id, True)
     try:
@@ -350,10 +392,11 @@ async def reindex_event_gallery_faces(
 async def reindex_event_gallery_faces_stream(
     event_id: str,
     user: Annotated[AuthUser, Depends(get_required_user)],
+    scope: Annotated[str, Query()] = "all",
 ) -> StreamingResponse:
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
-    photos = list_gallery_photos(event_id)
+    photos = _photos_for_index_scope(list_gallery_photos(event_id), scope)
 
     def generate() -> Any:
         set_event_gallery_indexing(event_id, True)

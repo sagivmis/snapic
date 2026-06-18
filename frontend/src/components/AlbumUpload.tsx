@@ -30,6 +30,8 @@ interface AlbumUploadProps {
   section?: string;
   onPhotosChange: (photos: GalleryPhoto[]) => void;
   onError: (message: string | null) => void;
+  onActiveChange?: (active: boolean) => void;
+  onQueueIdle?: (summary: { uploaded: number; failed: number }) => void;
 }
 
 const INITIAL_PROGRESS: GalleryUploadProgress = {
@@ -88,6 +90,8 @@ export function AlbumUpload({
   section,
   onPhotosChange,
   onError,
+  onActiveChange,
+  onQueueIdle,
 }: AlbumUploadProps) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +107,10 @@ export function AlbumUpload({
   const desktopMode = useMemo(() => isDesktopUpload(), []);
   const mobileMode = useMemo(() => isMobileDevice(), []);
   const busy = phase === "preparing" || phase === "uploading" || phase === "paused";
+
+  useEffect(() => {
+    onActiveChange?.(busy);
+  }, [busy, onActiveChange]);
 
   useEffect(() => {
     batchPhotosRef.current = photos;
@@ -183,6 +191,9 @@ export function AlbumUpload({
           parts.push(`${failed} failed — try again or check your connection.`);
         }
         setStatusMessage(parts.join(" "));
+        if (uploaded > 0 || failed > 0) {
+          onQueueIdle?.({ uploaded, failed });
+        }
       },
     };
   }

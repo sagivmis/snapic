@@ -93,8 +93,19 @@ class EventSetupStatusResponse(BaseModel):
     photo_count: int
     faces_indexed: bool
     unindexed_count: int
+    failed_count: int = 0
+    indexing_in_progress: bool = False
+    gallery_search_ready: bool = False
     is_active: bool
     onboarding_completed: bool
+
+
+class EventAlbumStatusResponse(BaseModel):
+    photo_count: int
+    pending_count: int
+    failed_count: int
+    indexing_in_progress: bool
+    gallery_search_ready: bool
 
 
 class GalleryPhotoResponse(BaseModel):

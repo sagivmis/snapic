@@ -100,9 +100,22 @@ export interface EventSetupStatus {
   photo_count: number;
   faces_indexed: boolean;
   unindexed_count: number;
+  failed_count: number;
+  indexing_in_progress: boolean;
+  gallery_search_ready: boolean;
   is_active: boolean;
   onboarding_completed: boolean;
 }
+
+export interface EventAlbumStatus {
+  photo_count: number;
+  pending_count: number;
+  failed_count: number;
+  indexing_in_progress: boolean;
+  gallery_search_ready: boolean;
+}
+
+export type IndexScope = "all" | "pending" | "failed";
 
 export interface GalleryPhoto {
   id: string;

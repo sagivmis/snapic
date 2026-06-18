@@ -31,6 +31,8 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] **Desktop:** Drag a folder onto the drop zone (or **Add folder**) — 100+ photos queue within seconds
 - [ ] Upload progress shows combined total when multiple batches are queued
 - [ ] Duplicate picks in the same session are skipped (already in album or queue)
+- [ ] **Album status banner** shows Uploading → Indexing → Ready after upload (auto-index)
+- [ ] **Retry failed** re-indexes only failed photos when banner shows failures
 - [ ] **Back to setup checklist** returns to setup with updated photo count
 - [ ] **Index faces** shows streaming progress; completes for large albums
 - [ ] Manage page loads quickly (skeleton shell → batch photo previews)

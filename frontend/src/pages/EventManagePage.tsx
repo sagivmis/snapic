@@ -5,6 +5,7 @@ import {
   bulkDeleteEventGalleryPhotos,
   deleteEventGalleryPhoto,
   downloadEventGalleryZip,
+  fetchEventAlbumStatus,
   fetchEventBySlug,
   fetchEventGallery,
   fetchEventGallerySections,
@@ -16,13 +17,13 @@ import {
   updateGalleryPhotoSection,
 } from "../api/client";
 import { AlbumGrid, type AlbumGridHandle } from "../components/AlbumGrid";
+import { AlbumStatusBanner } from "../components/AlbumStatusBanner";
 import { AlbumUpload } from "../components/AlbumUpload";
 import { EventManageSkeleton } from "../components/EventManageSkeleton";
 import { GuestQrCode } from "../components/GuestQrCode";
-import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
-import type { EventPublic, EventStats, GalleryPhoto } from "../types";
+import type { EventAlbumStatus, EventPublic, EventStats, GalleryPhoto, IndexScope } from "../types";
 import type { IndexStreamEvent } from "../api/client";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import "../styles/EventManage.scss";
@@ -54,6 +55,8 @@ export function EventManagePage() {
     IndexStreamEvent,
     { type: "progress" }
   > | null>(null);
+  const [albumStatus, setAlbumStatus] = useState<EventAlbumStatus | null>(null);
+  const [uploadActive, setUploadActive] = useState(false);
   const [activeTab, setActiveTab] = useState<ManageTab>("album");
   const [albumSection, setAlbumSection] = useState<string>("all");
 
@@ -67,6 +70,8 @@ export function EventManagePage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const albumGridRef = useRef<AlbumGridHandle>(null);
   const previewLoadGeneration = useRef(0);
+  const autoIndexTimerRef = useRef<number | null>(null);
+  const indexingRef = useRef(false);
 
   const guestUrl = useMemo(() => (slug ? buildEventGuestUrl(slug) : ""), [slug]);
 
@@ -84,6 +89,34 @@ export function EventManagePage() {
     }
     return Array.from(merged);
   }, [sections, photos]);
+
+  const refreshAlbumStatus = useCallback(async () => {
+    if (!event) {
+      return;
+    }
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        return;
+      }
+      const status = await fetchEventAlbumStatus(event.id, token);
+      setAlbumStatus(status);
+    } catch {
+      // Non-blocking status refresh
+    }
+  }, [event, getAccessToken]);
+
+  useEffect(() => {
+    indexingRef.current = indexing;
+  }, [indexing]);
+
+  useEffect(() => {
+    return () => {
+      if (autoIndexTimerRef.current) {
+        window.clearTimeout(autoIndexTimerRef.current);
+      }
+    };
+  }, []);
 
   const load = useCallback(async () => {
     if (!slug || !session) {
@@ -140,6 +173,7 @@ export function EventManagePage() {
       setSections(gallerySections.length > 0 ? gallerySections : DEFAULT_SECTIONS);
       setStats(eventStats);
       setGalleryLoading(false);
+      void fetchEventAlbumStatus(ev.id, token).then(setAlbumStatus).catch(() => {});
 
       if (gallery.length === 0) {
         return;
@@ -173,6 +207,29 @@ export function EventManagePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!event || !isAdmin) {
+      return;
+    }
+    void refreshAlbumStatus();
+  }, [event, isAdmin, photos.length, refreshAlbumStatus]);
+
+  useEffect(() => {
+    if (!event || !isAdmin) {
+      return;
+    }
+    const shouldPoll =
+      uploadActive ||
+      indexing ||
+      albumStatus?.indexing_in_progress ||
+      (albumStatus?.pending_count ?? 0) > 0;
+    if (!shouldPoll) {
+      return;
+    }
+    const interval = window.setInterval(() => void refreshAlbumStatus(), 5000);
+    return () => window.clearInterval(interval);
+  }, [event, isAdmin, uploadActive, indexing, albumStatus, refreshAlbumStatus]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -324,29 +381,90 @@ export function EventManagePage() {
     }
   }
 
-  async function handleReindexFaces() {
+  async function handleReindexFaces(options?: { scope?: IndexScope; auto?: boolean }) {
     if (!event) {
       return;
     }
+    const scope = options?.scope ?? "all";
     setIndexing(true);
     setIndexProgress(null);
-    setError(null);
-    setSuccess(null);
+    if (!options?.auto) {
+      setError(null);
+      setSuccess(null);
+    }
     try {
       const token = await getAccessToken();
       if (!token) {
         throw new Error("Not signed in");
       }
-      const result = await reindexEventGallery(event.id, token, (progress) => {
-        setIndexProgress(progress);
-      });
-      setSuccess(formatIndexResult(result));
+      const result = await reindexEventGallery(
+        event.id,
+        token,
+        (progress) => {
+          setIndexProgress(progress);
+        },
+        scope,
+      );
+      await refreshAlbumStatus();
+      const refreshedEvent = await fetchEventBySlug(slug, token);
+      setEvent(refreshedEvent);
+      if (scope === "failed" && result.processed === 0) {
+        if (!options?.auto) {
+          setSuccess("No failed photos to retry.");
+        }
+        return;
+      }
+      if (!options?.auto) {
+        setSuccess(formatIndexResult(result));
+      } else if (result.indexed > 0 || result.processed > 0) {
+        setSuccess(
+          `Indexed ${result.indexed} new photo${result.indexed === 1 ? "" : "s"} automatically after upload.`,
+        );
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Indexing failed");
+      if (!options?.auto) {
+        setError(err instanceof Error ? err.message : "Indexing failed");
+      }
     } finally {
       setIndexing(false);
       setIndexProgress(null);
+      void refreshAlbumStatus();
     }
+  }
+
+  function scheduleAutoIndex() {
+    if (autoIndexTimerRef.current) {
+      window.clearTimeout(autoIndexTimerRef.current);
+    }
+    autoIndexTimerRef.current = window.setTimeout(() => {
+      void runAutoIndex();
+    }, 2000);
+  }
+
+  async function runAutoIndex() {
+    if (!event || indexingRef.current || uploadActive) {
+      return;
+    }
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        return;
+      }
+      const status = await fetchEventAlbumStatus(event.id, token);
+      setAlbumStatus(status);
+      if (status.pending_count > 0 && !status.indexing_in_progress) {
+        await handleReindexFaces({ scope: "pending", auto: true });
+      }
+    } catch {
+      // Auto-index is best-effort
+    }
+  }
+
+  function handleUploadQueueIdle(summary: { uploaded: number; failed: number }) {
+    if (summary.uploaded > 0) {
+      scheduleAutoIndex();
+    }
+    void refreshAlbumStatus();
   }
 
   async function handleDownloadZip() {
@@ -524,7 +642,14 @@ export function EventManagePage() {
             </div>
           </div>
 
-          <IndexFacesProgress progress={indexProgress} />
+          <AlbumStatusBanner
+            status={albumStatus}
+            uploadActive={uploadActive}
+            indexing={indexing}
+            indexProgress={indexProgress}
+            retryDisabled={busy || indexing || uploadActive}
+            onRetryFailed={() => void handleReindexFaces({ scope: "failed" })}
+          />
 
           <nav className="event-manage__sections" aria-label="Album sections">
             {sectionTabs.map((section) => (
@@ -547,6 +672,8 @@ export function EventManagePage() {
             section={albumSection === "all" ? "general" : albumSection}
             onPhotosChange={setPhotos}
             onError={setError}
+            onActiveChange={setUploadActive}
+            onQueueIdle={handleUploadQueueIdle}
           />
 
           {galleryLoading ? (

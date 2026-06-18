@@ -8,6 +8,7 @@ import {
   updateEvent,
 } from "../api/client";
 import { IndexFacesProgress } from "../components/IndexFacesProgress";
+import { AlbumStatusBanner } from "../components/AlbumStatusBanner";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabase";
 import type { EventPublic, EventSetupStatus } from "../types";
@@ -184,6 +185,21 @@ export function EventSetupPage() {
       window.removeEventListener("focus", handleReturn);
     };
   }, [step, refreshSetupStatus]);
+
+  useEffect(() => {
+    if (step !== "ready" || !event) {
+      return;
+    }
+    const needsPoll =
+      busy ||
+      setupStatus?.indexing_in_progress ||
+      (setupStatus?.unindexed_count ?? 0) > 0;
+    if (!needsPoll) {
+      return;
+    }
+    const interval = window.setInterval(() => void refreshSetupStatus(), 5000);
+    return () => window.clearInterval(interval);
+  }, [step, event, setupStatus, busy, refreshSetupStatus]);
 
   async function handleBrandingSubmit(formEvent: FormEvent) {
     formEvent.preventDefault();
@@ -517,6 +533,19 @@ export function EventSetupPage() {
                 Complete each step below to get your gallery ready for wedding guests.
               </p>
 
+              <AlbumStatusBanner
+                status={{
+                  photo_count: setupStatus.photo_count,
+                  pending_count: setupStatus.unindexed_count,
+                  failed_count: setupStatus.failed_count ?? 0,
+                  indexing_in_progress: setupStatus.indexing_in_progress ?? false,
+                  gallery_search_ready: setupStatus.gallery_search_ready ?? false,
+                }}
+                uploadActive={false}
+                indexing={busy}
+                indexProgress={indexProgress}
+              />
+
               <ul className="event-setup__checklist">
                 <li className={setupStatus.branding_ok ? "event-setup__checklist-item--done" : ""}>
                   <span className="event-setup__checkmark" aria-hidden="true" />
@@ -537,10 +566,14 @@ export function EventSetupPage() {
                 >
                   <span className="event-setup__checkmark" aria-hidden="true" />
                   {setupStatus.faces_indexed
-                    ? "Faces indexed for matching"
-                    : setupStatus.has_photos
-                      ? `Index faces (${setupStatus.unindexed_count} remaining)`
-                      : "Index faces after upload"}
+                    ? setupStatus.failed_count > 0
+                      ? `Faces indexed (${setupStatus.failed_count} failed — retry from album tab)`
+                      : "Faces indexed for matching"
+                    : setupStatus.indexing_in_progress
+                      ? "Indexing faces…"
+                      : setupStatus.has_photos
+                        ? `Index faces (${setupStatus.unindexed_count} remaining)`
+                        : "Index faces after upload"}
                 </li>
                 <li className={setupStatus.is_active ? "event-setup__checklist-item--done" : ""}>
                   <span className="event-setup__checkmark" aria-hidden="true" />

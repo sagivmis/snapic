@@ -17,6 +17,8 @@ import type {
   SignupRequestCreate,
   UserEventSummary,
   EventSetupStatus,
+  EventAlbumStatus,
+  IndexScope,
   SlugCheckResult,
   AuditLogEntry,
 } from "../types";
@@ -526,13 +528,26 @@ export type IndexStreamEvent =
     }
   | { type: "error"; message: string };
 
+export async function fetchEventAlbumStatus(
+  eventId: string,
+  token: string,
+): Promise<EventAlbumStatus> {
+  const response = await authFetch(`/api/events/${eventId}/album-status`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load album status");
+  }
+  return response.json() as Promise<EventAlbumStatus>;
+}
+
 export async function reindexEventGalleryStream(
   eventId: string,
   token: string,
   onEvent: (event: IndexStreamEvent) => void,
+  scope: IndexScope = "all",
 ): Promise<Extract<IndexStreamEvent, { type: "complete" }>> {
+  const params = new URLSearchParams({ scope });
   const response = await authFetch(
-    `/api/events/${eventId}/gallery/index-faces/stream`,
+    `/api/events/${eventId}/gallery/index-faces/stream?${params}`,
     { method: "POST" },
     { token },
   );
@@ -581,6 +596,7 @@ export async function reindexEventGallery(
   eventId: string,
   token: string,
   onProgress?: (event: Extract<IndexStreamEvent, { type: "progress" }>) => void,
+  scope: IndexScope = "all",
 ): Promise<{
   processed: number;
   indexed: number;
@@ -593,10 +609,11 @@ export async function reindexEventGallery(
       if (event.type === "progress") {
         onProgress(event);
       }
-    });
+    }, scope);
   }
+  const params = new URLSearchParams({ scope });
   const response = await authFetch(
-    `/api/events/${eventId}/gallery/index-faces`,
+    `/api/events/${eventId}/gallery/index-faces?${params}`,
     { method: "POST" },
     { token },
   );
