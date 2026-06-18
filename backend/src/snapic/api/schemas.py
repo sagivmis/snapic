@@ -138,6 +138,7 @@ class MatchRunSummary(BaseModel):
     id: str
     share_id: str | None = None
     matched_count: int
+    total_gallery: int = 0
     created_at: str | None = None
 
 

@@ -783,6 +783,7 @@ def list_user_match_runs(
                 "id": run["id"],
                 "share_id": share_id,
                 "matched_count": run.get("matched_count", 0),
+                "total_gallery": int(run.get("total_gallery") or 0),
                 "created_at": run.get("created_at"),
             }
         )

@@ -204,6 +204,26 @@
   }
 }
 
+.event-guest__new-photos-banner {
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-500, 0.45);
+  background: rgba($blush-100, 0.55);
+  text-align: center;
+
+  p {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: $taupe-700;
+  }
+}
+
+.event-guest__new-photos-action {
+  margin-top: 0.75rem;
+}
+
 .event-guest--results {
   .results__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

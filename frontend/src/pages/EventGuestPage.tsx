@@ -8,6 +8,12 @@ import { GuestSearchHistory } from "../components/GuestSearchHistory";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import {
+  countNewPhotosSinceLastSearch,
+  hasNewPhotosSinceLastSearch,
+  galleryAtLastSearch,
+  recordGalleryAtSearch,
+} from "../utils/guestSearchBaseline";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import { isGallerySearchReady } from "../types";
 import "../styles/EventGuest.scss";
@@ -104,6 +110,42 @@ export function EventGuestPage() {
     }, 15_000);
     return () => window.clearInterval(interval);
   }, [slug, event?.gallery_search_ready, event?.gallery_indexing_in_progress, event?.unindexed_photo_count, event?.gallery_photo_count]);
+
+  const lastSearchGalleryCount = useMemo(() => {
+    if (!event) {
+      return 0;
+    }
+    return galleryAtLastSearch(event.id, pastRuns);
+  }, [event, pastRuns]);
+
+  const newPhotosAvailable = useMemo(() => {
+    if (!event || loading || !isGallerySearchReady(event)) {
+      return false;
+    }
+    return hasNewPhotosSinceLastSearch(event.gallery_photo_count ?? 0, event.id, pastRuns);
+  }, [event, pastRuns, loading]);
+
+  const newPhotoCount = useMemo(() => {
+    if (!event) {
+      return 0;
+    }
+    return countNewPhotosSinceLastSearch(event.gallery_photo_count ?? 0, event.id, pastRuns);
+  }, [event, pastRuns]);
+
+  useEffect(() => {
+    if (!slug || !event || !isGallerySearchReady(event)) {
+      return;
+    }
+    if (lastSearchGalleryCount <= 0 && pastRuns.length === 0) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      void fetchEventBySlug(slug)
+        .then((row) => setEvent(row))
+        .catch(() => {});
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [slug, event?.id, event?.gallery_search_ready, lastSearchGalleryCount, pastRuns.length]);
 
   useEffect(() => {
     if (!event) {
@@ -218,6 +260,7 @@ export function EventGuestPage() {
         },
       );
       setResult(response);
+      recordGalleryAtSearch(event.id, response.total_gallery);
       const runs = await fetchMyEventRuns(event.id, auth);
       setPastRuns(runs);
     } catch (err) {
@@ -362,6 +405,29 @@ export function EventGuestPage() {
       {searchStale && loading && (
         <div className="event-guest__network-banner event-guest__network-banner--patience" role="status">
           Still searching a large album. Matches will keep appearing as we find them.
+        </div>
+      )}
+      {newPhotosAvailable && !loading && (
+        <div className="event-guest__new-photos-banner" role="status">
+          <p>
+            {newPhotoCount > 0
+              ? `${newPhotoCount} new photo${newPhotoCount === 1 ? "" : "s"} were added since your last search.`
+              : "New photos were added since your last search."}{" "}
+            Search again to find more.
+          </p>
+          {step === "results" && (
+            <button
+              type="button"
+              className="btn btn-secondary event-guest__new-photos-action"
+              disabled={!hasPortrait || !network.online}
+              onClick={() => {
+                setStep("portrait");
+                void handleMatch();
+              }}
+            >
+              Search again
+            </button>
+          )}
         </div>
       )}
 

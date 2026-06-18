@@ -48,6 +48,7 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] Matches appear; lightbox opens full photo
 - [ ] **Download my photos** ZIP works
 - [ ] Search history icon shows past searches
+- [ ] **New photos nudge:** after a search, add more photos as admin — guest sees “new photos since your last search” banner
 - [ ] Slow/offline banners behave sensibly (optional: throttle network in DevTools)
 
 ## 5. Rate limiting & errors
@@ -76,6 +77,13 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] **Active but unindexed:** guest sees “Gallery almost ready” with Check again
 - [ ] **Large mobile batch:** “Preparing N photos from your library…” appears after iOS picker returns
 - [ ] Zero-match search: tips shown, no false “no matches during search”
+
+---
+
+## 9. Monitoring (optional)
+
+- [ ] `SENTRY_DSN` set on Render; `VITE_SENTRY_DSN` on Vercel — test errors appear in Sentry project
+- [ ] `/api/health` returns 200
 
 ---
 

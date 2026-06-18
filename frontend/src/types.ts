@@ -141,6 +141,7 @@ export interface MatchRunSummary {
   id: string;
   share_id?: string | null;
   matched_count: number;
+  total_gallery?: number;
   created_at?: string | null;
 }
 

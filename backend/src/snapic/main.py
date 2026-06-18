@@ -6,6 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from snapic.api.admin_routes import router as admin_router
 from snapic.api.event_routes import router as event_router
 from snapic.api.routes import router
+from snapic.monitoring import init_sentry
+
+init_sentry()
 
 DEFAULT_ORIGINS = [
     "http://localhost:5173",
