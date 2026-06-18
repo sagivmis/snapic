@@ -27,7 +27,7 @@ from snapic.api.schemas import (
 )
 from snapic.auth.jwt import AuthUser, get_anonymous_session_id, get_optional_user, get_required_user
 from snapic.db import is_supabase_configured
-from snapic.db.invites import invite_event_admin
+from snapic.db.approval_email import send_album_ready_email, send_gallery_live_email
 from snapic.db.repository import (
     bulk_delete_gallery_photos,
     count_gallery_photos,
@@ -44,6 +44,7 @@ from snapic.db.repository import (
     is_event_admin,
     list_gallery_photos,
     list_gallery_sections,
+    list_event_admin_emails,
     list_user_events,
     list_user_match_runs,
     maybe_auto_archive_event,
@@ -273,6 +274,30 @@ async def reindex_event_gallery_faces(
             continue
         index_gallery_photo_faces(photo["id"], photo["storage_path"])
         processed += 1
+
+    row = fetch_event_by_id(event_id)
+    if row:
+        branding = row.get("branding") or {}
+        photo_count = count_gallery_photos(event_id)
+        unindexed = count_unindexed_gallery_photos(event_id)
+        if (
+            photo_count > 0
+            and unindexed == 0
+            and row.get("status") != "active"
+            and not branding.get("album_ready_email_sent_at")
+        ):
+            couple_names = branding.get("couple_names") or row.get("title") or "Your gallery"
+            if send_album_ready_email(list_event_admin_emails(event_id), str(couple_names), row["slug"]):
+                update_event(
+                    event_id,
+                    {
+                        "branding": {
+                            **branding,
+                            "album_ready_email_sent_at": datetime.now(UTC).isoformat(),
+                        }
+                    },
+                )
+
     return {"processed": processed, "thumbs_backfilled": thumbs_backfilled}
 
 
@@ -465,7 +490,13 @@ async def patch_event(
         existing = fetch_event_by_id(event_id)
         if existing:
             payload["branding"] = {**(existing.get("branding") or {}), **payload["branding"]}
+    existing = fetch_event_by_id(event_id)
+    previous_status = existing.get("status") if existing else None
     row = update_event(event_id, payload)
+    if existing and payload.get("status") == "active" and previous_status != "active":
+        branding = row.get("branding") or {}
+        couple_names = branding.get("couple_names") or row.get("title") or "Your gallery"
+        send_gallery_live_email(list_event_admin_emails(event_id), str(couple_names), row["slug"])
     return _event_public(row)
 
 

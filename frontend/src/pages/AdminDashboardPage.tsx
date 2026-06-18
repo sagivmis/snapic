@@ -195,7 +195,14 @@ export function AdminDashboardPage() {
               ? { slug: options.slug, title: options.title }
               : undefined
           : undefined;
-      await reviewSignupRequest(requestId, action, token, extra);
+      const reviewed = await reviewSignupRequest(requestId, action, token, extra);
+      if (action === "approve" && reviewed.welcome_email_sent === false) {
+        setSuccess(
+          "Request approved. Supabase invite sent, but the Snapic welcome email could not be sent — check RESEND_API_KEY on Render.",
+        );
+      } else if (action === "approve") {
+        setSuccess("Request approved and welcome email sent.");
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");

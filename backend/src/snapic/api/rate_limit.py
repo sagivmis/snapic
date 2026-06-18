@@ -25,7 +25,7 @@ class _SlidingWindowLimiter:
             if len(hits) >= self.max_requests:
                 raise HTTPException(
                     status_code=429,
-                    detail="Too many photo searches. Please wait a few minutes and try again.",
+                    detail="Too many photo searches. Please wait about an hour before trying again.",
                 )
             hits.append(now)
             self._hits[key] = hits

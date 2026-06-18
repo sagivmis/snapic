@@ -241,6 +241,7 @@ async def admin_review_signup(
     if not target:
         raise HTTPException(status_code=404, detail="Pending request not found")
 
+    welcome_email_sent: bool | None = None
     if body.action == "reject":
         row = update_signup_request(
             request_id,
@@ -274,7 +275,9 @@ async def admin_review_signup(
             update_profile_role(profile["id"], "event_admin")
         else:
             invite_event_admin(target["email"], event["id"], event["slug"], "admin")
-        send_gallery_approval_email(target["email"], target["couple_names"], event["slug"])
+        welcome_email_sent = send_gallery_approval_email(
+            target["email"], target["couple_names"], event["slug"]
+        )
         row = update_signup_request(
             request_id,
             {
@@ -294,6 +297,7 @@ async def admin_review_signup(
         created_at=row.get("created_at"),
         reviewed_at=row.get("reviewed_at"),
         created_event_id=row.get("created_event_id"),
+        welcome_email_sent=welcome_email_sent,
     )
 
 

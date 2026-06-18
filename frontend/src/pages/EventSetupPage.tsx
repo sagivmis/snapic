@@ -37,6 +37,7 @@ export function EventSetupPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
 
@@ -240,6 +241,7 @@ export function EventSetupPage() {
     }
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const token = await getAccessToken();
       if (!token) {
@@ -247,11 +249,34 @@ export function EventSetupPage() {
       }
       const result = await reindexEventGallery(event.id, token);
       await refreshSetupStatus();
-      if (result.processed === 0) {
-        setError("No photos needed indexing.");
+      const latest = await fetchEventSetupStatus(event.id, token);
+      setSetupStatus(latest);
+
+      if (latest.faces_indexed) {
+        setNotice(
+          result.processed > 0
+            ? `Indexed ${result.processed} photo${result.processed === 1 ? "" : "s"}. Your album is ready to go live.`
+            : "All photos are indexed. Your album is ready to go live.",
+        );
+        return;
       }
+
+      if (result.processed === 0) {
+        setError(
+          "No photos were indexed. Some images may be corrupted or missing faces — try re-uploading them.",
+        );
+        return;
+      }
+
+      setNotice(
+        `Indexed ${result.processed} photo${result.processed === 1 ? "" : "s"}. ${latest.unindexed_count} still need attention.`,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not index faces");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Face indexing failed. Wait a moment and try again, or upload clearer photos.",
+      );
     } finally {
       setBusy(false);
     }
@@ -297,7 +322,7 @@ export function EventSetupPage() {
         },
         token,
       );
-      navigate(manageHref, { replace: true });
+      navigate(`/e/${slug}/live`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish setup");
     } finally {
@@ -571,6 +596,7 @@ export function EventSetupPage() {
           )}
 
           {error && <p className="error-banner">{error}</p>}
+          {notice && !error && <p className="event-setup__notice">{notice}</p>}
         </div>
 
         <p className="event-setup__footer">

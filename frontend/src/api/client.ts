@@ -39,11 +39,21 @@ async function authFetch(
   return fetch(apiUrl(path), { ...init, headers });
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function parseError(response: Response, fallback: string): Promise<never> {
   const payload = await response.json().catch(() => null);
   const detail =
     payload && typeof payload.detail === "string" ? payload.detail : fallback;
-  throw new Error(detail);
+  throw new ApiError(detail, response.status);
 }
 
 export async function matchPhotos(request: MatchRequest): Promise<MatchResponse> {

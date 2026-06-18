@@ -40,6 +40,28 @@
   }
 }
 
+.event-manage__setup-return {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.125rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-400, 0.55);
+  background: rgba($white, 0.95);
+  box-shadow: $shadow-card;
+
+  p {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: $taupe-500;
+  }
+
+  .btn {
+    align-self: flex-start;
+  }
+}
+
 .event-manage__setup-banner {
   display: flex;
   flex-wrap: wrap;

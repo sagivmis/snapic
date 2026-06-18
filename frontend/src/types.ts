@@ -147,6 +147,7 @@ export interface SignupRequest {
   created_at?: string | null;
   reviewed_at?: string | null;
   created_event_id?: string | null;
+  welcome_email_sent?: boolean | null;
 }
 
 export interface AdminStats {

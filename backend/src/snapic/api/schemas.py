@@ -161,6 +161,7 @@ class SignupRequestResponse(BaseModel):
     created_at: str | None = None
     reviewed_at: str | None = None
     created_event_id: str | None = None
+    welcome_email_sent: bool | None = None
 
 
 class SignupReviewRequest(BaseModel):

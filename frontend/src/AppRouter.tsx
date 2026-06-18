@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth, RequireRole } from "./auth/RequireRole";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { EventGuestPage } from "./pages/EventGuestPage";
+import { EventLivePage } from "./pages/EventLivePage";
 import { EventManagePage } from "./pages/EventManagePage";
 import { EventSetupPage } from "./pages/EventSetupPage";
 import { LandingPage } from "./pages/LandingPage";
@@ -23,6 +24,14 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <EventSetupPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/e/:slug/live"
+        element={
+          <RequireAuth>
+            <EventLivePage />
           </RequireAuth>
         }
       />

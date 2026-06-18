@@ -549,6 +549,30 @@ def fetch_profile_role(user_id: str) -> str | None:
     return None
 
 
+def list_event_admin_emails(event_id: str) -> list[str]:
+    client = get_supabase()
+    members = (
+        client.table("event_members")
+        .select("user_id")
+        .eq("event_id", event_id)
+        .execute()
+        .data
+        or []
+    )
+    emails: list[str] = []
+    for member in members:
+        user_id = member.get("user_id")
+        if not user_id:
+            continue
+        profile = _query_one(client.table("profiles").select("email").eq("id", user_id))
+        if not profile:
+            continue
+        email = profile.get("email")
+        if isinstance(email, str) and email.strip():
+            emails.append(email.strip().lower())
+    return list(dict.fromkeys(emails))
+
+
 def update_profile_role(user_id: str, global_role: str) -> bool:
     """Update profile global_role. Skips downgrading super_admin to event_admin."""
     if global_role == "event_admin":

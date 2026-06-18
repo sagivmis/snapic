@@ -242,6 +242,17 @@
   color: var(--event-accent, #{$champagne-600});
 }
 
+.event-setup__notice {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($champagne-400, 0.45);
+  background: rgba($cream-100, 0.95);
+  font-size: 0.875rem;
+  color: $taupe-600;
+  line-height: 1.45;
+}
+
 .event-setup__hint {
   margin: 1rem 0 0;
   font-size: 0.8125rem;

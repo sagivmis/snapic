@@ -346,10 +346,19 @@ export function EventManagePage() {
   }
 
   const needsSetup = !event.onboarding_completed_at && event.status === "draft";
+  const fromSetup = new URLSearchParams(location.search).get("from") === "setup";
 
   return (
     <div className="event-manage">
-      {needsSetup && (
+      {fromSetup && needsSetup && (
+        <div className="event-manage__setup-return">
+          <Link to={`/e/${slug}/setup`} className="btn btn-primary">
+            ← Back to setup checklist
+          </Link>
+          <p>Return here after uploading — your checklist will update automatically.</p>
+        </div>
+      )}
+      {needsSetup && !fromSetup && (
         <div className="event-manage__setup-banner">
           <div>
             <strong>Finish setting up your gallery</strong>

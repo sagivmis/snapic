@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream } from "../api/client";
+import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream, ApiError } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
 import { GuestSearchHistory } from "../components/GuestSearchHistory";
@@ -33,6 +33,7 @@ export function EventGuestPage() {
   const [pastRuns, setPastRuns] = useState<MatchRunSummary[]>([]);
   const [refreshingEvent, setRefreshingEvent] = useState(false);
   const [searchStale, setSearchStale] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const lastProgressAtRef = useRef(Date.now());
   const network = useNetworkStatus();
 
@@ -150,6 +151,7 @@ export function EventGuestPage() {
 
     setLoading(true);
     setError(null);
+    setRateLimited(false);
     setStep("results");
     setMatchProgress({ processed: 0, total: photoCount });
     setResult({
@@ -196,7 +198,14 @@ export function EventGuestPage() {
       const runs = await fetchMyEventRuns(event.id, auth);
       setPastRuns(runs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof ApiError && err.status === 429) {
+        setRateLimited(true);
+        setError(
+          "You've reached the search limit for this hour. Please wait about an hour before trying again.",
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
       setStep("portrait");
       setResult(null);
     } finally {
@@ -391,7 +400,9 @@ export function EventGuestPage() {
           </>
         )}
 
-        {error && <p className="error-banner">{error}</p>}
+        {error && (
+          <p className={`error-banner${rateLimited ? " error-banner--rate-limit" : ""}`}>{error}</p>
+        )}
       </div>
 
       {step === "portrait" && (
