@@ -24,6 +24,7 @@ import {
 } from "../components/AdminDashboardSkeletons";
 import { AdminEventsTable, type EventAttentionFilter } from "../components/AdminEventsTable";
 import { AdminSignupRequests } from "../components/AdminSignupRequests";
+import { SlugAvailabilityInput, type SlugCheckStatus } from "../components/SlugAvailabilityInput";
 import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
 import type { AdminAttention, AdminEventSummary, AuditLogEntry, SignupRequest } from "../types";
@@ -53,6 +54,7 @@ export function AdminDashboardPage() {
   const [auditLoading, setAuditLoading] = useState(true);
 
   const [slug, setSlug] = useState("");
+  const [slugStatus, setSlugStatus] = useState<SlugCheckStatus>("idle");
   const [title, setTitle] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
@@ -142,6 +144,9 @@ export function AdminDashboardPage() {
 
   async function handleCreateEvent(eventForm: FormEvent) {
     eventForm.preventDefault();
+    if (!slug.trim() || slugStatus !== "available") {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -160,6 +165,7 @@ export function AdminDashboardPage() {
         token,
       );
       setSlug("");
+      setSlugStatus("idle");
       setTitle("");
       setAdminEmail("");
       setWeddingDate("");
@@ -270,13 +276,13 @@ export function AdminDashboardPage() {
     }
   }
 
-  async function handleCheckSlug(slugValue: string) {
+  const checkCreateEventSlug = useCallback(async (slugValue: string) => {
     const token = await getAccessToken();
     if (!token) {
       throw new Error("Not signed in");
     }
     return checkAdminSlug(slugValue, token);
-  }
+  }, [getAccessToken]);
 
   async function handleInviteAdmin(eventId: string, email: string) {
     setBusy(true);
@@ -398,7 +404,16 @@ export function AdminDashboardPage() {
           <div className="admin__collapsible-inner">
             <form className="admin__collapsible-body" onSubmit={handleCreateEvent}>
               <label htmlFor="slug">Slug</label>
-              <input id="slug" required value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="smith-wedding-2026" />
+              <SlugAvailabilityInput
+                id="slug"
+                value={slug}
+                onChange={setSlug}
+                onCheckSlug={checkCreateEventSlug}
+                onStatusChange={setSlugStatus}
+                disabled={busy}
+                required
+                placeholder="smith-wedding-2026"
+              />
 
               <label htmlFor="title">Title</label>
               <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -419,7 +434,11 @@ export function AdminDashboardPage() {
                 onChange={(e) => setWeddingDate(e.target.value)}
               />
 
-              <button type="submit" className="btn btn-primary" disabled={busy}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={busy || !slug.trim() || slugStatus !== "available"}
+              >
                 Create event
               </button>
             </form>
@@ -436,7 +455,7 @@ export function AdminDashboardPage() {
           busy={busy}
           initialTab={signupTab}
           onReview={handleSignupReview}
-          onCheckSlug={handleCheckSlug}
+          onCheckSlug={checkCreateEventSlug}
         />
       )}
 
