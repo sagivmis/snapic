@@ -33,6 +33,8 @@ from snapic.db.repository import (
     delete_event,
     event_archive_due,
     fetch_event_by_id,
+    gallery_search_ready,
+    is_event_gallery_indexing,
     fetch_event_by_slug,
     find_profile_by_email,
     get_event_stats,
@@ -94,6 +96,7 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     photo_count = count_gallery_photos(event_id)
     pending = count_pending_gallery_photos(event_id)
     failed = count_failed_gallery_photos(event_id)
+    indexing = is_event_gallery_indexing(row)
     return EventPublicResponse(
         id=event_id,
         slug=row["slug"],
@@ -103,7 +106,8 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         branding=row.get("branding") or {},
         default_threshold=row.get("default_threshold", 0.4),
         gallery_photo_count=photo_count,
-        gallery_search_ready=photo_count > 0 and pending == 0,
+        gallery_indexing_in_progress=indexing,
+        gallery_search_ready=gallery_search_ready(row, photo_count=photo_count, pending=pending),
         unindexed_photo_count=pending,
         failed_photo_count=failed,
         auto_archive_days=int(row.get("auto_archive_days") or 90),

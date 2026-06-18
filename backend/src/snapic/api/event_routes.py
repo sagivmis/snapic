@@ -35,6 +35,7 @@ from snapic.db.repository import (
     count_failed_gallery_photos,
     count_pending_gallery_photos,
     count_unindexed_gallery_photos,
+    gallery_search_ready,
     create_gallery_signed_url,
     delete_gallery_photo,
     download_storage_bytes,
@@ -45,12 +46,14 @@ from snapic.db.repository import (
     get_event_stats,
     index_gallery_photo_faces,
     is_event_admin,
+    is_event_gallery_indexing,
     list_gallery_photos,
     list_gallery_sections,
     list_event_admin_emails,
     list_user_events,
     list_user_match_runs,
     maybe_auto_archive_event,
+    set_event_gallery_indexing,
     update_event,
     update_gallery_photo_section,
     upload_gallery_photo,
@@ -120,6 +123,11 @@ async def _prepare_event_match_context(
             status_code=503,
             detail=f"Gallery still indexing — {unindexed} photo{'s' if unindexed != 1 else ''} remaining. Try again shortly.",
         )
+    if is_event_gallery_indexing(event_row):
+        raise HTTPException(
+            status_code=503,
+            detail="Gallery face indexing is in progress. Try again shortly.",
+        )
 
     selfie_bytes = await _read_upload_limited(selfie)
     try:
@@ -158,6 +166,7 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     photo_count = count_gallery_photos(event_id)
     pending = count_pending_gallery_photos(event_id)
     failed = count_failed_gallery_photos(event_id)
+    indexing = is_event_gallery_indexing(row)
     return EventPublicResponse(
         id=event_id,
         slug=row["slug"],
@@ -167,7 +176,8 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         branding=branding,
         default_threshold=row.get("default_threshold", 0.4),
         gallery_photo_count=photo_count,
-        gallery_search_ready=photo_count > 0 and pending == 0,
+        gallery_indexing_in_progress=indexing,
+        gallery_search_ready=gallery_search_ready(row, photo_count=photo_count, pending=pending),
         unindexed_photo_count=pending,
         failed_photo_count=failed,
         auto_archive_days=int(row.get("auto_archive_days") or 90),
@@ -319,15 +329,19 @@ async def reindex_event_gallery_faces(
         raise HTTPException(status_code=403, detail="Event admin access required")
     photos = list_gallery_photos(event_id)
     result: dict[str, int] = {"processed": 0, "thumbs_backfilled": 0, "indexed": 0, "no_face": 0, "failed": 0}
-    for event in iter_gallery_face_index(event_id, photos):
-        if event["type"] == "complete":
-            result = {
-                "processed": event["processed"],
-                "thumbs_backfilled": event["thumbs_backfilled"],
-                "indexed": event["indexed"],
-                "no_face": event["no_face"],
-                "failed": event["failed"],
-            }
+    set_event_gallery_indexing(event_id, True)
+    try:
+        for event in iter_gallery_face_index(event_id, photos):
+            if event["type"] == "complete":
+                result = {
+                    "processed": event["processed"],
+                    "thumbs_backfilled": event["thumbs_backfilled"],
+                    "indexed": event["indexed"],
+                    "no_face": event["no_face"],
+                    "failed": event["failed"],
+                }
+    finally:
+        set_event_gallery_indexing(event_id, False)
     _maybe_send_album_ready_email(event_id)
     return result
 
@@ -342,6 +356,7 @@ async def reindex_event_gallery_faces_stream(
     photos = list_gallery_photos(event_id)
 
     def generate() -> Any:
+        set_event_gallery_indexing(event_id, True)
         try:
             for event in iter_gallery_face_index(event_id, photos):
                 yield _ndjson_line(event)
@@ -349,6 +364,8 @@ async def reindex_event_gallery_faces_stream(
                     _maybe_send_album_ready_email(event_id)
         except Exception as exc:
             yield _ndjson_line({"type": "error", "message": str(exc)})
+        finally:
+            set_event_gallery_indexing(event_id, False)
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 

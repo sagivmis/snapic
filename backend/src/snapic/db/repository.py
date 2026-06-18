@@ -79,6 +79,35 @@ def fetch_event_by_id(event_id: str) -> dict[str, Any] | None:
     return _query_one(client.table("events").select("*").eq("id", event_id))
 
 
+_GALLERY_INDEXING_KEY = "gallery_indexing_started_at"
+_GALLERY_INDEXING_STALE = timedelta(hours=3)
+
+
+def set_event_gallery_indexing(event_id: str, active: bool) -> None:
+    """Mark bulk face-index job in progress (stored in event branding JSON)."""
+    row = fetch_event_by_id(event_id)
+    if not row:
+        return
+    branding = dict(row.get("branding") or {})
+    if active:
+        branding[_GALLERY_INDEXING_KEY] = datetime.now(UTC).isoformat()
+    else:
+        branding.pop(_GALLERY_INDEXING_KEY, None)
+    update_event(event_id, {"branding": branding})
+
+
+def is_event_gallery_indexing(row: dict[str, Any]) -> bool:
+    started = (row.get("branding") or {}).get(_GALLERY_INDEXING_KEY)
+    started_at = _parse_utc_datetime(started if isinstance(started, str) else None)
+    if started_at is None:
+        return False
+    return datetime.now(UTC) - started_at < _GALLERY_INDEXING_STALE
+
+
+def gallery_search_ready(row: dict[str, Any], *, photo_count: int, pending: int) -> bool:
+    return photo_count > 0 and pending == 0 and not is_event_gallery_indexing(row)
+
+
 def list_gallery_photos(event_id: str) -> list[dict[str, Any]]:
     client = get_supabase()
     result = (

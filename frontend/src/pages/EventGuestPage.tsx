@@ -103,7 +103,7 @@ export function EventGuestPage() {
         .catch(() => {});
     }, 15_000);
     return () => window.clearInterval(interval);
-  }, [slug, event?.gallery_search_ready, event?.unindexed_photo_count, event?.gallery_photo_count]);
+  }, [slug, event?.gallery_search_ready, event?.gallery_indexing_in_progress, event?.unindexed_photo_count, event?.gallery_photo_count]);
 
   useEffect(() => {
     if (!event) {
@@ -306,6 +306,7 @@ export function EventGuestPage() {
 
   if (!isGallerySearchReady(event)) {
     const unindexed = event.unindexed_photo_count ?? 0;
+    const indexing = event.gallery_indexing_in_progress === true;
     return (
       <div
         className="event-guest event-guest--state"
@@ -320,7 +321,9 @@ export function EventGuestPage() {
           <p>
             {unindexed > 0
               ? `We're preparing ${unindexed} photo${unindexed === 1 ? "" : "s"} for face search — this usually takes a few minutes after upload.`
-              : "We're preparing the album for face search. This usually takes a few minutes after upload."}
+              : indexing
+                ? "We're indexing the album for face search. This usually takes a few minutes."
+                : "We're preparing the album for face search. This usually takes a few minutes after upload."}
           </p>
           <button
             type="button"

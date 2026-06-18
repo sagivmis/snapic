@@ -59,6 +59,7 @@ class EventPublicResponse(BaseModel):
     branding: dict = Field(default_factory=dict)
     default_threshold: float = 0.4
     gallery_photo_count: int = 0
+    gallery_indexing_in_progress: bool = False
     gallery_search_ready: bool = False
     unindexed_photo_count: int = 0
     failed_photo_count: int = 0
