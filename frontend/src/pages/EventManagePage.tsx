@@ -9,6 +9,7 @@ import {
   fetchEventGallery,
   fetchEventGallerySections,
   fetchEventStats,
+  fetchGalleryPreviewUrls,
   inviteEventMember,
   reindexEventGallery,
   updateEvent,
@@ -16,6 +17,7 @@ import {
 } from "../api/client";
 import { AlbumGrid, type AlbumGridHandle } from "../components/AlbumGrid";
 import { AlbumUpload } from "../components/AlbumUpload";
+import { EventManageSkeleton } from "../components/EventManageSkeleton";
 import { GuestQrCode } from "../components/GuestQrCode";
 import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
@@ -29,6 +31,8 @@ type ManageTab = "album" | "settings";
 
 const DEFAULT_SECTIONS = ["general", "ceremony", "reception", "portraits", "party"];
 
+const PREVIEW_URL_BATCH = 48;
+
 export function EventManagePage() {
   const { slug = "" } = useParams();
   const location = useLocation();
@@ -39,7 +43,9 @@ export function EventManagePage() {
   const [sections, setSections] = useState<string[]>(DEFAULT_SECTIONS);
   const [stats, setStats] = useState<EventStats | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [bootstrapping, setBootstrapping] = useState(true);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+  const [previewsLoading, setPreviewsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,6 +66,7 @@ export function EventManagePage() {
   const [autoArchiveDays, setAutoArchiveDays] = useState(90);
   const [inviteEmail, setInviteEmail] = useState("");
   const albumGridRef = useRef<AlbumGridHandle>(null);
+  const previewLoadGeneration = useRef(0);
 
   const guestUrl = useMemo(() => (slug ? buildEventGuestUrl(slug) : ""), [slug]);
 
@@ -82,7 +89,11 @@ export function EventManagePage() {
     if (!slug || !session) {
       return;
     }
-    setLoading(true);
+    const generation = previewLoadGeneration.current + 1;
+    previewLoadGeneration.current = generation;
+    setBootstrapping(true);
+    setGalleryLoading(true);
+    setPreviewsLoading(false);
     setError(null);
     try {
       const token = await getAccessToken();
@@ -111,19 +122,51 @@ export function EventManagePage() {
         hasMembership = Boolean(membership);
       }
       setIsAdmin(hasMembership);
+      setBootstrapping(false);
+
+      if (!hasMembership) {
+        return;
+      }
 
       const [gallery, gallerySections, eventStats] = await Promise.all([
         fetchEventGallery(ev.id, token),
         fetchEventGallerySections(ev.id, token).catch(() => DEFAULT_SECTIONS),
         fetchEventStats(ev.id, token).catch(() => null),
       ]);
+      if (previewLoadGeneration.current !== generation) {
+        return;
+      }
       setPhotos(gallery);
       setSections(gallerySections.length > 0 ? gallerySections : DEFAULT_SECTIONS);
       setStats(eventStats);
+      setGalleryLoading(false);
+
+      if (gallery.length === 0) {
+        return;
+      }
+
+      setPreviewsLoading(true);
+      for (let offset = 0; offset < gallery.length; offset += PREVIEW_URL_BATCH) {
+        if (previewLoadGeneration.current !== generation) {
+          return;
+        }
+        const batch = await fetchGalleryPreviewUrls(ev.id, token, offset, PREVIEW_URL_BATCH);
+        if (previewLoadGeneration.current !== generation) {
+          return;
+        }
+        const urls = batch.urls;
+        setPhotos((prev) =>
+          prev.map((photo) => (urls[photo.id] ? { ...photo, signed_url: urls[photo.id] } : photo)),
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load event");
     } finally {
-      setLoading(false);
+      if (previewLoadGeneration.current === generation) {
+        setBootstrapping(false);
+        setGalleryLoading(false);
+        setPreviewsLoading(false);
+      }
     }
   }, [slug, session, getAccessToken, isSuperAdmin]);
 
@@ -140,7 +183,7 @@ export function EventManagePage() {
   }, [location.search]);
 
   useEffect(() => {
-    if (loading || !event || !isAdmin || event.onboarding_completed_at || event.status !== "draft") {
+    if (bootstrapping || !event || !isAdmin || event.onboarding_completed_at || event.status !== "draft") {
       return;
     }
     const params = new URLSearchParams(location.search);
@@ -148,7 +191,7 @@ export function EventManagePage() {
       return;
     }
     navigate(`/e/${slug}/setup`, { replace: true });
-  }, [loading, event, isAdmin, location.search, navigate, slug]);
+  }, [bootstrapping, event, isAdmin, location.search, navigate, slug]);
 
   async function handleSaveSettings(eventForm: FormEvent) {
     eventForm.preventDefault();
@@ -330,12 +373,8 @@ export function EventManagePage() {
     setSuccess("Guest link copied.");
   }
 
-  if (loading) {
-    return (
-      <div className="event-manage event-manage--loading">
-        <span className="spinner spinner-lg" />
-      </div>
-    );
+  if (bootstrapping) {
+    return <EventManageSkeleton />;
   }
 
   if (!event) {
@@ -451,7 +490,13 @@ export function EventManagePage() {
           <div className="event-manage__section-header">
             <h2>Wedding album</h2>
             <div className="event-manage__section-actions">
-              <p className="event-manage__hint">{photos.length} photos in the album</p>
+              <p className="event-manage__hint">
+                {galleryLoading
+                  ? "Loading album…"
+                  : previewsLoading
+                    ? `Loading previews… ${photos.filter((photo) => photo.signed_url).length} of ${photos.length}`
+                    : `${photos.length} photos in the album`}
+              </p>
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -498,21 +543,30 @@ export function EventManagePage() {
             eventId={event.id}
             photos={photos}
             getToken={getAccessToken}
-            disabled={busy}
+            disabled={busy || galleryLoading}
             section={albumSection === "all" ? "general" : albumSection}
             onPhotosChange={setPhotos}
             onError={setError}
           />
 
-          <AlbumGrid
-            ref={albumGridRef}
-            photos={filteredPhotos}
-            onDelete={(id) => void handleDelete(id)}
-            onBulkDelete={(ids) => handleBulkDelete(ids)}
-            onSectionChange={(id, section) => void handleSectionChange(id, section)}
-            sectionOptions={sections.filter((section) => section !== "all")}
-            disabled={busy}
-          />
+          {galleryLoading ? (
+            <div className="event-manage__gallery-skeleton" aria-hidden="true">
+              {Array.from({ length: 12 }, (_, index) => (
+                <div key={index} className="event-manage__gallery-skeleton-tile" />
+              ))}
+            </div>
+          ) : (
+            <AlbumGrid
+              ref={albumGridRef}
+              photos={filteredPhotos}
+              onDelete={(id) => void handleDelete(id)}
+              onBulkDelete={(ids) => handleBulkDelete(ids)}
+              onSectionChange={(id, section) => void handleSectionChange(id, section)}
+              sectionOptions={sections.filter((section) => section !== "all")}
+              disabled={busy}
+              previewLoading={previewsLoading}
+            />
+          )}
         </section>
       )}
 

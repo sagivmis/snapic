@@ -213,12 +213,51 @@ export async function fetchEventBySlug(
   return response.json() as Promise<EventPublic>;
 }
 
-export async function fetchEventGallery(eventId: string, token?: string | null): Promise<GalleryPhoto[]> {
-  const response = await authFetch(`/api/events/${eventId}/gallery`, {}, { token });
+export async function fetchEventGallery(
+  eventId: string,
+  token?: string | null,
+  options?: { includeUrls?: boolean },
+): Promise<GalleryPhoto[]> {
+  const params = new URLSearchParams();
+  if (options?.includeUrls) {
+    params.set("include_urls", "true");
+  }
+  const query = params.toString();
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery${query ? `?${query}` : ""}`,
+    {},
+    { token },
+  );
   if (!response.ok) {
     await parseError(response, "Could not load gallery");
   }
   return response.json() as Promise<GalleryPhoto[]>;
+}
+
+export async function fetchGalleryPreviewUrls(
+  eventId: string,
+  token: string,
+  offset: number,
+  limit = 48,
+): Promise<{ urls: Record<string, string>; offset: number; limit: number; total: number }> {
+  const params = new URLSearchParams({
+    offset: String(offset),
+    limit: String(limit),
+  });
+  const response = await authFetch(
+    `/api/events/${eventId}/gallery/preview-urls?${params}`,
+    {},
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not load photo previews");
+  }
+  return response.json() as Promise<{
+    urls: Record<string, string>;
+    offset: number;
+    limit: number;
+    total: number;
+  }>;
 }
 
 export async function uploadEventGalleryPhoto(

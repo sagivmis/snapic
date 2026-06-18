@@ -9,6 +9,7 @@ interface AlbumGridProps {
   onSectionChange?: (photoId: string, section: string) => void;
   sectionOptions?: string[];
   disabled?: boolean;
+  previewLoading?: boolean;
 }
 
 export interface AlbumGridHandle {
@@ -29,6 +30,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
     onSectionChange,
     sectionOptions = ["general", "ceremony", "reception", "portraits", "party"],
     disabled = false,
+    previewLoading = false,
   },
   ref,
 ) {
@@ -240,6 +242,8 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
               >
                 {url ? (
                   <img src={url} alt={label} loading="lazy" />
+                ) : previewLoading ? (
+                  <span className="album-grid__skeleton" />
                 ) : (
                   <span className="album-grid__placeholder">…</span>
                 )}

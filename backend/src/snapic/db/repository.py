@@ -130,6 +130,32 @@ def create_gallery_signed_url(storage_path: str, expires_in: int = 3600) -> str 
     return None
 
 
+def gallery_preview_storage_path(event_id: str, photo: dict[str, Any]) -> str:
+    """Prefer cached thumbnails for grid previews when faces are indexed."""
+    if photo.get("face_index_status") == "indexed":
+        return gallery_thumbnail_path(event_id, photo["id"])
+    return photo["storage_path"]
+
+
+def batch_create_gallery_preview_urls(event_id: str, photos: list[dict[str, Any]]) -> dict[str, str]:
+    from concurrent.futures import ThreadPoolExecutor
+
+    if not photos:
+        return {}
+
+    def sign_one(photo: dict[str, Any]) -> tuple[str, str | None]:
+        path = gallery_preview_storage_path(event_id, photo)
+        return photo["id"], create_gallery_signed_url(path)
+
+    workers = min(8, len(photos))
+    urls: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for photo_id, signed_url in pool.map(sign_one, photos):
+            if signed_url:
+                urls[photo_id] = signed_url
+    return urls
+
+
 def upload_preview_bytes(event_id: str, result_id: str, data: bytes, mime: str = "image/jpeg") -> str:
     client = get_supabase()
     ext = "jpg" if "jpeg" in mime else "png"

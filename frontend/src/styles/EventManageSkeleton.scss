@@ -1,0 +1,146 @@
+@use "variables" as *;
+
+@keyframes event-manage-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.event-manage-skeleton {
+  &__line,
+  &__pill,
+  &__tab,
+  &__upload,
+  &__tile {
+    border-radius: $radius-lg;
+    background: linear-gradient(90deg, $cream-200 0%, $cream-100 50%, $cream-200 100%);
+    background-size: 200% 100%;
+    animation: event-manage-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  &__line {
+    &--eyebrow {
+      width: 5rem;
+      height: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    &--title {
+      width: min(18rem, 70vw);
+      height: 2rem;
+    }
+
+    &--section-title {
+      width: 8rem;
+      height: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    &--stat-value {
+      width: 3rem;
+      height: 1.5rem;
+      margin: 0 auto 0.375rem;
+    }
+
+    &--stat-label {
+      width: 4.5rem;
+      height: 0.75rem;
+      margin: 0 auto;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  &__pill {
+    width: 6rem;
+    height: 2.25rem;
+    border-radius: 999px;
+
+    &--ghost {
+      width: 7rem;
+    }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  &__stat {
+    padding: 0.875rem;
+    border-radius: $radius-xl;
+    border: 1px solid $cream-200;
+    background: rgba($white, 0.8);
+    text-align: center;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  &__tab {
+    width: 6rem;
+    height: 2.25rem;
+    border-radius: 999px;
+
+    &--active {
+      width: 7rem;
+    }
+  }
+
+  &__section {
+    margin-top: 0.5rem;
+  }
+
+  &__upload {
+    height: 5rem;
+    margin-bottom: 1rem;
+    border-radius: $radius-xl;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  &__tile {
+    aspect-ratio: 1;
+    border-radius: $radius-lg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-manage-skeleton__line,
+  .event-manage-skeleton__pill,
+  .event-manage-skeleton__tab,
+  .event-manage-skeleton__upload,
+  .event-manage-skeleton__tile {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .event-manage-skeleton__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

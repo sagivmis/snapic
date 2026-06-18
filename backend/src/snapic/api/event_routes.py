@@ -8,7 +8,7 @@ import uuid
 import zipfile
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from snapic.api.rate_limit import enforce_match_rate_limit
@@ -30,6 +30,7 @@ from snapic.db import is_supabase_configured
 from snapic.db.approval_email import send_album_ready_email, send_gallery_live_email
 from snapic.db.repository import (
     bulk_delete_gallery_photos,
+    batch_create_gallery_preview_urls,
     count_gallery_photos,
     count_unindexed_gallery_photos,
     create_gallery_signed_url,
@@ -235,12 +236,33 @@ def _gallery_photo_response(row: dict[str, Any], *, include_signed_url: bool = F
 async def list_event_gallery(
     event_id: str,
     user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
+    include_urls: Annotated[bool, Query()] = False,
 ) -> list[GalleryPhotoResponse]:
     if not is_supabase_configured():
         raise HTTPException(status_code=503, detail="Event service not configured")
     photos = list_gallery_photos(event_id)
     is_admin = user is not None and is_event_admin(user.id, event_id)
-    return [_gallery_photo_response(p, include_signed_url=is_admin) for p in photos]
+    sign_urls = include_urls and is_admin
+    return [_gallery_photo_response(p, include_signed_url=sign_urls) for p in photos]
+
+
+@router.get("/{event_id}/gallery/preview-urls")
+async def list_gallery_preview_urls(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 48,
+) -> dict[str, Any]:
+    if not is_event_admin(user.id, event_id):
+        raise HTTPException(status_code=403, detail="Event admin access required")
+    photos = list_gallery_photos(event_id)
+    batch = photos[offset : offset + limit]
+    return {
+        "urls": batch_create_gallery_preview_urls(event_id, batch),
+        "offset": offset,
+        "limit": limit,
+        "total": len(photos),
+    }
 
 
 @router.get("/{event_id}/gallery/sections", response_model=list[str])
