@@ -58,8 +58,26 @@ export interface EventPublic {
   branding: Record<string, unknown>;
   default_threshold: number;
   gallery_photo_count?: number;
+  gallery_search_ready?: boolean;
+  unindexed_photo_count?: number;
+  failed_photo_count?: number;
   auto_archive_days?: number;
   onboarding_completed_at?: string | null;
+}
+
+/** True when guests can run face search (handles older APIs missing readiness fields). */
+export function isGallerySearchReady(event: EventPublic): boolean {
+  const photoCount = event.gallery_photo_count ?? 0;
+  if (photoCount === 0) {
+    return false;
+  }
+  if (typeof event.gallery_search_ready === "boolean") {
+    return event.gallery_search_ready;
+  }
+  if (event.unindexed_photo_count !== undefined) {
+    return event.unindexed_photo_count === 0;
+  }
+  return true;
 }
 
 export interface EventCreateRequest {

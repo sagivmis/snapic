@@ -232,8 +232,10 @@ export function AdminDashboardPage() {
         setSuccess(
           "Request rejected. The rejection email could not be sent — check RESEND_API_KEY on Render.",
         );
+        setSignupTab("rejected");
       } else if (action === "reject") {
         setSuccess("Request rejected and notification email sent.");
+        setSignupTab("rejected");
       }
       await load();
     } catch (err) {

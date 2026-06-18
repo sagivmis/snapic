@@ -610,7 +610,41 @@ def update_profile_role(user_id: str, global_role: str) -> bool:
     return True
 
 
+def count_pending_gallery_photos(event_id: str) -> int:
+    """Photos still waiting for face indexing (blocks guest search)."""
+    client = get_supabase()
+    try:
+        result = (
+            client.table("gallery_photos")
+            .select("id", count="exact")
+            .eq("event_id", event_id)
+            .or_("face_index_status.eq.pending,face_index_status.is.null")
+            .execute()
+        )
+        return result.count or 0
+    except Exception:
+        photos = list_gallery_photos(event_id)
+        return sum(1 for p in photos if p.get("face_index_status") in ("pending", None))
+
+
+def count_failed_gallery_photos(event_id: str) -> int:
+    client = get_supabase()
+    try:
+        result = (
+            client.table("gallery_photos")
+            .select("id", count="exact")
+            .eq("event_id", event_id)
+            .eq("face_index_status", "failed")
+            .execute()
+        )
+        return result.count or 0
+    except Exception:
+        photos = list_gallery_photos(event_id)
+        return sum(1 for p in photos if p.get("face_index_status") == "failed")
+
+
 def count_unindexed_gallery_photos(event_id: str) -> int:
+    """Pending or failed photos — used for admin attention (not guest search gating)."""
     client = get_supabase()
     try:
         result = (

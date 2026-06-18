@@ -9,6 +9,7 @@ import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
+import { isGallerySearchReady } from "../types";
 import "../styles/EventGuest.scss";
 
 type GuestStep = "portrait" | "results";
@@ -89,6 +90,22 @@ export function EventGuestPage() {
   }, [slug]);
 
   useEffect(() => {
+    if (!slug || !event) {
+      return;
+    }
+    const photoCount = event.gallery_photo_count ?? 0;
+    if (photoCount === 0 || isGallerySearchReady(event)) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      void fetchEventBySlug(slug)
+        .then((row) => setEvent(row))
+        .catch(() => {});
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [slug, event?.gallery_search_ready, event?.unindexed_photo_count, event?.gallery_photo_count]);
+
+  useEffect(() => {
     if (!event) {
       return;
     }
@@ -148,6 +165,12 @@ export function EventGuestPage() {
     if (!event || !selfie || !network.online) {
       return;
     }
+    if (!isGallerySearchReady(event)) {
+      setError(
+        "The wedding album is still being prepared for search. Please check back in a few minutes.",
+      );
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -203,6 +226,11 @@ export function EventGuestPage() {
         setError(
           "You've reached the search limit for this hour. Please wait about an hour before trying again.",
         );
+      } else if (err instanceof ApiError && err.status === 503) {
+        setError(
+          "The wedding album is still being prepared for search. Please wait a few minutes and try again.",
+        );
+        void refreshEvent();
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
@@ -263,6 +291,37 @@ export function EventGuestPage() {
           <h1>{title}</h1>
           <p className="event-guest__state-lead">Photos coming soon</p>
           <p>The album is still being uploaded. Check back in a few minutes — the photographer is adding photos now.</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={refreshingEvent}
+            onClick={() => void refreshEvent()}
+          >
+            {refreshingEvent ? "Checking…" : "Check again"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isGallerySearchReady(event)) {
+    const unindexed = event.unindexed_photo_count ?? 0;
+    return (
+      <div
+        className="event-guest event-guest--state"
+        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
+      >
+        <div className="event-guest__state-card">
+          <div className="event-guest__state-icon" aria-hidden="true">
+            ⏳
+          </div>
+          <h1>{title}</h1>
+          <p className="event-guest__state-lead">Gallery almost ready</p>
+          <p>
+            {unindexed > 0
+              ? `We're preparing ${unindexed} photo${unindexed === 1 ? "" : "s"} for face search — this usually takes a few minutes after upload.`
+              : "We're preparing the album for face search. This usually takes a few minutes after upload."}
+          </p>
           <button
             type="button"
             className="btn btn-primary"

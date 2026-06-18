@@ -32,6 +32,8 @@ from snapic.db.repository import (
     bulk_delete_gallery_photos,
     batch_create_gallery_preview_urls,
     count_gallery_photos,
+    count_failed_gallery_photos,
+    count_pending_gallery_photos,
     count_unindexed_gallery_photos,
     create_gallery_signed_url,
     delete_gallery_photo,
@@ -112,7 +114,7 @@ async def _prepare_event_match_context(
     if not gallery:
         raise HTTPException(status_code=400, detail="Album still uploading — check back soon")
 
-    unindexed = count_unindexed_gallery_photos(event_id)
+    unindexed = count_pending_gallery_photos(event_id)
     if unindexed > 0:
         raise HTTPException(
             status_code=503,
@@ -152,15 +154,22 @@ def _ndjson_line(payload: dict[str, Any]) -> bytes:
 def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     row = maybe_auto_archive_event(row)
     branding = row.get("branding") or {}
+    event_id = row["id"]
+    photo_count = count_gallery_photos(event_id)
+    pending = count_pending_gallery_photos(event_id)
+    failed = count_failed_gallery_photos(event_id)
     return EventPublicResponse(
-        id=row["id"],
+        id=event_id,
         slug=row["slug"],
         title=row["title"],
         wedding_date=row.get("wedding_date"),
         status=row["status"],
         branding=branding,
         default_threshold=row.get("default_threshold", 0.4),
-        gallery_photo_count=count_gallery_photos(row["id"]),
+        gallery_photo_count=photo_count,
+        gallery_search_ready=photo_count > 0 and pending == 0,
+        unindexed_photo_count=pending,
+        failed_photo_count=failed,
         auto_archive_days=int(row.get("auto_archive_days") or 90),
         onboarding_completed_at=row.get("onboarding_completed_at"),
     )
@@ -171,14 +180,14 @@ def _event_setup_status(event_id: str, row: dict[str, Any]) -> EventSetupStatusR
     couple_names = branding.get("couple_names")
     branding_ok = isinstance(couple_names, str) and bool(couple_names.strip())
     photo_count = count_gallery_photos(event_id)
-    unindexed = count_unindexed_gallery_photos(event_id)
+    pending = count_pending_gallery_photos(event_id)
     has_photos = photo_count > 0
     return EventSetupStatusResponse(
         branding_ok=branding_ok,
         has_photos=has_photos,
         photo_count=photo_count,
-        faces_indexed=has_photos and unindexed == 0,
-        unindexed_count=unindexed,
+        faces_indexed=has_photos and pending == 0,
+        unindexed_count=pending,
         is_active=row.get("status") == "active",
         onboarding_completed=bool(row.get("onboarding_completed_at")),
     )

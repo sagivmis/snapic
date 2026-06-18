@@ -26,6 +26,8 @@ from snapic.db.repository import (
     add_event_member,
     allocate_event_slug,
     count_gallery_photos,
+    count_failed_gallery_photos,
+    count_pending_gallery_photos,
     count_unindexed_gallery_photos,
     create_event,
     delete_event,
@@ -88,15 +90,22 @@ async def admin_stats(_: Annotated[AuthUser, Depends(require_super_admin)]) -> A
 
 def _event_public(row: dict[str, Any]) -> EventPublicResponse:
     row = maybe_auto_archive_event(row)
+    event_id = row["id"]
+    photo_count = count_gallery_photos(event_id)
+    pending = count_pending_gallery_photos(event_id)
+    failed = count_failed_gallery_photos(event_id)
     return EventPublicResponse(
-        id=row["id"],
+        id=event_id,
         slug=row["slug"],
         title=row["title"],
         wedding_date=row.get("wedding_date"),
         status=row["status"],
         branding=row.get("branding") or {},
         default_threshold=row.get("default_threshold", 0.4),
-        gallery_photo_count=count_gallery_photos(row["id"]),
+        gallery_photo_count=photo_count,
+        gallery_search_ready=photo_count > 0 and pending == 0,
+        unindexed_photo_count=pending,
+        failed_photo_count=failed,
         auto_archive_days=int(row.get("auto_archive_days") or 90),
         onboarding_completed_at=row.get("onboarding_completed_at"),
     )

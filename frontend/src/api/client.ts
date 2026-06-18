@@ -206,7 +206,7 @@ export async function fetchEventBySlug(
   slug: string,
   token?: string | null,
 ): Promise<EventPublic> {
-  const response = await authFetch(`/api/events/by-slug/${slug}`, {}, { token });
+  const response = await authFetch(`/api/events/by-slug/${slug}`, { cache: "no-store" }, { token });
   if (!response.ok) {
     await parseError(response, "Event not found");
   }
