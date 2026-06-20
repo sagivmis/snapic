@@ -6,7 +6,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 
   h2 {
     margin: 0;
@@ -15,9 +15,10 @@
 
 .admin-signups__header-controls {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: 3.5rem;
+  justify-content: Fspace-between;
 }
 
 .admin-signups__view-toggle {
@@ -87,6 +88,7 @@
 }
 
 .admin-signups__carousel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -98,8 +100,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  top: 1rem;
-  right: 40%;
+  top: 0rem;
+  right: 0;
 }
 
 .admin-signups__pager-label {
@@ -445,6 +447,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+
   .admin-signups__grid-tile:hover .admin-signups__grid-tooltip,
   .admin-signups__grid-tile:focus-visible .admin-signups__grid-tooltip {
     opacity: 1;
