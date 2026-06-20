@@ -44,41 +44,46 @@ export function SlugAvailabilityInput({
   const [slugCheck, setSlugCheck] = useState<SlugCheckState>(null);
   const [isPending, setIsPending] = useState(false);
   const requestGeneration = useRef(0);
+  const onCheckSlugRef = useRef(onCheckSlug);
+  const onStatusChangeRef = useRef(onStatusChange);
+
+  onCheckSlugRef.current = onCheckSlug;
+  onStatusChangeRef.current = onStatusChange;
 
   useEffect(() => {
     const cleaned = value.trim();
     if (!cleaned) {
       setSlugCheck(null);
       setIsPending(false);
-      onStatusChange?.("idle");
+      onStatusChangeRef.current?.("idle");
       return;
     }
 
     setSlugCheck(null);
     setIsPending(true);
-    onStatusChange?.("pending");
+    onStatusChangeRef.current?.("pending");
 
     const timer = window.setTimeout(() => {
       const generation = requestGeneration.current + 1;
       requestGeneration.current = generation;
       setIsPending(false);
       setSlugCheck("checking");
-      onStatusChange?.("checking");
+      onStatusChangeRef.current?.("checking");
 
-      void onCheckSlug(cleaned)
+      void onCheckSlugRef.current(cleaned)
         .then((result) => {
           if (requestGeneration.current !== generation) {
             return;
           }
           setSlugCheck(result);
-          onStatusChange?.(result.available ? "available" : "taken");
+          onStatusChangeRef.current?.(result.available ? "available" : "taken");
         })
         .catch(() => {
           if (requestGeneration.current !== generation) {
             return;
           }
           setSlugCheck(null);
-          onStatusChange?.("idle");
+          onStatusChangeRef.current?.("idle");
         });
     }, SLUG_CHECK_DEBOUNCE_MS);
 
@@ -86,7 +91,7 @@ export function SlugAvailabilityInput({
       window.clearTimeout(timer);
       requestGeneration.current += 1;
     };
-  }, [value, onCheckSlug, onStatusChange]);
+  }, [value]);
 
   const takenCheck =
     slugCheck !== null && slugCheck !== "checking" && !slugCheck.available ? slugCheck : null;
