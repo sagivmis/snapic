@@ -102,11 +102,18 @@
 }
 
 .admin__section {
+  position: relative;
   margin-bottom: 2rem;
   padding: 1.25rem;
   border-radius: $radius-xl;
   border: 1px solid rgba($cream-300, 0.6);
-  background: rgba($white, 0.85);
+  
+  background: linear-gradient(
+    to top,
+    rgba($cream-50, 0.98) 25%,
+    rgba($cream-50, 0.82) 50%,
+    rgba($white, 0.85) 100%
+  );
 }
 
 .admin__collapsible {

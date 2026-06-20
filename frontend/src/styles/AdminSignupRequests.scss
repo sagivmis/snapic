@@ -3,7 +3,7 @@
 .admin-signups__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
@@ -11,6 +11,49 @@
   h2 {
     margin: 0;
   }
+}
+
+.admin-signups__header-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.admin-signups__view-toggle {
+  display: inline-flex;
+  border: 1px solid $cream-300;
+  border-radius: 999px;
+  padding: 0.125rem;
+  background: rgba($white, 0.85);
+}
+
+.admin-signups__view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.3125rem 0.625rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $taupe-500;
+  background: transparent;
+  cursor: pointer;
+
+  &--active {
+    color: $taupe-700;
+    background: rgba($blush-100, 0.75);
+    box-shadow: $shadow-soft;
+  }
+}
+
+.admin-signups__view-icon {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .admin-signups__tabs {
@@ -43,10 +86,70 @@
   color: $taupe-500;
 }
 
+.admin-signups__carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-signups__pager {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  top: 1rem;
+  right: 40%;
+}
+
+.admin-signups__pager-label {
+  min-width: 8.5rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $taupe-600;
+}
+
+.admin-signups__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid $cream-300;
+  border-radius: 999px;
+  padding: 0;
+  color: $taupe-600;
+  background: $white;
+  cursor: pointer;
+  touch-action: pan-y;
+
+  &:hover:not(:disabled) {
+    border-color: $champagne-400;
+    color: $taupe-700;
+    background: rgba($blush-100, 0.5);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.admin-signups__nav-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .admin-signups__list {
   list-style: none;
   margin: 0;
   padding: 0;
+
+  &--single {
+    touch-action: pan-y;
+    user-select: none;
+  }
 }
 
 .admin-signups__item {
@@ -235,4 +338,173 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.admin-signups__grid-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-signups__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.75rem, 1fr));
+  gap: 0.4375rem;
+}
+
+.admin-signups__grid-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.125rem;
+  min-height: 4.25rem;
+  padding: 0.5rem 0.5625rem;
+  border: 1px solid rgba($cream-300, 0.85);
+  border-radius: $radius-lg;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: rgba($white, 0.82);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: $champagne-400;
+    background: rgba($cream-50, 0.95);
+  }
+
+  &--peek {
+    border-color: $champagne-400;
+    background: rgba($blush-100, 0.55);
+  }
+
+  &--selected {
+    border-color: $champagne-500;
+    background: rgba($blush-100, 0.75);
+    box-shadow: $shadow-soft;
+  }
+}
+
+.admin-signups__grid-date {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $taupe-700;
+}
+
+.admin-signups__grid-names {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.25;
+  color: $taupe-500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.admin-signups__grid-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: 16rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid rgba($cream-300, 0.9);
+  border-radius: $radius-lg;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: $taupe-600;
+  background: rgba($white, 0.98);
+  box-shadow: $shadow-card;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(0.25rem);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+
+  strong {
+    font-size: 0.8125rem;
+    color: $taupe-700;
+  }
+
+  span {
+    display: block;
+  }
+}
+
+.admin-signups__grid-tooltip-message {
+  margin-top: 0.125rem;
+  font-style: italic;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-signups__grid-tile:hover .admin-signups__grid-tooltip,
+  .admin-signups__grid-tile:focus-visible .admin-signups__grid-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.admin-signups__grid-peek {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid rgba($champagne-400, 0.55);
+  border-radius: $radius-xl;
+  background: rgba($blush-100, 0.35);
+}
+
+.admin-signups__grid-peek-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: $taupe-600;
+
+  strong {
+    color: $taupe-700;
+  }
+
+  span {
+    display: block;
+  }
+}
+
+.admin-signups__grid-peek-review {
+  align-self: flex-start;
+}
+
+.admin-signups__grid-detail {
+  padding-top: 0.25rem;
+  border-top: 1px solid $cream-200;
+}
+
+.admin-signups__grid-detail-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $taupe-400;
+}
+
+.admin-signups__grid-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: $taupe-400;
+}
+
+.admin-signups__item--panel {
+  padding-top: 0.5rem;
+  border-bottom: none;
 }
