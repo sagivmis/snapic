@@ -10,10 +10,11 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] Slug field shows loader while checking; **Approve** disabled until slug is available
 - [ ] Taken slug shows red outline + error icon; suggestion link works
 - [ ] Approve with a taken slug is blocked (no silent `-2` suffix)
-- [ ] **Reject** sends notification email; success toast shown; request moves to **Rejected** tab
+- [ ] **Reject** — success toast at top of dashboard; request moves to **Rejected** tab
+- [ ] **Reject** notification email *(optional pre-launch — skip if no custom domain yet)*
 - [ ] Couple receives **Supabase invite** email (approve path)
-- [ ] Couple receives **Snapic welcome** email (if `RESEND_API_KEY` is set)
-- [ ] Admin dashboard shows warning if welcome email failed
+- [ ] Couple receives **Snapic welcome** email *(optional pre-launch — skip if no custom domain yet)*
+- [ ] Admin dashboard shows warning if welcome/rejection email failed (when Resend is configured)
 - [ ] **Audit log** shows signup approve/reject entries
 
 ## 2. Admin create event
@@ -68,6 +69,7 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] Index faces from events table works for unindexed albums (with progress)
 - [ ] Super admin role is **not** downgraded when invited to an event
 - [ ] Audit log lists recent admin actions
+- [ ] **Live activity** badge shows **Live**; new signup appears in feed without refresh *(requires migration `009_admin_realtime.sql` on Supabase)*
 
 ## 8. Edge cases
 
@@ -85,6 +87,25 @@ Use this checklist before a real wedding. Run against **production** (Vercel + R
 - [ ] `SENTRY_DSN` set on Render; `VITE_SENTRY_DSN` on Vercel — test errors appear in Sentry project
 - [ ] Admin dashboard → **Send Sentry test events** — backend + frontend messages in Sentry within ~1 min
 - [ ] `/api/health` returns 200
+
+---
+
+## 10. Transactional email *(run after custom domain + Resend are configured)*
+
+Resend cannot send from Gmail. Before go-live, verify a domain in [Resend](https://resend.com/domains) and set on Render:
+
+- `RESEND_API_KEY`
+- `SNAPIC_FROM_EMAIL` — e.g. `Snapic <hello@yourdomain.com>`
+
+Then re-run:
+
+- [ ] **Approve** signup — couple receives Snapic welcome email (in addition to Supabase invite)
+- [ ] **Reject** signup — couple receives rejection notification
+- [ ] **Set event to Active** — optional album-ready / live emails reach event admins
+- [ ] Admin toast confirms email sent (not the “could not be sent” warning)
+- [ ] Render logs show no Resend errors
+
+**Pre-domain validation:** Without a verified domain, skip this section. Supabase invites still work; Snapic-branded emails via Resend will not reach arbitrary addresses (sandbox only delivers to your Resend account email).
 
 ---
 

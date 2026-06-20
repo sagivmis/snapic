@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   createAdminEvent,
@@ -24,10 +24,14 @@ import {
   AdminStatsSkeleton,
 } from "../components/AdminDashboardSkeletons";
 import { AdminEventsTable, type EventAttentionFilter } from "../components/AdminEventsTable";
+import { AdminLiveFeed } from "../components/AdminLiveFeed";
 import { AdminSignupRequests } from "../components/AdminSignupRequests";
 import { SlugAvailabilityInput, type SlugCheckStatus } from "../components/SlugAvailabilityInput";
 import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { useAuth } from "../auth/AuthProvider";
+import { useAdminRealtime } from "../hooks/useAdminRealtime";
+import { isSupabaseConfigured } from "../lib/supabase";
+import type { AdminLiveFeedItem } from "../monitoring/adminLiveFeed";
 import type { AdminAttention, AdminEventSummary, AuditLogEntry, SignupRequest } from "../types";
 import type { IndexStreamEvent } from "../api/client";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
@@ -35,7 +39,7 @@ import { captureSentryTestEvent, isSentryConfigured } from "../monitoring/sentry
 import "../styles/AdminDashboard.scss";
 
 export function AdminDashboardPage() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isSuperAdmin, session } = useAuth();
   const [stats, setStats] = useState({ events_count: 0, pending_requests: 0, total_gallery_photos: 0, total_match_runs: 0 });
   const [attention, setAttention] = useState<AdminAttention | null>(null);
   const [events, setEvents] = useState<AdminEventSummary[]>([]);
@@ -65,6 +69,10 @@ export function AdminDashboardPage() {
   const [attentionFilter, setAttentionFilter] = useState<EventAttentionFilter>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [sentryTesting, setSentryTesting] = useState(false);
+  const [liveFeed, setLiveFeed] = useState<AdminLiveFeedItem[]>([]);
+  const loadRef = useRef<
+    (options?: { showSkeletons?: boolean; clearSuccess?: boolean }) => Promise<void>
+  >(() => Promise.resolve());
 
   const load = useCallback(async (options?: { showSkeletons?: boolean; clearSuccess?: boolean }) => {
     const showSkeletons = options?.showSkeletons ?? false;
@@ -140,6 +148,30 @@ export function AdminDashboardPage() {
       setError(err instanceof Error ? err.message : "Could not load dashboard");
     }
   }, [getAccessToken]);
+
+  loadRef.current = load;
+
+  const handleLiveFeedItem = useCallback((item: AdminLiveFeedItem) => {
+    setLiveFeed((current) => {
+      if (current.some((row) => row.id === item.id)) {
+        return current;
+      }
+      return [item, ...current].slice(0, 25);
+    });
+    if (item.id.startsWith("signup-insert-")) {
+      setSignupTab("pending");
+    }
+  }, []);
+
+  const handleRealtimeRefresh = useCallback(() => {
+    void loadRef.current({ showSkeletons: false, clearSuccess: false });
+  }, []);
+
+  const { status: liveStatus } = useAdminRealtime({
+    enabled: isSuperAdmin && isSupabaseConfigured && Boolean(session),
+    onRefresh: handleRealtimeRefresh,
+    onFeedItem: handleLiveFeedItem,
+  });
 
   useEffect(() => {
     void load({ showSkeletons: true, clearSuccess: false });
@@ -227,20 +259,22 @@ export function AdminDashboardPage() {
       const reviewed = await reviewSignupRequest(requestId, action, token, extra);
       if (action === "approve" && reviewed.welcome_email_sent === false) {
         setSuccess(
-          "Request approved. Supabase invite sent, but the Snapic welcome email could not be sent — check RESEND_API_KEY on Render.",
+          "Request approved. Supabase invite sent, but the Snapic welcome email could not be sent — check RESEND_API_KEY and SNAPIC_FROM_EMAIL on Render.",
         );
       } else if (action === "approve") {
         setSuccess("Request approved and welcome email sent.");
-      } else if (action === "reject" && reviewed.rejection_email_sent === false) {
-        setSuccess(
-          "Request rejected. The rejection email could not be sent — check RESEND_API_KEY on Render.",
-        );
-        setSignupTab("rejected");
       } else if (action === "reject") {
-        setSuccess("Request rejected and notification email sent.");
         setSignupTab("rejected");
+        if (reviewed.rejection_email_sent === true) {
+          setSuccess("Request rejected and notification email sent.");
+        } else {
+          setSuccess(
+            "Request rejected. The rejection email could not be sent — set RESEND_API_KEY on Render and use a verified SNAPIC_FROM_EMAIL (Resend sandbox only delivers to your account email).",
+          );
+        }
       }
-      await load();
+      await load({ clearSuccess: false });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
     } finally {
@@ -393,6 +427,13 @@ export function AdminDashboardPage() {
         </Link>
       </header>
 
+      {(success || error) && (
+        <div className="admin__feedback" aria-live="polite">
+          {success && <p className="success-banner admin__feedback-banner">{success}</p>}
+          {error && <p className="error-banner admin__feedback-banner">{error}</p>}
+        </div>
+      )}
+
       {statsLoading ? (
         <AdminStatsSkeleton />
       ) : (
@@ -415,6 +456,8 @@ export function AdminDashboardPage() {
           </div>
         </section>
       )}
+
+      <AdminLiveFeed items={liveFeed} status={liveStatus} />
 
       {attentionLoading ? (
         <AdminAttentionSkeleton />
@@ -536,9 +579,6 @@ export function AdminDashboardPage() {
       </section>
 
       <AdminAuditLog entries={auditLog} loading={auditLoading} />
-
-      {success && <p className="success-banner">{success}</p>}
-      {error && <p className="error-banner">{error}</p>}
     </div>
   );
 }

@@ -18,7 +18,7 @@ def _send_html_email(to: list[str], subject: str, html: str) -> bool:
     api_key = os.getenv("RESEND_API_KEY", "").strip()
     cleaned = [email.strip().lower() for email in to if email and email.strip()]
     if not api_key:
-        logger.info("RESEND_API_KEY not set; skipping email %s", subject)
+        logger.warning("RESEND_API_KEY not set; skipping email %s", subject)
         return False
     if not cleaned:
         logger.info("No recipients for email %s", subject)

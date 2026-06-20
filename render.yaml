@@ -62,3 +62,11 @@ services:
 
         value: production
 
+      - key: RESEND_API_KEY
+
+        sync: false
+
+      - key: SNAPIC_FROM_EMAIL
+
+        sync: false
+
