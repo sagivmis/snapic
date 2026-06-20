@@ -18,6 +18,12 @@ export function slugifyEventName(value: string): string {
   return slug || "event";
 }
 
+export const MIN_EVENT_SLUG_LENGTH = 2;
+
+export function isEventSlugLongEnough(slug: string): boolean {
+  return slug.trim().length >= MIN_EVENT_SLUG_LENGTH;
+}
+
 export function defaultEventTitle(coupleNames: string): string {
   const trimmed = coupleNames.trim();
   if (!trimmed) {

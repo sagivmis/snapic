@@ -56,9 +56,23 @@ export class ApiError extends Error {
 
 async function parseError(response: Response, fallback: string): Promise<never> {
   const payload = await response.json().catch(() => null);
-  const detail =
-    payload && typeof payload.detail === "string" ? payload.detail : fallback;
-  throw new ApiError(detail, response.status);
+  if (payload && typeof payload.detail === "string") {
+    throw new ApiError(payload.detail, response.status);
+  }
+  if (payload && Array.isArray(payload.detail)) {
+    const message = payload.detail
+      .map((item: { msg?: string; loc?: unknown[] }) => {
+        const loc = Array.isArray(item.loc) ? item.loc : [];
+        const field = loc.length > 0 ? loc[loc.length - 1] : null;
+        return field ? `${String(field)}: ${item.msg ?? "invalid"}` : item.msg;
+      })
+      .filter(Boolean)
+      .join("; ");
+    if (message) {
+      throw new ApiError(message, response.status);
+    }
+  }
+  throw new ApiError(fallback, response.status);
 }
 
 export async function matchPhotos(request: MatchRequest): Promise<MatchResponse> {

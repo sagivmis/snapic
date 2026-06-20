@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { SlugCheckResult } from "../types";
-import { slugifyEventName } from "../utils/onboarding";
+import { isEventSlugLongEnough, MIN_EVENT_SLUG_LENGTH, slugifyEventName } from "../utils/onboarding";
 import "../styles/SlugAvailabilityInput.scss";
 
 const SLUG_CHECK_DEBOUNCE_MS = 500;
 
-export type SlugCheckStatus = "idle" | "pending" | "checking" | "available" | "taken";
+export type SlugCheckStatus = "idle" | "pending" | "checking" | "available" | "taken" | "too_short";
 
 type SlugCheckState = SlugCheckResult | "checking" | null;
 
@@ -43,6 +43,7 @@ export function SlugAvailabilityInput({
   const statusHintId = useId();
   const [slugCheck, setSlugCheck] = useState<SlugCheckState>(null);
   const [isPending, setIsPending] = useState(false);
+  const [tooShort, setTooShort] = useState(false);
   const requestGeneration = useRef(0);
   const onCheckSlugRef = useRef(onCheckSlug);
   const onStatusChangeRef = useRef(onStatusChange);
@@ -55,10 +56,20 @@ export function SlugAvailabilityInput({
     if (!cleaned) {
       setSlugCheck(null);
       setIsPending(false);
+      setTooShort(false);
       onStatusChangeRef.current?.("idle");
       return;
     }
 
+    if (!isEventSlugLongEnough(cleaned)) {
+      setSlugCheck(null);
+      setIsPending(false);
+      setTooShort(true);
+      onStatusChangeRef.current?.("too_short");
+      return;
+    }
+
+    setTooShort(false);
     setSlugCheck(null);
     setIsPending(true);
     onStatusChangeRef.current?.("pending");
@@ -98,11 +109,12 @@ export function SlugAvailabilityInput({
   const isTaken = takenCheck !== null;
   const isChecking = slugCheck === "checking";
   const showLoader = isPending || isChecking;
+  const showError = isTaken || tooShort;
 
   return (
     <div className="slug-field">
       <div
-        className={`slug-field__control${isTaken ? " slug-field__control--error" : ""}${
+        className={`slug-field__control${showError ? " slug-field__control--error" : ""}${
           showLoader ? " slug-field__control--checking" : ""
         }`}
       >
@@ -113,8 +125,9 @@ export function SlugAvailabilityInput({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
-          aria-invalid={isTaken || undefined}
-          aria-describedby={isTaken ? hintId : showLoader ? statusHintId : undefined}
+          minLength={MIN_EVENT_SLUG_LENGTH}
+          aria-invalid={showError || undefined}
+          aria-describedby={showError ? hintId : showLoader ? statusHintId : undefined}
           aria-busy={showLoader || undefined}
           onChange={(event) => onChange(slugifyEventName(event.target.value))}
         />
@@ -124,8 +137,8 @@ export function SlugAvailabilityInput({
             <span className="sr-only">Checking slug availability</span>
           </span>
         )}
-        {isTaken && !showLoader && (
-          <span className="slug-field__icon slug-field__icon--error" title="Slug already taken">
+        {showError && !showLoader && (
+          <span className="slug-field__icon slug-field__icon--error" title="Slug invalid">
             <SlugErrorIcon />
           </span>
         )}
@@ -134,6 +147,12 @@ export function SlugAvailabilityInput({
       {showLoader && (
         <p id={statusHintId} className="slug-field__message slug-field__message--checking">
           Checking availability…
+        </p>
+      )}
+
+      {tooShort && (
+        <p id={hintId} className="slug-field__message slug-field__message--error" role="alert">
+          Slug must be at least {MIN_EVENT_SLUG_LENGTH} characters.
         </p>
       )}
 

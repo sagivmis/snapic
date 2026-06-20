@@ -51,10 +51,22 @@ from snapic.db.supabase_client import get_supabase
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+MIN_EVENT_SLUG_LENGTH = 2
+
 
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:80] or "event"
+
+
+def _validated_event_slug(raw: str) -> str:
+    slug = _slugify(raw)
+    if len(slug) < MIN_EVENT_SLUG_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Event slug must be at least {MIN_EVENT_SLUG_LENGTH} characters",
+        )
+    return slug
 
 
 def _audit(
@@ -179,6 +191,8 @@ async def admin_slug_check(
     _: Annotated[AuthUser, Depends(require_super_admin)],
 ) -> SlugCheckResponse:
     cleaned = _slugify(slug)
+    if len(cleaned) < MIN_EVENT_SLUG_LENGTH:
+        return SlugCheckResponse(slug=cleaned, available=False)
     if fetch_event_by_slug(cleaned) is None:
         return SlugCheckResponse(slug=cleaned, available=True)
     suggestion = allocate_event_slug(cleaned)
@@ -310,7 +324,7 @@ async def admin_create_event(
     body: EventCreateRequest,
     user: Annotated[AuthUser, Depends(require_super_admin)],
 ) -> EventPublicResponse:
-    slug = _slugify(body.slug)
+    slug = _validated_event_slug(body.slug)
     if fetch_event_by_slug(slug):
         raise HTTPException(status_code=409, detail=f"Event slug '{slug}' is already taken")
     row = create_event(
@@ -399,7 +413,7 @@ async def admin_review_signup(
             if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
         else:
-            slug = _slugify(body.slug or target["couple_names"])
+            slug = _validated_event_slug(body.slug or target["couple_names"])
             if fetch_event_by_slug(slug):
                 raise HTTPException(status_code=409, detail=f"Event slug '{slug}' is already taken")
             title = body.title or f"{target['couple_names']} Wedding"
