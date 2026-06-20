@@ -8,6 +8,12 @@
 
 .admin-audit__table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  max-height: calc(2.25rem + 2.75rem * 4);
+  border: 1px solid rgba($cream-300, 0.55);
+  border-radius: $radius-lg;
 }
 
 .admin-audit__table {
@@ -24,11 +30,16 @@
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: $taupe-400;
+    background: rgba($cream-100, 0.95);
+    box-shadow: 0 1px 0 $cream-200;
   }
 }
 

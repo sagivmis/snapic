@@ -12,7 +12,6 @@ import {
   reindexEventGallery,
   reviewSignupRequest,
   checkAdminSlug,
-  testAdminSentry,
   updateAdminEvent,
 } from "../api/client";
 import { AdminAttentionStrip, type AttentionFocus } from "../components/AdminAttentionStrip";
@@ -35,7 +34,6 @@ import type { AdminLiveFeedItem } from "../monitoring/adminLiveFeed";
 import type { AdminAttention, AdminEventSummary, AuditLogEntry, SignupRequest } from "../types";
 import type { IndexStreamEvent } from "../api/client";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
-import { captureSentryTestEvent, isSentryConfigured } from "../monitoring/sentry";
 import "../styles/AdminDashboard.scss";
 
 export function AdminDashboardPage() {
@@ -68,7 +66,6 @@ export function AdminDashboardPage() {
   const [signupTab, setSignupTab] = useState<"pending" | "approved" | "rejected">("pending");
   const [attentionFilter, setAttentionFilter] = useState<EventAttentionFilter>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
-  const [sentryTesting, setSentryTesting] = useState(false);
   const [liveFeed, setLiveFeed] = useState<AdminLiveFeedItem[]>([]);
   const loadRef = useRef<
     (options?: { showSkeletons?: boolean; clearSuccess?: boolean }) => Promise<void>
@@ -369,40 +366,6 @@ export function AdminDashboardPage() {
     }
   }
 
-  async function handleSentryTest() {
-    setSentryTesting(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        throw new Error("Not signed in");
-      }
-      const result = await testAdminSentry(token);
-      const frontendSent = captureSentryTestEvent();
-      const parts: string[] = [];
-      if (result.backend_sent) {
-        parts.push("Backend test sent — check your Python/FastAPI Sentry project.");
-      } else if (!result.backend_configured) {
-        parts.push("Backend: SENTRY_DSN not set on Render.");
-      } else {
-        parts.push("Backend: test event could not be sent.");
-      }
-      if (frontendSent) {
-        parts.push("Frontend test sent — check your React Sentry project.");
-      } else if (!isSentryConfigured()) {
-        parts.push("Frontend: VITE_SENTRY_DSN not set on Vercel.");
-      }
-      setSuccess(parts.join(" "));
-      const audit = await fetchAdminAuditLog(token, 20);
-      setAuditLog(audit);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sentry test failed");
-    } finally {
-      setSentryTesting(false);
-    }
-  }
-
   function handleAttentionFocus(focus: AttentionFocus) {
     if (focus === "pending_signups") {
       setSignupTab("pending");
@@ -561,22 +524,6 @@ export function AdminDashboardPage() {
       </section>
 
       {indexingEventId && <IndexFacesProgress progress={indexProgress} />}
-
-      <section className="admin__section admin__monitoring">
-        <h2>Monitoring</h2>
-        <p className="admin__monitoring-hint">
-          Sends a harmless test event to Sentry from the API and this browser. Use after setting{" "}
-          <code>SENTRY_DSN</code> (Render) and <code>VITE_SENTRY_DSN</code> (Vercel).
-        </p>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={sentryTesting}
-          onClick={() => void handleSentryTest()}
-        >
-          {sentryTesting ? "Sending…" : "Send Sentry test events"}
-        </button>
-      </section>
 
       <AdminAuditLog entries={auditLog} loading={auditLoading} />
     </div>
