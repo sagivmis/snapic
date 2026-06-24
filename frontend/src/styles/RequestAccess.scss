@@ -1,0 +1,319 @@
+@use "variables" as *;
+
+.request-page {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+
+  &__layout {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
+
+    @media (min-width: $breakpoint-lg) {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 2.5rem;
+    }
+  }
+
+  &__eyebrow {
+    margin: 0 0 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $champagne-600;
+  }
+
+  h1 {
+    margin: 0 0 0.85rem;
+    font-family: $font-display;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.12;
+    color: $taupe-700;
+  }
+
+  &__lead {
+    margin: 0 0 1.75rem;
+    max-width: 32rem;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: $taupe-500;
+  }
+
+  &__benefits {
+    margin: 0 0 2rem;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__benefit {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+
+    strong {
+      display: block;
+      margin-bottom: 0.2rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: $taupe-700;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      line-height: 1.55;
+      color: $taupe-500;
+    }
+  }
+
+  &__benefit-marker {
+    flex-shrink: 0;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.45rem;
+    border-radius: 50%;
+    background: linear-gradient(145deg, $blush-400, $champagne-500);
+    box-shadow: 0 0 0 3px rgba($champagne-400, 0.18);
+  }
+
+  &__visual {
+    display: none;
+
+    @media (min-width: $breakpoint-md) {
+      display: block;
+    }
+  }
+
+  &__mock {
+    max-width: 18rem;
+    padding: 1rem;
+    border-radius: $radius-2xl;
+    border: 1px solid rgba($cream-300, 0.75);
+    background: linear-gradient(160deg, rgba($white, 0.95), rgba($blush-100, 0.45));
+    box-shadow: $shadow-soft;
+    transform: rotate(-2deg);
+  }
+
+  &__mock-header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+
+    strong {
+      display: block;
+      font-size: 0.75rem;
+      color: $taupe-700;
+    }
+
+    span {
+      font-size: 0.6875rem;
+      color: $taupe-400;
+    }
+  }
+
+  &__mock-avatar {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: linear-gradient(145deg, $blush-300, $champagne-400);
+    box-shadow: inset 0 0 0 2px rgba($white, 0.65);
+  }
+
+  &__mock-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.45rem;
+  }
+
+  &__mock-photo {
+    aspect-ratio: 1;
+    border-radius: $radius-lg;
+    background: linear-gradient(160deg, $cream-200, $cream-300);
+
+    &--match {
+      background: linear-gradient(160deg, rgba($blush-200, 0.95), rgba($champagne-400, 0.75));
+      box-shadow: inset 0 0 0 2px rgba($champagne-500, 0.3);
+    }
+  }
+
+  &__panel {
+    padding: 1.75rem;
+
+    @media (min-width: $breakpoint-md) {
+      padding: 2rem;
+    }
+  }
+
+  &__panel-head {
+    margin-bottom: 1.5rem;
+
+    h2 {
+      margin: 0 0 0.35rem;
+      font-family: $font-display;
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: $taupe-700;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: $taupe-400;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: $taupe-600;
+    }
+
+    input,
+    textarea {
+      border: 1px solid rgba($cream-400, 0.9);
+      border-radius: $radius-lg;
+      padding: 0.7rem 0.85rem;
+      font: inherit;
+      font-size: 0.9375rem;
+      color: $taupe-600;
+      background: rgba($white, 0.95);
+      transition: border-color 0.2s, box-shadow 0.2s;
+
+      &::placeholder {
+        color: $taupe-400;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: rgba($champagne-400, 0.85);
+        box-shadow: 0 0 0 3px rgba($champagne-400, 0.15);
+      }
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 5.5rem;
+    }
+  }
+
+  &__optional {
+    font-weight: 500;
+    color: $taupe-400;
+  }
+
+  &__submit {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+
+  &__footnote {
+    margin: 1.25rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba($cream-300, 0.65);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: $taupe-400;
+    text-align: center;
+
+    a {
+      font-weight: 600;
+      color: $champagne-600;
+      text-decoration: none;
+
+      &:hover {
+        color: $champagne-500;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__success {
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: 2.5rem 2rem;
+    text-align: center;
+
+    h1 {
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  &__success-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin-bottom: 1rem;
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba($champagne-400, 0.25), rgba($blush-200, 0.65));
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: $champagne-600;
+    box-shadow: inset 0 0 0 1px rgba($champagne-400, 0.35);
+  }
+
+  &__success-lead {
+    margin: 0 0 1.5rem;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: $taupe-500;
+
+    strong {
+      font-weight: 600;
+      color: $taupe-700;
+    }
+  }
+
+  &__next-steps {
+    margin: 0 0 1.75rem;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+
+    li {
+      position: relative;
+      padding-left: 1.35rem;
+      font-size: 0.875rem;
+      line-height: 1.55;
+      color: $taupe-500;
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55rem;
+        width: 0.45rem;
+        height: 0.45rem;
+        border-radius: 50%;
+        background: $champagne-500;
+      }
+
+      & + li {
+        margin-top: 0.65rem;
+      }
+    }
+  }
+}
