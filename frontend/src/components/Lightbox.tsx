@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchEventGalleryPhotoImage } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { useTranslation } from "../i18n";
 import { getImageDataUrl } from "../utils/downloadZip";
 import { formatMatchedPerson, formatPersonScores } from "../utils/matchedPerson";
 import type { MatchedPhoto } from "../types";
@@ -15,6 +16,7 @@ interface LightboxProps {
 }
 
 export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxProps) {
+  const { tPath } = useTranslation("components.lightbox");
   const { getAccessToken, anonymousSessionId } = useAuth();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loadingFull, setLoadingFull] = useState(false);
@@ -90,7 +92,7 @@ export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxPr
     return null;
   }
 
-  const title = photo.filename ?? photo.url ?? "Wedding photo";
+  const title = photo.filename ?? photo.url ?? tPath("weddingPhoto");
   const matchedLabel = formatMatchedPerson(photo.matched_person);
   const personScores = formatPersonScores(photo);
 
@@ -104,7 +106,7 @@ export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxPr
         aria-label={title}
       >
         <button type="button" onClick={onClose} className="lightbox__close">
-          Close ✕
+          {tPath("close")}
         </button>
 
         {imageSrc ? (
@@ -115,7 +117,7 @@ export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxPr
           </div>
         )}
         {loadingFull && imageSrc && (
-          <p className="lightbox__loading-label">Loading full resolution…</p>
+          <p className="lightbox__loading-label">{tPath("loadingFull")}</p>
         )}
 
         <div className="lightbox__caption">
@@ -123,7 +125,9 @@ export function Lightbox({ photo, eventId, auth: authProp, onClose }: LightboxPr
           <div className="lightbox__meta">
             {matchedLabel && <span>{matchedLabel}</span>}
             {personScores && <span>{personScores}</span>}
-            {!personScores && <span>{(photo.score * 100).toFixed(0)}% match</span>}
+            {!personScores && (
+              <span>{tPath("matchPercent", { percent: (photo.score * 100).toFixed(0) })}</span>
+            )}
           </div>
         </div>
       </div>

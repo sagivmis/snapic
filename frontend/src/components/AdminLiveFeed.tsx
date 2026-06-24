@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AdminLiveFeedItem } from "../monitoring/adminLiveFeed";
 import type { AdminLiveStatus } from "../hooks/useAdminRealtime";
+import { useTranslation } from "../i18n";
 import "../styles/AdminLiveFeed.scss";
 
 const COLLAPSED_ITEM_COUNT = 2;
@@ -12,37 +13,13 @@ interface AdminLiveFeedProps {
   status: AdminLiveStatus;
 }
 
-function formatRelativeTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "just now";
-  }
-  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
-  if (seconds < 10) {
-    return "just now";
-  }
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-function statusLabel(status: AdminLiveStatus): string {
-  switch (status) {
-    case "live":
-      return "Live";
-    case "connecting":
-      return "Connecting…";
-    default:
-      return "Offline";
-  }
-}
-
-function LiveFeedRow({ item }: { item: AdminLiveFeedItem }) {
+function LiveFeedRow({
+  item,
+  formatRelativeTime,
+}: {
+  item: AdminLiveFeedItem;
+  formatRelativeTime: (value: string) => string;
+}) {
   return (
     <li className="admin-live__item">
       <span className="admin-live__message">{item.message}</span>
@@ -54,23 +31,50 @@ function LiveFeedRow({ item }: { item: AdminLiveFeedItem }) {
 }
 
 export function AdminLiveFeed({ items, status }: AdminLiveFeedProps) {
+  const { tPath } = useTranslation("admin.liveFeed");
   const [expanded, setExpanded] = useState(false);
   const displayItems = items.slice(0, MAX_VISIBLE_ITEMS);
   const isSquashed = displayItems.length > VIEWPORT_ROW_COUNT;
   const hiddenCount = displayItems.length - COLLAPSED_ITEM_COUNT;
   const visibleItems = isSquashed && !expanded ? displayItems.slice(0, COLLAPSED_ITEM_COUNT) : displayItems;
 
+  function formatRelativeTime(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return tPath("justNow");
+    }
+    const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+    if (seconds < 10) {
+      return tPath("justNow");
+    }
+    if (seconds < 60) {
+      return tPath("secondsAgo", { count: seconds });
+    }
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) {
+      return tPath("minutesAgo", { count: minutes });
+    }
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function statusLabel(liveStatus: AdminLiveStatus): string {
+    switch (liveStatus) {
+      case "live":
+        return tPath("statusLive");
+      case "connecting":
+        return tPath("statusConnecting");
+      default:
+        return tPath("statusOffline");
+    }
+  }
+
   return (
-    <section className="admin-live admin__section" aria-label="Live activity">
+    <section className="admin-live admin__section" aria-label={tPath("aria")}>
       <div className="admin-live__header">
-        <h2>Live activity</h2>
+        <h2>{tPath("title")}</h2>
         <span
           className={`admin-live__status admin-live__status--${status}`}
-          title={
-            status === "live"
-              ? "Dashboard updates automatically when signups, searches, or admin actions occur."
-              : undefined
-          }
+          title={status === "live" ? tPath("liveTitle") : undefined}
         >
           {status === "live" && <span className="admin-live__pulse" aria-hidden="true" />}
           {statusLabel(status)}
@@ -79,16 +83,14 @@ export function AdminLiveFeed({ items, status }: AdminLiveFeedProps) {
 
       {items.length === 0 ? (
         <p className="admin-live__empty">
-          {status === "live"
-            ? "Watching for new signup requests, guest searches, and admin actions…"
-            : "Realtime updates unavailable — refresh the page to see the latest data."}
+          {status === "live" ? tPath("emptyLive") : tPath("emptyOffline")}
         </p>
       ) : isSquashed ? (
         <div className={`admin-live__frame${expanded ? " admin-live__frame--expanded" : ""}`}>
           <div className="admin-live__viewport">
             <ul className="admin-live__list">
               {visibleItems.map((item) => (
-                <LiveFeedRow key={item.id} item={item} />
+                <LiveFeedRow key={item.id} item={item} formatRelativeTime={formatRelativeTime} />
               ))}
             </ul>
           </div>
@@ -100,13 +102,13 @@ export function AdminLiveFeed({ items, status }: AdminLiveFeedProps) {
               aria-expanded={expanded}
             >
               {expanded ? (
-                "Show less"
+                tPath("showLess")
               ) : (
                 <>
                   <span className="admin-live__toggle-more" aria-hidden="true">
                     ↓
                   </span>
-                  {hiddenCount} more activit{hiddenCount === 1 ? "y" : "ies"}
+                  {tPath(hiddenCount === 1 ? "showMore_one" : "showMore_other", { count: hiddenCount })}
                 </>
               )}
             </button>
@@ -115,7 +117,7 @@ export function AdminLiveFeed({ items, status }: AdminLiveFeedProps) {
       ) : (
         <ul className="admin-live__list">
           {displayItems.map((item) => (
-            <LiveFeedRow key={item.id} item={item} />
+            <LiveFeedRow key={item.id} item={item} formatRelativeTime={formatRelativeTime} />
           ))}
         </ul>
       )}

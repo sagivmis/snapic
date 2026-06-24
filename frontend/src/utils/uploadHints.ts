@@ -1,5 +1,7 @@
 /** Heuristic device hints for upload copy — not used for security. */
 
+import { createTranslator } from "../i18n";
+
 export function isIos(): boolean {
   if (typeof navigator === "undefined") {
     return false;
@@ -22,10 +24,12 @@ export function isDesktopUpload(): boolean {
 
 export const MOBILE_BATCH_RECOMMENDED = 30;
 
+const albumUpload = createTranslator("components.albumUpload");
+
 export function mobileUploadHint(): string {
-  return `On iPhone, add about ${MOBILE_BATCH_RECOMMENDED} photos at a time for fastest selection. You can tap Add photos again while uploads continue.`;
+  return albumUpload.tPath("mobileHint", { batch: MOBILE_BATCH_RECOMMENDED });
 }
 
 export function desktopUploadHint(): string {
-  return "Drag a folder from your computer, or choose a folder — best for large albums from your photographer.";
+  return albumUpload.tPath("desktopHint");
 }

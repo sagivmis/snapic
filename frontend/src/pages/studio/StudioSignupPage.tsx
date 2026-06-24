@@ -7,12 +7,14 @@ import {
   SlugAvailabilityInput,
   type SlugCheckStatus,
 } from "../../components/SlugAvailabilityInput";
+import { useTranslation } from "../../i18n";
 import "../../styles/AuthPages.scss";
 import "../../styles/SlugAvailabilityInput.scss";
 
 export function StudioSignupPage() {
   const navigate = useNavigate();
   const { getAccessToken, session, signInWithGoogle } = useAuth();
+  const { t, tPath } = useTranslation("studio.signup");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugStatus, setSlugStatus] = useState<SlugCheckStatus>("idle");
@@ -23,11 +25,11 @@ export function StudioSignupPage() {
     async (value: string) => {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       return checkStudioSlug(value, token);
     },
-    [getAccessToken],
+    [getAccessToken, t],
   );
 
   const slugBlocksSubmit =
@@ -44,13 +46,13 @@ export function StudioSignupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Sign in first");
+        throw new Error(t("signInFirst"));
       }
       const result = await studioSignup(name.trim(), slug.trim(), token);
       setStoredStudioOrgId(result.organization.id);
       navigate("/studio");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Signup failed");
+      setError(err instanceof Error ? err.message : t("signupFailed"));
     } finally {
       setBusy(false);
     }
@@ -59,18 +61,18 @@ export function StudioSignupPage() {
   if (!session) {
     return (
       <div className="auth-page">
-        <p className="auth-page__eyebrow">Snapic Studio</p>
-        <h1>Create your studio</h1>
-        <p className="auth-page__lead">Sign in to register your photography studio on Snapic.</p>
+        <p className="auth-page__eyebrow">{tPath("eyebrow")}</p>
+        <h1>{tPath("title")}</h1>
+        <p className="auth-page__lead">{tPath("leadSignedOut")}</p>
         <button
           type="button"
           className="btn btn-primary auth-page__google"
           onClick={() => void signInWithGoogle("/studio/signup")}
         >
-          Continue with Google
+          {t("continueGoogle")}
         </button>
         <Link className="auth-page__back" to="/for-photographers">
-          Back to photographer info
+          {tPath("backToPhotographers")}
         </Link>
       </div>
     );
@@ -78,23 +80,20 @@ export function StudioSignupPage() {
 
   return (
     <div className="auth-page">
-      <p className="auth-page__eyebrow">Snapic Studio</p>
-      <h1>Create your studio</h1>
-      <p className="auth-page__lead">
-        This name appears on guest galleries and your studio dashboard. You can change it later in
-        settings.
-      </p>
+      <p className="auth-page__eyebrow">{tPath("eyebrow")}</p>
+      <h1>{tPath("title")}</h1>
+      <p className="auth-page__lead">{tPath("leadSignedIn")}</p>
       <form className="auth-page__form auth-page__form--wide" onSubmit={handleSubmit}>
-        <label htmlFor="name">Studio name</label>
+        <label htmlFor="name">{tPath("studioNameLabel")}</label>
         <input
           id="name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Lens & Light Photography"
+          placeholder={tPath("studioNamePlaceholder")}
           autoComplete="organization"
         />
-        <label htmlFor="slug">URL slug (optional)</label>
+        <label htmlFor="slug">{tPath("slugLabel")}</label>
         <SlugAvailabilityInput
           id="slug"
           value={slug}
@@ -102,15 +101,15 @@ export function StudioSignupPage() {
           onCheckSlug={handleCheckSlug}
           onStatusChange={setSlugStatus}
           disabled={busy}
-          placeholder="lens-and-light"
+          placeholder={tPath("slugPlaceholder")}
         />
         <button type="submit" className="btn btn-primary" disabled={busy || slugBlocksSubmit}>
-          {busy ? "Creating…" : "Create studio"}
+          {busy ? tPath("creating") : tPath("createBtn")}
         </button>
       </form>
       {error && <p className="error-banner">{error}</p>}
       <Link className="auth-page__back" to="/">
-        Back home
+        {tPath("backHome")}
       </Link>
     </div>
   );

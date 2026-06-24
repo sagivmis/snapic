@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "../i18n";
 import "../styles/InstallPrompt.scss";
 
 const DISMISS_KEY = "snapic-install-dismissed";
@@ -30,6 +31,7 @@ function isMobile(): boolean {
 }
 
 export function InstallPrompt() {
+  const { tPath } = useTranslation("components.installPrompt");
   const [visible, setVisible] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
@@ -88,38 +90,24 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="install-prompt" role="region" aria-label="Install Snapic">
+    <div className="install-prompt" role="region" aria-label={tPath("aria")}>
       <div className="install-prompt__content">
-        <p className="install-prompt__title">Add Snapic to your home screen</p>
-        <p className="install-prompt__desc">
-          Open Snapic like an app — full screen, one tap from your phone.
-        </p>
+        <p className="install-prompt__title">{tPath("title")}</p>
+        <p className="install-prompt__desc">{tPath("desc")}</p>
 
         {showGuide && (
           <ol className="install-prompt__steps">
             {ios ? (
               <>
-                <li>
-                  Tap the <strong>Share</strong> button{" "}
-                  <span className="install-prompt__share-icon" aria-hidden="true">
-                    ↑
-                  </span>{" "}
-                  at the bottom of Safari
-                </li>
-                <li>
-                  Scroll and tap <strong>Add to Home Screen</strong>
-                </li>
-                <li>
-                  Tap <strong>Add</strong> in the top corner
-                </li>
+                <li>{tPath("iosStep1")}</li>
+                <li>{tPath("iosStep2")}</li>
+                <li>{tPath("iosStep3")}</li>
               </>
             ) : (
               <>
-                <li>Open your browser menu (⋮)</li>
-                <li>
-                  Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>
-                </li>
-                <li>Confirm to add Snapic</li>
+                <li>{tPath("androidStep1")}</li>
+                <li>{tPath("androidStep2")}</li>
+                <li>{tPath("androidStep3")}</li>
               </>
             )}
           </ol>
@@ -132,17 +120,15 @@ export function InstallPrompt() {
             onClick={handleAddToHomeScreen}
             disabled={installing}
           >
-            {installing ? "Adding..." : "Add to Home Screen"}
+            {installing ? tPath("adding") : tPath("addBtn")}
           </button>
           <button type="button" className="btn-ghost install-prompt__dismiss" onClick={dismiss}>
-            Not now
+            {tPath("notNow")}
           </button>
         </div>
 
         {!canNativeInstall && !showGuide && ios && (
-          <p className="install-prompt__note">
-            On iPhone, this button shows you the exact Safari steps.
-          </p>
+          <p className="install-prompt__note">{tPath("iosNote")}</p>
         )}
       </div>
     </div>

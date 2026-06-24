@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { useTranslation } from "../i18n";
 import type { GalleryPhoto } from "../types";
 import "../styles/AlbumGrid.scss";
 
@@ -34,6 +35,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
   },
   ref,
 ) {
+  const { t, tPath } = useTranslation("components.albumGrid");
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -128,9 +130,8 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
       return;
     }
     const ids = [...selected];
-    const confirmed = window.confirm(
-      `Remove ${ids.length} photo${ids.length === 1 ? "" : "s"} from the album? This cannot be undone.`,
-    );
+    const confirmKey = ids.length === 1 ? "bulkDeleteConfirm_one" : "bulkDeleteConfirm_other";
+    const confirmed = window.confirm(tPath(confirmKey, { count: ids.length }));
     if (!confirmed) {
       return;
     }
@@ -141,7 +142,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
   if (photos.length === 0) {
     return (
       <div className="album-grid album-grid--empty">
-        <p>No photos yet. Upload your wedding album above.</p>
+        <p>{tPath("empty")}</p>
       </div>
     );
   }
@@ -158,7 +159,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                 disabled={disabled || sortedPhotos.length === 0}
                 onClick={enterSelectAll}
               >
-                Select all ({sortedPhotos.length})
+                {tPath("selectAll", { count: sortedPhotos.length })}
               </button>
               <button
                 type="button"
@@ -166,13 +167,13 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                 disabled={disabled}
                 onClick={() => setSelectMode(true)}
               >
-                Select photos…
+                {tPath("selectPhotos")}
               </button>
             </>
           ) : (
             <>
               <button type="button" className="btn btn-ghost" disabled={disabled} onClick={exitSelectMode}>
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -180,7 +181,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                 disabled={disabled || sortedPhotos.length === 0}
                 onClick={toggleSelectAll}
               >
-                {allSelected ? "Deselect all" : "Select all"}
+                {allSelected ? tPath("deselectAll") : tPath("selectAll", { count: sortedPhotos.length })}
               </button>
               <button
                 type="button"
@@ -188,23 +189,21 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                 disabled={disabled || !someSelected}
                 onClick={() => void handleBulkDelete()}
               >
-                Delete selected{someSelected ? ` (${selected.size})` : ""}
+                {someSelected
+                  ? tPath("deleteSelectedCount", { count: selected.size })
+                  : tPath("deleteSelected")}
               </button>
             </>
           )}
         </div>
       )}
 
-      {missingUrls && (
-        <p className="album-grid__warn">
-          Some previews could not be loaded. Refresh the page after the API redeploys.
-        </p>
-      )}
+      {missingUrls && <p className="album-grid__warn">{tPath("previewWarn")}</p>}
 
       <div className={`album-grid${selectMode ? " album-grid--selecting" : ""}`}>
         {sortedPhotos.map((photo) => {
           const url = urls[photo.id];
-          const label = photo.filename ?? "Wedding photo";
+          const label = photo.filename ?? tPath("weddingPhoto");
           const isSelected = selected.has(photo.id);
 
           return (
@@ -220,7 +219,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                     disabled={disabled}
                     onChange={() => toggleSelected(photo.id)}
                   />
-                  <span className="sr-only">Select {label}</span>
+                  <span className="sr-only">{tPath("select", { label })}</span>
                 </label>
               )}
 
@@ -237,7 +236,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                     setPreview({ id: photo.id, url, filename: label });
                   }
                 }}
-                aria-label={selectMode ? `Select ${label}` : `View ${label}`}
+                aria-label={selectMode ? tPath("select", { label }) : tPath("view", { label })}
                 aria-pressed={selectMode ? isSelected : undefined}
               >
                 {url ? (
@@ -259,7 +258,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                     value={photo.section ?? "general"}
                     disabled={disabled}
                     onChange={(event) => onSectionChange(photo.id, event.target.value)}
-                    aria-label={`Section for ${label}`}
+                    aria-label={tPath("sectionFor", { label })}
                   >
                     {sectionOptions.map((section) => (
                       <option key={section} value={section}>
@@ -275,7 +274,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
                     disabled={disabled}
                     onClick={() => onDelete(photo.id)}
                   >
-                    Remove
+                    {tPath("remove")}
                   </button>
                 )}
               </figcaption>
@@ -288,7 +287,7 @@ export const AlbumGrid = forwardRef<AlbumGridHandle, AlbumGridProps>(function Al
         <div className="album-grid__lightbox" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
           <div className="album-grid__lightbox-inner" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="album-grid__lightbox-close btn btn-ghost" onClick={() => setPreview(null)}>
-              Close
+              {tPath("close")}
             </button>
             <img src={preview.url} alt={preview.filename} />
             <p>{preview.filename}</p>

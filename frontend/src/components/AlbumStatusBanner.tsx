@@ -1,4 +1,5 @@
 import type { EventAlbumStatus } from "../types";
+import { useTranslation } from "../i18n";
 import { IndexFacesProgress } from "./IndexFacesProgress";
 import type { IndexStreamEvent } from "../api/client";
 import "../styles/AlbumStatusBanner.scss";
@@ -46,38 +47,45 @@ export function AlbumStatusBanner({
   onRetryFailed,
   retryDisabled = false,
 }: AlbumStatusBannerProps) {
+  const { tPath } = useTranslation("components.albumStatus");
   const phase = resolvePhase(status, uploadActive, indexing);
 
   if (phase === "empty" && !uploadActive) {
     return null;
   }
 
-  let title = "Album status";
+  let title = tPath("title");
   let detail = "";
 
   switch (phase) {
     case "uploading":
-      title = "Uploading photos…";
-      detail = "Face indexing will start automatically when uploads finish.";
+      title = tPath("uploading");
+      detail = tPath("uploadingDetail");
       break;
     case "indexing":
-      title = "Indexing faces for guest search…";
-      detail = `${status?.photo_count ?? 0} photos in album`;
+      title = tPath("indexing");
+      detail = tPath("photoCount", { count: status?.photo_count ?? 0 });
       break;
     case "pending":
-      title = "Preparing photos for search";
+      title = tPath("pending");
       detail =
         status && status.pending_count > 0
-          ? `${status.pending_count} photo${status.pending_count === 1 ? "" : "s"} still processing`
-          : "Waiting for indexing to finish";
+          ? tPath(
+              status.pending_count === 1 ? "pendingDetail_one" : "pendingDetail_other",
+              { count: status.pending_count },
+            )
+          : tPath("pendingWaiting");
       break;
     case "failed":
-      title = "Ready for guests — with warnings";
-      detail = `${status?.failed_count ?? 0} photo${status?.failed_count === 1 ? "" : "s"} failed indexing and won't appear in search`;
+      title = tPath("failedTitle");
+      detail = tPath(
+        (status?.failed_count ?? 0) === 1 ? "failedDetail_one" : "failedDetail_other",
+        { count: status?.failed_count ?? 0 },
+      );
       break;
     case "ready":
-      title = "Ready for guest search";
-      detail = `${status?.photo_count ?? 0} photos indexed — guests can find themselves now`;
+      title = tPath("readyTitle");
+      detail = tPath("readyDetail", { count: status?.photo_count ?? 0 });
       break;
     default:
       break;
@@ -106,12 +114,12 @@ export function AlbumStatusBanner({
             disabled={retryDisabled}
             onClick={onRetryFailed}
           >
-            Retry failed
+            {tPath("retryFailed")}
           </button>
         )}
       </div>
       {(phase === "indexing" || indexing) && (
-        <IndexFacesProgress progress={indexProgress} label="Indexing faces…" />
+        <IndexFacesProgress progress={indexProgress} label={tPath("indexingLabel")} />
       )}
     </div>
   );

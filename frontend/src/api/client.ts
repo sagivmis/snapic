@@ -1,5 +1,8 @@
+import { createTranslator } from "../i18n";
 import { apiUrl } from "./config";
 import { getStoredStudioOrgId } from "../lib/studioOrg";
+
+const { tPath: apiError } = createTranslator("errors.api");
 import type {
   AdminAttention,
   AdminEventSummary,
@@ -89,7 +92,7 @@ async function parseError(response: Response, fallback: string): Promise<never> 
       throw new ApiError(message, response.status);
     }
   }
-  throw new ApiError(fallback, response.status);
+  throw new ApiError(apiError(fallback), response.status);
 }
 
 export async function matchPhotos(request: MatchRequest): Promise<MatchResponse> {
@@ -111,7 +114,7 @@ export async function matchPhotos(request: MatchRequest): Promise<MatchResponse>
 
   const response = await fetch(apiUrl("/api/match"), { method: "POST", body: formData });
   if (!response.ok) {
-    await parseError(response, "Failed to match photos");
+    await parseError(response, "matchPhotos");
   }
   return response.json() as Promise<MatchResponse>;
 }
@@ -152,10 +155,10 @@ export async function matchPhotosStream(
     return result;
   }
   if (!response.ok) {
-    await parseError(response, "Failed to match photos");
+    await parseError(response, "matchPhotos");
   }
   if (!response.body) {
-    throw new Error("Match stream unavailable");
+    throw new Error(apiError("matchStreamUnavailable"));
   }
 
   const reader = response.body.getReader();
@@ -187,7 +190,7 @@ export async function matchPhotosStream(
   }
 
   if (!finalResult) {
-    throw new Error("Match ended before completion");
+    throw new Error(apiError("matchEndedEarly"));
   }
   return finalResult;
 }
@@ -210,7 +213,7 @@ export async function matchEventPhotos(
     auth,
   );
   if (!response.ok) {
-    await parseError(response, "Failed to match photos");
+    await parseError(response, "matchPhotos");
   }
   return response.json() as Promise<MatchResponse>;
 }
@@ -228,7 +231,7 @@ export async function fetchEventGalleryPhotoImage(
 ): Promise<GalleryPhotoImageResponse> {
   const response = await authFetch(`/api/events/${eventId}/gallery/${photoId}/image`, {}, auth);
   if (!response.ok) {
-    await parseError(response, "Could not load photo");
+    await parseError(response, "loadPhoto");
   }
   return response.json() as Promise<GalleryPhotoImageResponse>;
 }
@@ -272,10 +275,10 @@ export async function matchEventPhotosStream(
     return result;
   }
   if (!response.ok) {
-    await parseError(response, "Failed to match photos");
+    await parseError(response, "matchPhotos");
   }
   if (!response.body) {
-    throw new Error("Match stream unavailable");
+    throw new Error(apiError("matchStreamUnavailable"));
   }
 
   const reader = response.body.getReader();
@@ -307,7 +310,7 @@ export async function matchEventPhotosStream(
   }
 
   if (!finalResult) {
-    throw new Error("Match ended before completion");
+    throw new Error(apiError("matchEndedEarly"));
   }
   return finalResult;
 }
@@ -318,7 +321,7 @@ export async function fetchEventBySlug(
 ): Promise<EventPublic> {
   const response = await authFetch(`/api/events/by-slug/${slug}`, { cache: "no-store" }, { token });
   if (!response.ok) {
-    await parseError(response, "Event not found");
+    await parseError(response, "eventNotFound");
   }
   return response.json() as Promise<EventPublic>;
 }
@@ -339,7 +342,7 @@ export async function fetchEventGallery(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not load gallery");
+    await parseError(response, "loadGallery");
   }
   return response.json() as Promise<GalleryPhoto[]>;
 }
@@ -360,7 +363,7 @@ export async function fetchGalleryPreviewUrls(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not load photo previews");
+    await parseError(response, "loadPhotoPreviews");
   }
   return response.json() as Promise<{
     urls: Record<string, string>;
@@ -399,21 +402,21 @@ export async function uploadEventGalleryPhoto(
         try {
           resolve(JSON.parse(xhr.responseText) as GalleryPhoto);
         } catch {
-          reject(new Error("Upload failed"));
+          reject(new Error(apiError("uploadFailed")));
         }
         return;
       }
 
       try {
         const payload = JSON.parse(xhr.responseText) as { detail?: string };
-        reject(new Error(payload.detail ?? "Upload failed"));
+        reject(new Error(payload.detail ?? apiError("uploadFailed")));
       } catch {
         reject(new Error("Upload failed"));
       }
     });
 
-    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+    xhr.addEventListener("error", () => reject(new Error(apiError("uploadFailed"))));
+    xhr.addEventListener("abort", () => reject(new Error(apiError("uploadCancelled"))));
     xhr.send(formData);
   });
 }
@@ -429,7 +432,7 @@ export async function deleteEventGalleryPhoto(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Delete failed");
+    await parseError(response, "deleteFailed");
   }
 }
 
@@ -448,7 +451,7 @@ export async function bulkDeleteEventGalleryPhotos(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Bulk delete failed");
+    await parseError(response, "bulkDeleteFailed");
   }
   return response.json() as Promise<{ deleted: number; not_found: number }>;
 }
@@ -468,7 +471,7 @@ export async function updateEvent(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Update failed");
+    await parseError(response, "updateFailed");
   }
   return response.json() as Promise<EventPublic>;
 }
@@ -478,7 +481,7 @@ export async function validatePortrait(portrait: File): Promise<PortraitQualityR
   formData.append("portrait", portrait);
   const response = await fetch(apiUrl("/api/validate-portrait"), { method: "POST", body: formData });
   if (!response.ok) {
-    await parseError(response, "Could not validate portrait");
+    await parseError(response, "validatePortrait");
   }
   return response.json() as Promise<PortraitQualityResponse>;
 }
@@ -486,7 +489,7 @@ export async function validatePortrait(portrait: File): Promise<PortraitQualityR
 export async function fetchSharedResults(shareId: string): Promise<MatchResponse> {
   const response = await fetch(apiUrl(`/api/share/${shareId}`));
   if (!response.ok) {
-    await parseError(response, "Shared results not found");
+    await parseError(response, "sharedResultsNotFound");
   }
   return response.json() as Promise<MatchResponse>;
 }
@@ -498,7 +501,7 @@ export async function submitSignupRequest(body: SignupRequestCreate): Promise<Si
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    await parseError(response, "Could not submit request");
+    await parseError(response, "submitRequest");
   }
   return response.json() as Promise<SignupRequest>;
 }
@@ -506,7 +509,7 @@ export async function submitSignupRequest(body: SignupRequestCreate): Promise<Si
 export async function fetchAdminStats(token: string): Promise<AdminStats> {
   const response = await authFetch("/api/admin/stats", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load stats");
+    await parseError(response, "loadStats");
   }
   return response.json() as Promise<AdminStats>;
 }
@@ -514,7 +517,7 @@ export async function fetchAdminStats(token: string): Promise<AdminStats> {
 export async function fetchAdminAttention(token: string): Promise<AdminAttention> {
   const response = await authFetch("/api/admin/attention", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load attention items");
+    await parseError(response, "loadAttention");
   }
   return response.json() as Promise<AdminAttention>;
 }
@@ -522,7 +525,7 @@ export async function fetchAdminAttention(token: string): Promise<AdminAttention
 export async function fetchAdminEvents(token: string): Promise<AdminEventSummary[]> {
   const response = await authFetch("/api/admin/events", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load events");
+    await parseError(response, "loadEvents");
   }
   return response.json() as Promise<AdminEventSummary[]>;
 }
@@ -542,7 +545,7 @@ export async function updateAdminEvent(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not update event");
+    await parseError(response, "updateEvent");
   }
   return response.json() as Promise<AdminEventSummary>;
 }
@@ -558,7 +561,7 @@ export async function createAdminEvent(body: EventCreateRequest, token: string):
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not create event");
+    await parseError(response, "createEvent");
   }
   return response.json() as Promise<EventPublic>;
 }
@@ -566,7 +569,7 @@ export async function createAdminEvent(body: EventCreateRequest, token: string):
 export async function deleteAdminEvent(eventId: string, token: string): Promise<void> {
   const response = await authFetch(`/api/admin/events/${eventId}`, { method: "DELETE" }, { token });
   if (!response.ok) {
-    await parseError(response, "Could not delete event");
+    await parseError(response, "deleteEvent");
   }
 }
 
@@ -583,14 +586,14 @@ export async function inviteAdminEventMember(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not invite admin");
+    await parseError(response, "inviteAdmin");
   }
 }
 
 export async function fetchSignupRequests(token: string): Promise<SignupRequest[]> {
   const response = await authFetch("/api/admin/signup-requests", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load requests");
+    await parseError(response, "loadRequests");
   }
   return response.json() as Promise<SignupRequest[]>;
 }
@@ -611,7 +614,7 @@ export async function reviewSignupRequest(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Review failed");
+    await parseError(response, "reviewFailed");
   }
   return response.json() as Promise<SignupRequest>;
 }
@@ -642,7 +645,7 @@ export async function fetchEventAlbumStatus(
 ): Promise<EventAlbumStatus> {
   const response = await authFetch(`/api/events/${eventId}/album-status`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load album status");
+    await parseError(response, "loadAlbumStatus");
   }
   return response.json() as Promise<EventAlbumStatus>;
 }
@@ -660,10 +663,10 @@ export async function reindexEventGalleryStream(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not index album faces");
+    await parseError(response, "indexAlbumFaces");
   }
   if (!response.body) {
-    throw new Error("Indexing stream unavailable");
+    throw new Error(apiError("indexingStreamUnavailable"));
   }
 
   const reader = response.body.getReader();
@@ -695,7 +698,7 @@ export async function reindexEventGalleryStream(
   }
 
   if (!finalResult) {
-    throw new Error("Indexing ended before completion");
+    throw new Error(apiError("indexingEndedEarly"));
   }
   return finalResult;
 }
@@ -726,7 +729,7 @@ export async function reindexEventGallery(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not index album faces");
+    await parseError(response, "indexAlbumFaces");
   }
   return response.json() as Promise<{
     processed: number;
@@ -741,7 +744,7 @@ export async function checkAdminSlug(slug: string, token: string): Promise<SlugC
   const params = new URLSearchParams({ slug });
   const response = await authFetch(`/api/admin/slug-check?${params}`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not check slug");
+    await parseError(response, "checkSlug");
   }
   return response.json() as Promise<SlugCheckResult>;
 }
@@ -750,7 +753,7 @@ export async function fetchAdminAuditLog(token: string, limit = 50): Promise<Aud
   const params = new URLSearchParams({ limit: String(limit) });
   const response = await authFetch(`/api/admin/audit-log?${params}`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load audit log");
+    await parseError(response, "loadAuditLog");
   }
   return response.json() as Promise<AuditLogEntry[]>;
 }
@@ -762,7 +765,7 @@ export async function testAdminSentry(token: string): Promise<SentryTestResult> 
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not send Sentry test");
+    await parseError(response, "sentryTest");
   }
   return response.json() as Promise<SentryTestResult>;
 }
@@ -788,14 +791,14 @@ export async function inviteEventMember(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not invite member");
+    await parseError(response, "inviteMember");
   }
 }
 
 export async function fetchEventGallerySections(eventId: string, token: string): Promise<string[]> {
   const response = await authFetch(`/api/events/${eventId}/gallery/sections`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load sections");
+    await parseError(response, "loadSections");
   }
   return response.json() as Promise<string[]>;
 }
@@ -816,7 +819,7 @@ export async function updateGalleryPhotoSection(
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not update section");
+    await parseError(response, "updateSection");
   }
   return response.json() as Promise<GalleryPhoto>;
 }
@@ -824,7 +827,7 @@ export async function updateGalleryPhotoSection(
 export async function fetchEventStats(eventId: string, token: string): Promise<EventStats> {
   const response = await authFetch(`/api/events/${eventId}/stats`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load stats");
+    await parseError(response, "loadStats");
   }
   return response.json() as Promise<EventStats>;
 }
@@ -835,7 +838,7 @@ export async function fetchEventSetupStatus(
 ): Promise<EventSetupStatus> {
   const response = await authFetch(`/api/events/${eventId}/setup-status`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load setup status");
+    await parseError(response, "loadSetupStatus");
   }
   return response.json() as Promise<EventSetupStatus>;
 }
@@ -843,7 +846,7 @@ export async function fetchEventSetupStatus(
 export async function fetchMyEvents(token: string): Promise<UserEventSummary[]> {
   const response = await authFetch("/api/events/mine", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load your events");
+    await parseError(response, "loadYourEvents");
   }
   return response.json() as Promise<UserEventSummary[]>;
 }
@@ -854,7 +857,7 @@ export async function fetchMyEventRuns(
 ): Promise<MatchRunSummary[]> {
   const response = await authFetch(`/api/events/${eventId}/my-runs`, {}, auth);
   if (!response.ok) {
-    await parseError(response, "Could not load past searches");
+    await parseError(response, "loadPastSearches");
   }
   return response.json() as Promise<MatchRunSummary[]>;
 }
@@ -862,7 +865,7 @@ export async function fetchMyEventRuns(
 export async function downloadEventGalleryZip(eventId: string, token: string, filename: string): Promise<void> {
   const response = await authFetch(`/api/events/${eventId}/gallery/download`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not download album");
+    await parseError(response, "downloadAlbum");
   }
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
@@ -876,7 +879,7 @@ export async function downloadEventGalleryZip(eventId: string, token: string, fi
 export async function fetchStudioOrganizations(token: string): Promise<Organization[]> {
   const response = await authFetch("/api/studio/orgs", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load studios");
+    await parseError(response, "loadStudios");
   }
   const payload = (await response.json()) as { organizations: Organization[] };
   return payload.organizations;
@@ -897,7 +900,7 @@ export interface StudioOrgInvite {
 export async function fetchStudioInvites(token: string): Promise<StudioOrgInvite[]> {
   const response = await authFetch("/api/studio/invites", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load invites");
+    await parseError(response, "loadInvites");
   }
   return response.json() as Promise<StudioOrgInvite[]>;
 }
@@ -909,7 +912,7 @@ export async function acceptStudioInvite(inviteId: string, token: string): Promi
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not accept invite");
+    await parseError(response, "acceptInvite");
   }
   return response.json() as Promise<StudioOrgInvite>;
 }
@@ -921,7 +924,7 @@ export async function declineStudioInvite(inviteId: string, token: string): Prom
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not decline invite");
+    await parseError(response, "declineInvite");
   }
   return response.json() as Promise<StudioOrgInvite>;
 }
@@ -929,7 +932,7 @@ export async function declineStudioInvite(inviteId: string, token: string): Prom
 export async function fetchStudioMe(token: string, orgId?: string | null): Promise<{ organization: Organization; member_role: string }> {
   const response = await authFetch("/api/studio/me", {}, studioAuth(token, orgId));
   if (!response.ok) {
-    await parseError(response, "Could not load studio");
+    await parseError(response, "loadStudio");
   }
   return response.json() as Promise<{ organization: Organization; member_role: string }>;
 }
@@ -937,7 +940,7 @@ export async function fetchStudioMe(token: string, orgId?: string | null): Promi
 export async function fetchStudioStats(token: string): Promise<StudioStats> {
   const response = await authFetch("/api/studio/stats", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load studio stats");
+    await parseError(response, "loadStudioStats");
   }
   return response.json() as Promise<StudioStats>;
 }
@@ -945,7 +948,7 @@ export async function fetchStudioStats(token: string): Promise<StudioStats> {
 export async function fetchStudioClients(token: string): Promise<StudioClient[]> {
   const response = await authFetch("/api/studio/events", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load clients");
+    await parseError(response, "loadClients");
   }
   return response.json() as Promise<StudioClient[]>;
 }
@@ -967,7 +970,7 @@ export async function createStudioClient(
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not create client");
+    await parseError(response, "createClient");
   }
   return response.json() as Promise<StudioClient>;
 }
@@ -975,7 +978,7 @@ export async function createStudioClient(
 export async function fetchStudioClient(eventId: string, token: string): Promise<StudioClient> {
   const response = await authFetch(`/api/studio/events/${eventId}`, {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load client");
+    await parseError(response, "loadClient");
   }
   return response.json() as Promise<StudioClient>;
 }
@@ -991,7 +994,7 @@ export async function updateStudioClient(
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not update client");
+    await parseError(response, "updateClient");
   }
   return response.json() as Promise<StudioClient>;
 }
@@ -999,7 +1002,7 @@ export async function updateStudioClient(
 export async function deleteStudioClient(eventId: string, token: string): Promise<void> {
   const response = await authFetch(`/api/studio/events/${eventId}`, { method: "DELETE" }, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not delete client");
+    await parseError(response, "deleteClient");
   }
 }
 
@@ -1017,7 +1020,7 @@ export async function bulkDeleteStudioClients(
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Bulk delete failed");
+    await parseError(response, "bulkDeleteFailed");
   }
   return response.json() as Promise<{ deleted: number; not_found: number; denied: number }>;
 }
@@ -1045,14 +1048,14 @@ export async function studioInviteCouple(eventId: string, email: string, token: 
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not invite couple");
+    await parseError(response, "inviteCouple");
   }
 }
 
 export async function studioGoLive(eventId: string, token: string): Promise<StudioClient> {
   const response = await authFetch(`/api/studio/events/${eventId}/go-live`, { method: "POST" }, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not go live");
+    await parseError(response, "goLive");
   }
   return response.json() as Promise<StudioClient>;
 }
@@ -1061,7 +1064,7 @@ export async function checkStudioSlug(slug: string, token: string): Promise<Slug
   const params = new URLSearchParams({ slug });
   const response = await authFetch(`/api/studio/slug-check?${params}`, {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not check slug");
+    await parseError(response, "checkSlug");
   }
   return response.json() as Promise<SlugCheckResult>;
 }
@@ -1073,7 +1076,7 @@ export async function checkStudioTeamEmail(
   const params = new URLSearchParams({ email });
   const response = await authFetch(`/api/studio/team/email-check?${params}`, {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not check email");
+    await parseError(response, "checkEmail");
   }
   return response.json() as Promise<{
     email: string;
@@ -1091,7 +1094,7 @@ export async function studioSignup(name: string, slug: string, token: string): P
     { token },
   );
   if (!response.ok) {
-    await parseError(response, "Could not create studio");
+    await parseError(response, "createStudio");
   }
   return response.json() as Promise<{ organization: Organization; member_role: string }>;
 }
@@ -1099,7 +1102,7 @@ export async function studioSignup(name: string, slug: string, token: string): P
 export async function fetchStudioSettings(token: string): Promise<Organization> {
   const response = await authFetch("/api/studio/settings", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load settings");
+    await parseError(response, "loadSettings");
   }
   return response.json() as Promise<Organization>;
 }
@@ -1111,7 +1114,7 @@ export async function updateStudioSettings(body: Record<string, unknown>, token:
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not save settings");
+    await parseError(response, "saveSettings");
   }
   return response.json() as Promise<Organization>;
 }
@@ -1119,7 +1122,7 @@ export async function updateStudioSettings(body: Record<string, unknown>, token:
 export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>> {
   const response = await authFetch("/api/studio/team", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load team");
+    await parseError(response, "loadTeam");
   }
   return response.json() as Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>>;
 }
@@ -1127,7 +1130,7 @@ export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: s
 export async function fetchStudioTeamPendingInvites(token: string): Promise<StudioOrgInvite[]> {
   const response = await authFetch("/api/studio/team/pending-invites", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load pending invites");
+    await parseError(response, "loadPendingInvites");
   }
   return response.json() as Promise<StudioOrgInvite[]>;
 }
@@ -1143,7 +1146,7 @@ export async function inviteStudioTeamMember(
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not invite team member");
+    await parseError(response, "inviteTeamMember");
   }
   return response.json() as Promise<{ status: "invited" }>;
 }
@@ -1151,7 +1154,7 @@ export async function inviteStudioTeamMember(
 export async function fetchStudioBilling(token: string): Promise<StudioBilling> {
   const response = await authFetch("/api/studio/billing", {}, studioAuth(token));
   if (!response.ok) {
-    await parseError(response, "Could not load billing");
+    await parseError(response, "loadBilling");
   }
   return response.json() as Promise<StudioBilling>;
 }
@@ -1172,7 +1175,7 @@ export async function createStripeCheckout(
     studioAuth(token),
   );
   if (!response.ok) {
-    await parseError(response, "Could not start checkout");
+    await parseError(response, "startCheckout");
   }
   return response.json() as Promise<{ checkout_url: string; session_id: string }>;
 }
@@ -1180,7 +1183,7 @@ export async function createStripeCheckout(
 export async function fetchAdminOrganizations(token: string): Promise<AdminOrganization[]> {
   const response = await authFetch("/api/admin/organizations", {}, { token });
   if (!response.ok) {
-    await parseError(response, "Could not load organizations");
+    await parseError(response, "loadOrganizations");
   }
   return response.json() as Promise<AdminOrganization[]>;
 }

@@ -1,6 +1,8 @@
-import type { AuthFetchOptions } from "../api/client";
-import { fetchEventGalleryPhotoImage } from "../api/client";
+import { fetchEventGalleryPhotoImage, type AuthFetchOptions } from "../api/client";
+import { createTranslator } from "../i18n";
 import type { MatchedPhoto } from "../types";
+
+const { tPath: apiError } = createTranslator("errors.api");
 
 function extensionFromMime(mime: string): string {
   if (mime.includes("png")) return "png";
@@ -21,13 +23,13 @@ function blobToBase64(blob: Blob): Promise<string> {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result !== "string") {
-        reject(new Error("Could not read image"));
+        reject(new Error(apiError("readImage")));
         return;
       }
       const comma = result.indexOf(",");
       resolve(comma >= 0 ? result.slice(comma + 1) : result);
     };
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read image"));
+    reader.onerror = () => reject(reader.error ?? new Error(apiError("readImage")));
     reader.readAsDataURL(blob);
   });
 }
@@ -63,7 +65,7 @@ export async function resolveFullImageData(
     );
     const imageResponse = await fetch(meta.signed_url);
     if (!imageResponse.ok) {
-      throw new Error("Could not download photo");
+      throw new Error(apiError("downloadPhoto"));
     }
     const blob = await imageResponse.blob();
     return {

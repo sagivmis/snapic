@@ -1,6 +1,10 @@
 import { uploadEventGalleryPhoto } from "../api/client";
+import { createTranslator } from "../i18n";
 import type { GalleryPhoto } from "../types";
 import type { PreparedUpload } from "./albumUpload";
+
+const { t } = createTranslator("common");
+const { tPath: apiError } = createTranslator("errors.api");
 
 export interface GalleryUploadProgress {
   phase: "uploading" | "paused";
@@ -172,7 +176,7 @@ export class GalleryUploadQueue {
       try {
         const token = await this.callbacks.getToken();
         if (!token) {
-          throw new Error("Not signed in");
+          throw new Error(t("notSignedIn"));
         }
 
         const photo = await uploadEventGalleryPhoto(
@@ -189,7 +193,7 @@ export class GalleryUploadQueue {
         this.uploaded += 1;
         this.callbacks.onPhotoUploaded(photo);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Upload failed";
+        const message = err instanceof Error ? err.message : apiError("uploadFailed");
         if (message.toLowerCase().includes("already in the album")) {
           this.skippedDuringUpload += 1;
         } else if (item.attempts + 1 < MAX_ATTEMPTS && !this.cancelled) {

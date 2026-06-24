@@ -3,23 +3,28 @@ import { Link } from "react-router-dom";
 import { bulkDeleteStudioClients, deleteStudioClient, fetchStudioClients } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
 import { StudioClientsTableSkeleton } from "../../components/studio/StudioSkeletons";
+import { useTranslation } from "../../i18n";
 import { clearStudioDashboardCache } from "../../lib/studioCache";
 import type { StudioClient } from "../../types";
 import "../../styles/StudioLayout.scss";
 
-function deleteConfirmMessage(client: StudioClient, count = 1): string {
-  const label = count === 1 ? `"${client.title}"` : `${count} clients`;
-  return `Delete ${label} permanently? Photos, searches, and gallery data will be removed. This cannot be undone.`;
-}
-
 export function StudioClientsPage() {
   const { getAccessToken } = useAuth();
+  const { t, tPath } = useTranslation("studio.clients");
   const [clients, setClients] = useState<StudioClient[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const deleteConfirmMessage = useCallback(
+    (client: StudioClient, count = 1) =>
+      count === 1
+        ? tPath("deleteConfirm_one", { title: client.title })
+        : tPath("deleteConfirm_other", { count }),
+    [tPath],
+  );
 
   const load = useCallback(async () => {
     const token = await getAccessToken();
@@ -31,11 +36,11 @@ export function StudioClientsPage() {
       setClients(await fetchStudioClients(token));
       setSelected(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load clients");
+      setError(err instanceof Error ? err.message : tPath("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, tPath]);
 
   useEffect(() => {
     void load();
@@ -79,14 +84,14 @@ export function StudioClientsPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await deleteStudioClient(client.id, token);
       clearStudioDashboardCache();
-      setNotice(`Deleted ${client.title}.`);
+      setNotice(tPath("deleted", { title: client.title }));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete client");
+      setError(err instanceof Error ? err.message : tPath("deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -105,7 +110,7 @@ export function StudioClientsPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const result = await bulkDeleteStudioClients(
         selectedClients.map((client) => client.id),
@@ -113,16 +118,18 @@ export function StudioClientsPage() {
       );
       clearStudioDashboardCache();
       if (result.deleted === 0) {
-        throw new Error("No clients were deleted");
+        throw new Error(tPath("noClientsDeleted"));
       }
-      const parts = [`Deleted ${result.deleted} client${result.deleted === 1 ? "" : "s"}.`];
+      const parts = [
+        tPath(result.deleted === 1 ? "deletedBulk_one" : "deletedBulk_other", { count: result.deleted }),
+      ];
       if (result.denied > 0) {
-        parts.push(`${result.denied} could not be deleted (no access).`);
+        parts.push(tPath("deniedBulk", { count: result.denied }));
       }
       setNotice(parts.join(" "));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk delete failed");
+      setError(err instanceof Error ? err.message : tPath("bulkDeleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -131,22 +138,24 @@ export function StudioClientsPage() {
   return (
     <div className="studio-page" aria-busy={loading || busy}>
       <header className="studio-page__header">
-        <h1>Clients</h1>
+        <h1>{tPath("title")}</h1>
         <Link to="/studio/clients/new" className="btn btn-primary">
-          New client
+          {tPath("newClient")}
         </Link>
       </header>
 
       {someSelected && (
         <div className="studio-clients-table__bulk-bar">
           <span>
-            {selected.size} selected
+            {selected.size === 1
+              ? t("selected_one", { count: selected.size })
+              : t("selected_other", { count: selected.size })}
           </span>
           <button type="button" className="btn btn-ghost studio-clients-table__delete-btn" disabled={busy} onClick={() => void handleBulkDelete()}>
-            Delete selected
+            {tPath("deleteSelected")}
           </button>
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setSelected(new Set())}>
-            Clear
+            {t("clear")}
           </button>
         </div>
       )}
@@ -154,7 +163,7 @@ export function StudioClientsPage() {
       {loading ? (
         <StudioClientsTableSkeleton rows={6} />
       ) : clients.length === 0 ? (
-        <p>No clients yet.</p>
+        <p>{tPath("noClients")}</p>
       ) : (
         <table className="studio-clients-table">
           <thead>
@@ -162,7 +171,7 @@ export function StudioClientsPage() {
               <th className="studio-clients-table__check-col">
                 <input
                   type="checkbox"
-                  aria-label="Select all clients"
+                  aria-label={t("selectAllClients")}
                   checked={allSelected}
                   ref={(input) => {
                     if (input) {
@@ -172,13 +181,13 @@ export function StudioClientsPage() {
                   onChange={toggleAll}
                 />
               </th>
-              <th>Names</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Handoff</th>
-              <th>Photos</th>
-              <th>Searches</th>
-              <th aria-label="Actions" />
+              <th>{tPath("tableNames")}</th>
+              <th>{tPath("tableDate")}</th>
+              <th>{tPath("tableStatus")}</th>
+              <th>{tPath("tableHandoff")}</th>
+              <th>{tPath("tablePhotos")}</th>
+              <th>{tPath("tableSearches")}</th>
+              <th aria-label={t("actionsCol")} />
             </tr>
           </thead>
           <tbody>
@@ -187,7 +196,7 @@ export function StudioClientsPage() {
                 <td className="studio-clients-table__check-col">
                   <input
                     type="checkbox"
-                    aria-label={`Select ${client.title}`}
+                    aria-label={t("selectClient", { title: client.title })}
                     checked={selected.has(client.id)}
                     onChange={() => toggleOne(client.id)}
                   />
@@ -195,7 +204,7 @@ export function StudioClientsPage() {
                 <td>
                   <Link to={`/studio/clients/${client.id}`}>{client.title}</Link>
                 </td>
-                <td>{client.wedding_date ?? "—"}</td>
+                <td>{client.wedding_date ?? t("emDash")}</td>
                 <td>{client.status}</td>
                 <td>{client.handoff_status}</td>
                 <td>{client.gallery_photo_count}</td>
@@ -207,7 +216,7 @@ export function StudioClientsPage() {
                     disabled={busy}
                     onClick={() => void handleDeleteOne(client)}
                   >
-                    Delete
+                    {tPath("delete")}
                   </button>
                 </td>
               </tr>

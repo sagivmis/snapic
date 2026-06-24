@@ -1,3 +1,5 @@
+import { createTranslator } from "../i18n";
+
 export type SetupStep = "welcome" | "branding" | "invite" | "ready";
 
 export const SETUP_STEPS: SetupStep[] = ["welcome", "branding", "invite", "ready"];
@@ -25,9 +27,10 @@ export function isEventSlugLongEnough(slug: string): boolean {
 }
 
 export function defaultEventTitle(coupleNames: string): string {
+  const { tPath } = createTranslator("events.common");
   const trimmed = coupleNames.trim();
   if (!trimmed) {
-    return "Wedding Gallery";
+    return tPath("defaultEventTitle");
   }
   return trimmed.endsWith("Wedding") ? trimmed : `${trimmed} Wedding`;
 }
@@ -45,14 +48,34 @@ export function getNextSetupAction(status: {
   faces_indexed: boolean;
   is_active: boolean;
 }): SetupActionState {
+  const setup = createTranslator("events.setup");
+  const manage = createTranslator("events.manage");
+  const { t } = createTranslator();
+
   if (!status.has_photos) {
-    return { action: "upload", label: "Upload images", busyLabel: "Opening album…" };
+    return {
+      action: "upload",
+      label: setup.tPath("checklistUpload"),
+      busyLabel: manage.tPath("loadingAlbum"),
+    };
   }
   if (!status.faces_indexed) {
-    return { action: "index", label: "Index faces", busyLabel: "Indexing faces…" };
+    return {
+      action: "index",
+      label: manage.tPath("indexFaces"),
+      busyLabel: setup.tPath("checklistIndexing"),
+    };
   }
   if (!status.is_active) {
-    return { action: "activate", label: "Set event to Active", busyLabel: "Going live…" };
+    return {
+      action: "activate",
+      label: setup.tPath("checklistActivate"),
+      busyLabel: t("creating"),
+    };
   }
-  return { action: "complete", label: "Finish setup", busyLabel: "Finishing…" };
+  return {
+    action: "complete",
+    label: t("continue"),
+    busyLabel: setup.tPath("saving"),
+  };
 }

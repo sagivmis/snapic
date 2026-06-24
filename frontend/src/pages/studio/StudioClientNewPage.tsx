@@ -2,27 +2,16 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createStudioClient } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import { useTranslation } from "../../i18n";
 import { clearStudioDashboardCache } from "../../lib/studioCache";
 import "../../styles/StudioLayout.scss";
 
-const NEXT_STEPS = [
-  {
-    title: "Upload photos",
-    detail: "Batch-upload from your computer.",
-  },
-  {
-    title: "Index faces",
-    detail: "Guest search builds automatically.",
-  },
-  {
-    title: "Go live or hand off",
-    detail: "Publish or invite the couple to review.",
-  },
-] as const;
+const NEXT_STEP_KEYS = ["steps.upload", "steps.index", "steps.handoff"] as const;
 
 export function StudioClientNewPage() {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
+  const { t, tPath } = useTranslation("studio.clientNew");
   const [coupleNames, setCoupleNames] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -37,7 +26,7 @@ export function StudioClientNewPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const client = await createStudioClient(
         {
@@ -51,7 +40,7 @@ export function StudioClientNewPage() {
       clearStudioDashboardCache();
       navigate(`/studio/clients/${client.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create client");
+      setError(err instanceof Error ? err.message : tPath("createFailed"));
     } finally {
       setBusy(false);
     }
@@ -62,22 +51,22 @@ export function StudioClientNewPage() {
       <header className="studio-client-new__header">
         <div className="studio-client-new__header-row">
           <Link to="/studio/clients" className="studio-client-new__back">
-            ← Clients
+            {tPath("backClients")}
           </Link>
-          <p className="studio-client-new__eyebrow">New client</p>
+          <p className="studio-client-new__eyebrow">{tPath("eyebrow")}</p>
         </div>
-        <h1>Create a gallery</h1>
+        <h1>{tPath("title")}</h1>
       </header>
 
-      <ol className="studio-client-new__steps" aria-label="What happens next">
-        {NEXT_STEPS.map((step, index) => (
-          <li key={step.title} className="studio-client-new__step">
+      <ol className="studio-client-new__steps" aria-label={t("clientNewSteps")}>
+        {NEXT_STEP_KEYS.map((stepKey, index) => (
+          <li key={stepKey} className="studio-client-new__step">
             <span className="studio-client-new__step-num" aria-hidden="true">
               {index + 1}
             </span>
             <span className="studio-client-new__step-copy">
-              <strong>{step.title}</strong>
-              <span>{step.detail}</span>
+              <strong>{tPath(`${stepKey}.title`)}</strong>
+              <span>{tPath(`${stepKey}.detail`)}</span>
             </span>
           </li>
         ))}
@@ -88,19 +77,19 @@ export function StudioClientNewPage() {
           <div className="studio-client-new__form-body">
             <div className="studio-client-new__fields">
               <div className="studio-client-new__section">
-                <h2>About the couple</h2>
+                <h2>{tPath("aboutCouple")}</h2>
 
-                <label htmlFor="names">Couple names</label>
+                <label htmlFor="names">{tPath("coupleNamesLabel")}</label>
                 <input
                   id="names"
                   required
                   value={coupleNames}
                   onChange={(e) => setCoupleNames(e.target.value)}
-                  placeholder="Sarah & James"
+                  placeholder={tPath("coupleNamesPlaceholder")}
                   autoComplete="off"
                 />
 
-                <label htmlFor="date">Wedding date</label>
+                <label htmlFor="date">{tPath("weddingDateLabel")}</label>
                 <input
                   id="date"
                   type="date"
@@ -110,25 +99,25 @@ export function StudioClientNewPage() {
               </div>
 
               <div className="studio-client-new__section">
-                <h2>Optional</h2>
+                <h2>{tPath("optionalSection")}</h2>
 
-                <label htmlFor="email">Couple email</label>
+                <label htmlFor="email">{tPath("coupleEmailLabel")}</label>
                 <input
                   id="email"
                   type="email"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
-                  placeholder="couple@example.com"
+                  placeholder={tPath("coupleEmailPlaceholder")}
                   autoComplete="email"
                 />
 
-                <label htmlFor="notes">Internal notes</label>
+                <label htmlFor="notes">{tPath("notesLabel")}</label>
                 <textarea
                   id="notes"
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Venue, package, delivery deadline…"
+                  placeholder={tPath("notesPlaceholder")}
                 />
               </div>
             </div>
@@ -136,10 +125,10 @@ export function StudioClientNewPage() {
 
           <div className="studio-client-new__actions">
             <Link to="/studio/clients" className="btn btn-ghost">
-              Cancel
+              {t("cancel")}
             </Link>
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? "Creating…" : "Create gallery"}
+              {busy ? tPath("creating") : tPath("createBtn")}
             </button>
           </div>
         </form>

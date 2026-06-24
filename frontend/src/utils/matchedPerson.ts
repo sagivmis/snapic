@@ -1,13 +1,16 @@
+import { createTranslator } from "../i18n";
 import type { MatchedPerson, MatchedPhoto } from "../types";
+
+const { t } = createTranslator("common");
 
 export function formatMatchedPerson(person: MatchedPerson | null | undefined): string | null {
   if (person == null) {
     return null;
   }
   if (person === "both") {
-    return "Both matched";
+    return t("bothMatched");
   }
-  return `Person ${person}`;
+  return person === 1 ? t("person1") : t("person2");
 }
 
 export function formatPersonScores(photo: MatchedPhoto): string | null {
@@ -18,10 +21,10 @@ export function formatPersonScores(photo: MatchedPhoto): string | null {
   }
   const parts: string[] = [];
   if (p1 != null) {
-    parts.push(`Person 1: ${(p1 * 100).toFixed(0)}%`);
+    parts.push(t("personScore", { person: 1, percent: (p1 * 100).toFixed(0) }));
   }
   if (p2 != null) {
-    parts.push(`Person 2: ${(p2 * 100).toFixed(0)}%`);
+    parts.push(t("personScore", { person: 2, percent: (p2 * 100).toFixed(0) }));
   }
   return parts.join(" · ");
 }

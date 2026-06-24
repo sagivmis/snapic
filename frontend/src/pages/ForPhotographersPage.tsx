@@ -1,65 +1,16 @@
 import { Link, Navigate } from "react-router-dom";
 import { useStudioMembership } from "../hooks/useStudioMembership";
+import { useTranslation } from "../i18n";
 import "../styles/ForPhotographers.scss";
 
-const STEPS = [
-  {
-    number: "01",
-    title: "Create a client gallery",
-    description:
-      "Add the couple, set branding, and choose whether they co-manage the album or you run it solo.",
-  },
-  {
-    number: "02",
-    title: "Upload & index faces",
-    description:
-      "Drop in the wedding album from your studio dashboard. Snapic indexes every face in the background.",
-  },
-  {
-    number: "03",
-    title: "Share the guest link",
-    description:
-      "Send a link or QR code. Guests upload a selfie and watch their photos appear in real time.",
-  },
-] as const;
-
-const PLANS = [
-  {
-    name: "Pay per event",
-    price: "From $99",
-    detail: "One wedding, one gallery. Perfect for trying Snapic with your next client.",
-    featured: false,
-  },
-  {
-    name: "Annual bundle",
-    price: "10 or 25 weddings",
-    detail: "Lock in volume pricing for a busy season and keep every client gallery under one studio.",
-    featured: true,
-  },
-  {
-    name: "Unlimited",
-    price: "Subscription",
-    detail: "For high-volume studios running guest matching across dozens of events every year.",
-    featured: false,
-  },
-] as const;
-
-const BENEFITS = [
-  {
-    title: "Upload once",
-    description: "You deliver the album; guests find themselves without endless scrolling.",
-  },
-  {
-    title: "Real-time matching",
-    description: "Photos stream in as they’re found — the same experience guests get on event day.",
-  },
-  {
-    title: "Studio-branded",
-    description: "Your logo, colors, and guest link keep the experience feeling like yours.",
-  },
-] as const;
+const BENEFIT_KEYS = ["uploadOnce", "realTime", "branded"] as const;
+const STEP_KEYS = ["create", "upload", "share"] as const;
+const STEP_NUMBERS = ["01", "02", "03"] as const;
+const PLAN_KEYS = ["perEvent", "annual", "unlimited"] as const;
+const FEATURED_PLAN = "annual";
 
 export function ForPhotographersPage() {
+  const { tPath } = useTranslation("forPhotographers");
   const { hasStudios, loaded } = useStudioMembership();
 
   if (loaded && hasStudios) {
@@ -70,23 +21,20 @@ export function ForPhotographersPage() {
     <div className="photographers-page">
       <header className="photographers-hero">
         <div className="photographers-hero__content">
-          <p className="photographers-hero__eyebrow">For wedding photographers</p>
-          <h1>Delight every guest with AI photo matching</h1>
-          <p className="photographers-hero__lead">
-            Upload once from your studio dashboard. Your clients&apos; guests find themselves in every
-            photo — no scrolling through hundreds of shots.
-          </p>
+          <p className="photographers-hero__eyebrow">{tPath("eyebrow")}</p>
+          <h1>{tPath("title")}</h1>
+          <p className="photographers-hero__lead">{tPath("lead")}</p>
           <div className="photographers-hero__actions">
             <Link to="/studio/signup" className="btn btn-primary">
-              Start your studio
+              {tPath("startStudio")}
             </Link>
             <Link to="/demo" className="btn btn-secondary">
-              Try the guest demo
+              {tPath("tryGuestDemo")}
             </Link>
           </div>
-          <ul className="photographers-hero__highlights" aria-label="Key benefits">
-            {BENEFITS.map((item) => (
-              <li key={item.title}>{item.title}</li>
+          <ul className="photographers-hero__highlights" aria-label={tPath("benefitsAria")}>
+            {BENEFIT_KEYS.map((key) => (
+              <li key={key}>{tPath(`benefits.${key}.title`)}</li>
             ))}
           </ul>
         </div>
@@ -97,7 +45,7 @@ export function ForPhotographersPage() {
               <span className="photographers-mock__dot" />
               <span className="photographers-mock__dot" />
               <span className="photographers-mock__dot" />
-              <span className="photographers-mock__title">Studio · Rivera Wedding</span>
+              <span className="photographers-mock__title">{tPath("mockTitle")}</span>
             </div>
             <div className="photographers-mock__body">
               <div className="photographers-mock__sidebar">
@@ -109,8 +57,8 @@ export function ForPhotographersPage() {
                 <div className="photographers-mock__search">
                   <span className="photographers-mock__avatar" />
                   <div className="photographers-mock__search-copy">
-                    <strong>Finding your photos…</strong>
-                    <span>Scanned 34 of 120 · 8 matches so far</span>
+                    <strong>{tPath("mockFinding")}</strong>
+                    <span>{tPath("mockProgress")}</span>
                   </div>
                 </div>
                 <div className="photographers-mock__grid">
@@ -128,25 +76,25 @@ export function ForPhotographersPage() {
       </header>
 
       <section className="photographers-benefits">
-        {BENEFITS.map((item) => (
-          <article key={item.title} className="photographers-benefits__card card-wedding">
-            <h2>{item.title}</h2>
-            <p>{item.description}</p>
+        {BENEFIT_KEYS.map((key) => (
+          <article key={key} className="photographers-benefits__card card-wedding">
+            <h2>{tPath(`benefits.${key}.title`)}</h2>
+            <p>{tPath(`benefits.${key}.description`)}</p>
           </article>
         ))}
       </section>
 
       <section className="photographers-steps">
         <div className="photographers-section-head">
-          <p className="photographers-section-head__eyebrow">How it works</p>
-          <h2>From upload to wow in three steps</h2>
+          <p className="photographers-section-head__eyebrow">{tPath("stepsEyebrow")}</p>
+          <h2>{tPath("stepsTitle")}</h2>
         </div>
         <ol className="photographers-steps__list">
-          {STEPS.map((step) => (
-            <li key={step.number} className="photographers-steps__item card-wedding">
-              <span className="photographers-steps__number">{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.description}</p>
+          {STEP_KEYS.map((key, index) => (
+            <li key={key} className="photographers-steps__item card-wedding">
+              <span className="photographers-steps__number">{STEP_NUMBERS[index]}</span>
+              <h3>{tPath(`steps.${key}.title`)}</h3>
+              <p>{tPath(`steps.${key}.description`)}</p>
             </li>
           ))}
         </ol>
@@ -154,34 +102,35 @@ export function ForPhotographersPage() {
 
       <section className="photographers-pricing">
         <div className="photographers-section-head">
-          <p className="photographers-section-head__eyebrow">Plans</p>
-          <h2>Pricing that scales with your studio</h2>
-          <p className="photographers-section-head__lead">
-            Start with a single event or commit to a season — upgrade anytime as your volume grows.
-          </p>
+          <p className="photographers-section-head__eyebrow">{tPath("pricingEyebrow")}</p>
+          <h2>{tPath("pricingTitle")}</h2>
+          <p className="photographers-section-head__lead">{tPath("pricingLead")}</p>
         </div>
         <ul className="photographers-pricing__grid">
-          {PLANS.map((plan) => (
-            <li
-              key={plan.name}
-              className={`photographers-pricing__card card-wedding${plan.featured ? " photographers-pricing__card--featured" : ""}`}
-            >
-              {plan.featured && <span className="photographers-pricing__badge">Most popular</span>}
-              <h3>{plan.name}</h3>
-              <p className="photographers-pricing__price">{plan.price}</p>
-              <p className="photographers-pricing__detail">{plan.detail}</p>
-            </li>
-          ))}
+          {PLAN_KEYS.map((key) => {
+            const featured = key === FEATURED_PLAN;
+            return (
+              <li
+                key={key}
+                className={`photographers-pricing__card card-wedding${featured ? " photographers-pricing__card--featured" : ""}`}
+              >
+                {featured && <span className="photographers-pricing__badge">{tPath("mostPopular")}</span>}
+                <h3>{tPath(`plans.${key}.name`)}</h3>
+                <p className="photographers-pricing__price">{tPath(`plans.${key}.price`)}</p>
+                <p className="photographers-pricing__detail">{tPath(`plans.${key}.detail`)}</p>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
       <section className="photographers-cta card-wedding">
         <div>
-          <h2>Ready to give guests a better experience?</h2>
-          <p>Set up your studio in minutes and run your first gallery on your next wedding.</p>
+          <h2>{tPath("ctaTitle")}</h2>
+          <p>{tPath("ctaLead")}</p>
         </div>
         <Link to="/studio/signup" className="btn btn-primary">
-          Start your studio
+          {tPath("startStudio")}
         </Link>
       </section>
     </div>

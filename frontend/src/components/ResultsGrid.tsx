@@ -10,6 +10,7 @@ import {
 import { buildShareUrl } from "../api/client";
 import type { AuthFetchOptions } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { useTranslation } from "../i18n";
 import { downloadMatchesAsZip } from "../utils/downloadZip";
 import { Lightbox } from "./Lightbox";
 import type { MatchedPhoto, MatchResponse, SkippedPhoto } from "../types";
@@ -27,12 +28,7 @@ interface ResultsGridProps {
   matchProgress?: { processed: number; total: number } | null;
 }
 
-const COUPLE_FILTERS: { id: CoupleFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "1", label: "Person 1" },
-  { id: "2", label: "Person 2" },
-  { id: "both", label: "Both" },
-];
+const COUPLE_FILTER_IDS: CoupleFilter[] = ["all", "1", "2", "both"];
 
 function formatReason(reason: string): string {
   return reason.replace(/_/g, " ");
@@ -59,6 +55,7 @@ export function ResultsGrid({
   auth,
   matchProgress = null,
 }: ResultsGridProps) {
+  const { tPath } = useTranslation("components.resultsGrid");
   const { getAccessToken, anonymousSessionId: sessionId } = useAuth();
   const [lightboxPhoto, setLightboxPhoto] = useState<MatchedPhoto | null>(null);
   const [copied, setCopied] = useState(false);
@@ -67,6 +64,15 @@ export function ResultsGrid({
   const [coupleFilter, setCoupleFilter] = useState<CoupleFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("score");
   const [skippedOpen, setSkippedOpen] = useState(false);
+
+  const coupleFilters = useMemo(
+    () =>
+      COUPLE_FILTER_IDS.map((id) => ({
+        id,
+        label: tPath(`filters.${id === "1" ? "person1" : id === "2" ? "person2" : id}`),
+      })),
+    [tPath],
+  );
 
   const togetherCount = useMemo(
     () => result?.matched.filter((item) => item.matched_person === "both").length ?? 0,
@@ -108,20 +114,26 @@ export function ResultsGrid({
   }
 
   if (loading && !result?.matched.length) {
+    const foundPart =
+      result?.matched.length && matchProgress
+        ? tPath("foundSoFar", { count: result.matched.length })
+        : "";
     return (
       <div className="results results--loading">
         <span className="spinner spinner-lg" />
         <p className="results__loading-title">
-          {guestMode ? "Searching the wedding album…" : "Searching your gallery..."}
+          {guestMode ? tPath("searchingGuest") : tPath("searchingDemo")}
         </p>
         <p className="results__loading-desc">
           {matchProgress && matchProgress.total > 0
-            ? `Scanned ${matchProgress.processed} of ${matchProgress.total} photos${
-                result?.matched.length ? ` · ${result.matched.length} found so far` : ""
-              }`
+            ? tPath("progressScanned", {
+                processed: matchProgress.processed,
+                total: matchProgress.total,
+                foundPart,
+              })
             : guestMode
-              ? "This can take a moment for large albums — matches appear as we find them"
-              : "Looking for your face in every photo"}
+              ? tPath("progressHintGuest")
+              : tPath("progressHintDemo")}
         </p>
         {matchProgress && matchProgress.total > 0 && (
           <div className="results__progress results__progress--loading" role="status">
@@ -141,15 +153,11 @@ export function ResultsGrid({
     return (
       <div className="results results--empty">
         <div className="card-wedding">
-          <p className="results__empty-title">Your moments await</p>
-          <p className="results__empty-desc">
-            Once you&apos;ve added your portrait and gallery photos, tap{" "}
-            <span className="text-champagne">Find my photos</span> in the sidebar to discover every
-            picture you appear in.
-          </p>
+          <p className="results__empty-title">{tPath("emptyTitle")}</p>
+          <p className="results__empty-desc">{tPath("emptyDesc")}</p>
           {canMatch && !readOnly && (
             <button type="button" onClick={onStartSearch} className="btn-primary results__empty-cta">
-              Find my photos now
+              {tPath("findNow")}
             </button>
           )}
         </div>
@@ -167,20 +175,30 @@ export function ResultsGrid({
               style={{ width: `${Math.round((matchProgress.processed / matchProgress.total) * 100)}%` }}
             />
             <p className="results__progress-label">
-              Found {result.matched.length} so far · {matchProgress.processed}/{matchProgress.total} scanned
+              {tPath("progressLabel", {
+                found: result.matched.length,
+                processed: matchProgress.processed,
+                total: matchProgress.total,
+              })}
             </p>
           </div>
         )}
         <div className="card-wedding results__summary">
           <p className="results__summary-title">
             {result.matched.length === 0
-              ? "No matches yet"
-              : `${result.matched.length} photo${result.matched.length === 1 ? "" : "s"} found`}
+              ? tPath("noMatchesYet")
+              : tPath(result.matched.length === 1 ? "photosFound_one" : "photosFound_other", {
+                  count: result.matched.length,
+                })}
           </p>
           <p className="results__summary-desc">
-            Searched {result.total_gallery} gallery photo{result.total_gallery === 1 ? "" : "s"}
-            {result.couple_mode ? " · couple mode" : ""}
-            {togetherCount > 0 && result.couple_mode ? ` · ${togetherCount} together` : ""}
+            {tPath(result.total_gallery === 1 ? "searchedGallery_one" : "searchedGallery_other", {
+              count: result.total_gallery,
+            })}
+            {result.couple_mode ? ` · ${tPath("coupleMode")}` : ""}
+            {togetherCount > 0 && result.couple_mode
+              ? tPath("togetherCount", { count: togetherCount })
+              : ""}
           </p>
 
           {result.matched.length > 0 && (
@@ -202,10 +220,10 @@ export function ResultsGrid({
                 className={guestMode ? "btn-primary results__download-guest" : "btn-primary"}
               >
                 {downloading
-                  ? "Preparing download…"
+                  ? tPath("preparingDownload")
                   : guestMode
-                    ? "Download my photos"
-                    : "Download all as ZIP"}
+                    ? tPath("downloadGuest")
+                    : tPath("downloadZip")}
               </button>
               {togetherCount > 0 && (
                 <button
@@ -224,12 +242,14 @@ export function ResultsGrid({
                   disabled={downloadingTogether}
                   className="btn-ghost bordered"
                 >
-                  {downloadingTogether ? "Preparing..." : `Together photos (${togetherCount})`}
+                  {downloadingTogether
+                    ? tPath("preparing")
+                    : tPath("togetherPhotos", { count: togetherCount })}
                 </button>
               )}
               {result.share_id && !readOnly && (
                 <button type="button" onClick={handleCopyShareLink} className="btn-ghost bordered">
-                  {copied ? "Link copied!" : "Copy share link for guests"}
+                  {copied ? tPath("linkCopied") : tPath("copyShareLink")}
                 </button>
               )}
             </div>
@@ -238,8 +258,8 @@ export function ResultsGrid({
 
         {result.couple_mode && result.matched.length > 0 && (
           <div className="results__toolbar">
-            <div className="results__filters" role="tablist" aria-label="Filter by person">
-              {COUPLE_FILTERS.map((filter) => (
+            <div className="results__filters" role="tablist" aria-label={tPath("filterAria")}>
+              {coupleFilters.map((filter) => (
                 <button
                   key={filter.id}
                   type="button"
@@ -255,14 +275,14 @@ export function ResultsGrid({
               ))}
             </div>
             <label className="results__sort">
-              <span className="results__sort-label">Sort</span>
+              <span className="results__sort-label">{tPath("sortLabel")}</span>
               <select
                 value={sortMode}
                 onChange={(event) => setSortMode(event.target.value as SortMode)}
                 className="results__sort-select"
               >
-                <option value="score">Best match first</option>
-                <option value="together-first">Together photos first</option>
+                <option value="score">{tPath("sortScore")}</option>
+                <option value="together-first">{tPath("sortTogether")}</option>
               </select>
             </label>
           </div>
@@ -270,15 +290,11 @@ export function ResultsGrid({
 
         {result.matched.length === 0 ? (
           <p className="results__no-matches">
-            {guestMode
-              ? "We couldn't find you in the album yet. Try a clearer, well-lit selfie facing the camera."
-              : "We couldn't find matching photos. Try adjusting sensitivity in the sidebar, or add clearer gallery images."}
+            {guestMode ? tPath("noMatchesGuest") : tPath("noMatchesDemo")}
           </p>
         ) : visibleMatches.length === 0 ? (
           <p className="results__no-matches">
-            {guestMode
-              ? "No photos match this filter. Try another tab above."
-              : "No photos match this filter. Try another tab or lower the sensitivity."}
+            {guestMode ? tPath("noFilterGuest") : tPath("noFilterDemo")}
           </p>
         ) : (
           <div className="results__grid">
@@ -291,11 +307,11 @@ export function ResultsGrid({
                 <div className="result-card__image-wrap">
                   <img
                     src={`data:image/jpeg;base64,${item.preview_base64}`}
-                    alt={item.filename ?? item.url ?? "Matched photo"}
+                    alt={item.filename ?? item.url ?? tPath("matchedPhotoAlt")}
                     className="result-card__image"
                   />
                   <span className="result-card__badge result-card__badge--score">
-                    {(item.score * 100).toFixed(0)}% match
+                    {tPath("matchBadge", { percent: (item.score * 100).toFixed(0) })}
                   </span>
                   {item.matched_person != null && (
                     <span
@@ -309,12 +325,12 @@ export function ResultsGrid({
                 </div>
                 <div className="result-card__meta">
                   <p className="result-card__title">
-                    {item.filename ?? item.url ?? "Wedding photo"}
+                    {item.filename ?? item.url ?? tPath("weddingPhoto")}
                   </p>
                   {formatPersonScores(item) && (
                     <p className="result-card__scores">{formatPersonScores(item)}</p>
                   )}
-                  <p className="result-card__hint">Tap to view full size</p>
+                  <p className="result-card__hint">{tPath("tapToView")}</p>
                 </div>
               </article>
             ))}
@@ -329,7 +345,9 @@ export function ResultsGrid({
           >
             <summary className="results__skipped-summary">
               <span>
-                {result.skipped.length} photo{result.skipped.length === 1 ? "" : "s"} skipped
+                {tPath(result.skipped.length === 1 ? "skipped_one" : "skipped_other", {
+                  count: result.skipped.length,
+                })}
               </span>
               <span className="results__skipped-breakdown">{summarizeSkipped(result.skipped)}</span>
             </summary>

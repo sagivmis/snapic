@@ -24,6 +24,7 @@ import { GuestQrCode } from "../components/GuestQrCode";
 import { useAuth } from "../auth/AuthProvider";
 import type { EventAlbumStatus, EventPublic, EventStats, GalleryPhoto, IndexScope } from "../types";
 import type { IndexStreamEvent } from "../api/client";
+import { useTranslation } from "../i18n";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import { canManageEvent } from "../utils/eventAccess";
 import "../styles/EventManage.scss";
@@ -35,6 +36,11 @@ const DEFAULT_SECTIONS = ["general", "ceremony", "reception", "portraits", "part
 const PREVIEW_URL_BATCH = 48;
 
 export function EventManagePage() {
+  const { t, tPath } = useTranslation("events.manage");
+  const { tPath: tCommon } = useTranslation("events.common");
+  const { tPath: tStats } = useTranslation("events.common.stats");
+  const { tPath: tSections } = useTranslation("events.common.sections");
+  const { tPath: tStatus } = useTranslation("events.common.status");
   const { slug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -131,7 +137,7 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const ev = await fetchEventBySlug(slug, token);
       setEvent(ev);
@@ -185,7 +191,7 @@ export function EventManagePage() {
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load event");
+      setError(err instanceof Error ? err.message : tPath("loadFailed"));
     } finally {
       if (previewLoadGeneration.current === generation) {
         setBootstrapping(false);
@@ -252,7 +258,7 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const updated = await updateEvent(
         event.id,
@@ -270,9 +276,9 @@ export function EventManagePage() {
         token,
       );
       setEvent(updated);
-      setSuccess("Settings saved.");
+      setSuccess(tPath("settingsSaved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -282,19 +288,19 @@ export function EventManagePage() {
     if (!event) {
       return;
     }
-    if (!window.confirm("Remove this photo from the album?")) {
+    if (!window.confirm(tPath("removePhotoConfirm"))) {
       return;
     }
     setBusy(true);
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await deleteEventGalleryPhoto(event.id, photoId, token);
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -310,18 +316,22 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const result = await bulkDeleteEventGalleryPhotos(event.id, photoIds, token);
       const removed = new Set(photoIds);
       setPhotos((prev) => prev.filter((photo) => !removed.has(photo.id)));
-      const parts = [`Removed ${result.deleted} photo${result.deleted === 1 ? "" : "s"}.`];
+      const parts = [
+        tPath(result.deleted === 1 ? "removedPhotos_one" : "removedPhotos_other", {
+          count: result.deleted,
+        }),
+      ];
       if (result.not_found > 0) {
-        parts.push(`${result.not_found} were already gone.`);
+        parts.push(tPath("alreadyGone", { count: result.not_found }));
       }
       setSuccess(parts.join(" "));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk delete failed");
+      setError(err instanceof Error ? err.message : tPath("bulkDeleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -335,7 +345,7 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const updated = await updateGalleryPhotoSection(event.id, photoId, section, token);
       setPhotos((prev) => prev.map((photo) => (photo.id === photoId ? updated : photo)));
@@ -343,7 +353,7 @@ export function EventManagePage() {
         setSections((prev) => [...prev, section].sort());
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update section");
+      setError(err instanceof Error ? err.message : tPath("sectionUpdateFailed"));
     } finally {
       setBusy(false);
     }
@@ -360,13 +370,13 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await inviteEventMember(event.id, inviteEmail.trim(), token);
       setInviteEmail("");
-      setSuccess("Invite sent — they will receive an email to join as admin.");
+      setSuccess(tPath("inviteSent"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invite failed");
+      setError(err instanceof Error ? err.message : tPath("inviteFailed"));
     } finally {
       setBusy(false);
     }
@@ -386,7 +396,7 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const result = await reindexEventGallery(
         event.id,
@@ -401,7 +411,7 @@ export function EventManagePage() {
       setEvent(refreshedEvent);
       if (scope === "failed" && result.processed === 0) {
         if (!options?.auto) {
-          setSuccess("No failed photos to retry.");
+          setSuccess(tPath("noFailedRetry"));
         }
         return;
       }
@@ -409,12 +419,14 @@ export function EventManagePage() {
         setSuccess(formatIndexResult(result));
       } else if (result.indexed > 0 || result.processed > 0) {
         setSuccess(
-          `Indexed ${result.indexed} new photo${result.indexed === 1 ? "" : "s"} automatically after upload.`,
+          tPath(result.indexed === 1 ? "autoIndexed_one" : "autoIndexed_other", {
+            count: result.indexed,
+          }),
         );
       }
     } catch (err) {
       if (!options?.auto) {
-        setError(err instanceof Error ? err.message : "Indexing failed");
+        setError(err instanceof Error ? err.message : tPath("indexFailed"));
       }
     } finally {
       setIndexing(false);
@@ -467,11 +479,11 @@ export function EventManagePage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await downloadEventGalleryZip(event.id, token, `${event.slug}-album.zip`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      setError(err instanceof Error ? err.message : tPath("downloadFailed"));
     } finally {
       setBusy(false);
     }
@@ -479,7 +491,7 @@ export function EventManagePage() {
 
   function copyGuestLink() {
     void navigator.clipboard.writeText(guestUrl);
-    setSuccess("Guest link copied.");
+    setSuccess(tCommon("guestLinkCopied"));
   }
 
   if (bootstrapping) {
@@ -489,8 +501,8 @@ export function EventManagePage() {
   if (!event) {
     return (
       <div className="event-manage">
-        <p className="error-banner">{error ?? "Event not found"}</p>
-        <Link to="/">Back home</Link>
+        <p className="error-banner">{error ?? tPath("eventNotFound")}</p>
+        <Link to="/">{t("backHome")}</Link>
       </div>
     );
   }
@@ -498,12 +510,12 @@ export function EventManagePage() {
   if (!isAdmin) {
     return (
       <div className="event-manage">
-        <h1>Manage event</h1>
-        <p>You do not have permission to manage this event.</p>
+        <h1>{tPath("title")}</h1>
+        <p>{tPath("noPermission")}</p>
         {event.organization_id ? (
-          <Link to={`/studio/clients/${event.id}`}>Back to studio client</Link>
+          <Link to={`/studio/clients/${event.id}`}>{tPath("backToStudioClient")}</Link>
         ) : (
-          <Link to={`/e/${slug}`}>View guest page</Link>
+          <Link to={`/e/${slug}`}>{tPath("viewGuestPage")}</Link>
         )}
       </div>
     );
@@ -519,52 +531,52 @@ export function EventManagePage() {
       {fromSetup && needsSetup && (
         <div className="event-manage__setup-return">
           <Link to={`/e/${slug}/setup`} className="btn btn-primary">
-            ← Back to setup checklist
+            {tPath("setupReturnBtn")}
           </Link>
-          <p>Return here after uploading — your checklist will update automatically.</p>
+          <p>{tPath("setupReturnHint")}</p>
         </div>
       )}
       {needsSetup && !fromSetup && !fromStudio && (
         <div className="event-manage__setup-banner">
           <div>
-            <strong>Finish setting up your gallery</strong>
-            <p>Complete branding and review your launch checklist.</p>
+            <strong>{tPath("setupBannerTitle")}</strong>
+            <p>{tPath("setupBannerLead")}</p>
           </div>
           <Link to={`/e/${slug}/setup`} className="btn btn-secondary">
-            Continue setup
+            {tPath("continueSetup")}
           </Link>
         </div>
       )}
       <header className="event-manage__header">
         <div>
-          <p className="event-manage__eyebrow">Event admin</p>
+          <p className="event-manage__eyebrow">{tPath("eyebrow")}</p>
           <h1>{event.title}</h1>
         </div>
         <div className="event-manage__header-actions">
           <Link className="btn btn-secondary" to={`/e/${slug}`}>
-            Guest view
+            {tPath("guestView")}
           </Link>
           {isSuperAdmin && (
             <Link className="btn btn-ghost" to="/admin">
-              Admin dashboard
+              {tPath("adminDashboard")}
             </Link>
           )}
         </div>
       </header>
 
       {stats && (
-        <section className="event-manage__stats" aria-label="Event analytics">
+        <section className="event-manage__stats" aria-label={tPath("analyticsAria")}>
           <div className="event-manage__stat">
             <span className="event-manage__stat-value">{stats.match_run_count}</span>
-            <span className="event-manage__stat-label">Searches</span>
+            <span className="event-manage__stat-label">{tStats("searches")}</span>
           </div>
           <div className="event-manage__stat">
             <span className="event-manage__stat-value">{stats.unique_guest_sessions}</span>
-            <span className="event-manage__stat-label">Unique guests</span>
+            <span className="event-manage__stat-label">{tStats("uniqueGuests")}</span>
           </div>
           <div className="event-manage__stat">
             <span className="event-manage__stat-value">{stats.gallery_photo_count}</span>
-            <span className="event-manage__stat-label">Album photos</span>
+            <span className="event-manage__stat-label">{tStats("albumPhotos")}</span>
           </div>
           <div className="event-manage__stat">
             <span className="event-manage__stat-value">
@@ -575,20 +587,20 @@ export function EventManagePage() {
                     hour: "numeric",
                     minute: "2-digit",
                   })
-                : "—"}
+                : t("emDash")}
             </span>
-            <span className="event-manage__stat-label">Last search</span>
+            <span className="event-manage__stat-label">{tStats("lastSearch")}</span>
           </div>
         </section>
       )}
 
-      <nav className="event-manage__tabs" aria-label="Event management">
+      <nav className="event-manage__tabs" aria-label={tPath("tabsAria")}>
         <button
           type="button"
           className={`event-manage__tab${activeTab === "album" ? " event-manage__tab--active" : ""}`}
           onClick={() => setActiveTab("album")}
         >
-          Album
+          {tPath("tabAlbum")}
           <span className="event-manage__tab-count">{photos.length}</span>
         </button>
         <button
@@ -596,21 +608,27 @@ export function EventManagePage() {
           className={`event-manage__tab${activeTab === "settings" ? " event-manage__tab--active" : ""}`}
           onClick={() => setActiveTab("settings")}
         >
-          Settings
+          {tPath("tabSettings")}
         </button>
       </nav>
 
       {activeTab === "album" && (
         <section className="event-manage__section">
           <div className="event-manage__section-header">
-            <h2>Wedding album</h2>
+            <h2>{tPath("albumTitle")}</h2>
             <div className="event-manage__section-actions">
               <p className="event-manage__hint">
                 {galleryLoading
-                  ? "Loading album…"
+                  ? tPath("loadingAlbum")
                   : previewsLoading
-                    ? `Loading previews… ${photos.filter((photo) => photo.signed_url).length} of ${photos.length}`
-                    : `${photos.length} photos in the album`}
+                    ? tPath("loadingPreviews", {
+                        loaded: photos.filter((photo) => photo.signed_url).length,
+                        total: photos.length,
+                      })
+                    : tPath(
+                        photos.length === 1 ? "photoCountInAlbum_one" : "photoCountInAlbum_other",
+                        { count: photos.length },
+                      )}
               </p>
               <button
                 type="button"
@@ -618,7 +636,9 @@ export function EventManagePage() {
                 disabled={busy || filteredPhotos.length === 0}
                 onClick={() => albumGridRef.current?.selectAll()}
               >
-                Select all{filteredPhotos.length > 0 ? ` (${filteredPhotos.length})` : ""}
+                {filteredPhotos.length > 0
+                  ? tPath("selectAllCount", { count: filteredPhotos.length })
+                  : tPath("selectAll")}
               </button>
               <button
                 type="button"
@@ -626,7 +646,7 @@ export function EventManagePage() {
                 disabled={busy || indexing || photos.length === 0}
                 onClick={() => void handleReindexFaces()}
               >
-                {indexing ? "Indexing…" : "Index faces"}
+                {indexing ? t("indexing") : tPath("indexFaces")}
               </button>
               <button
                 type="button"
@@ -634,7 +654,7 @@ export function EventManagePage() {
                 disabled={busy || photos.length === 0}
                 onClick={() => void handleDownloadZip()}
               >
-                Download ZIP
+                {tPath("downloadZip")}
               </button>
             </div>
           </div>
@@ -648,7 +668,7 @@ export function EventManagePage() {
             onRetryFailed={() => void handleReindexFaces({ scope: "failed" })}
           />
 
-          <nav className="event-manage__sections" aria-label="Album sections">
+          <nav className="event-manage__sections" aria-label={tPath("sectionsAria")}>
             {sectionTabs.map((section) => (
               <button
                 key={section}
@@ -656,7 +676,7 @@ export function EventManagePage() {
                 className={`event-manage__section-tab${albumSection === section ? " event-manage__section-tab--active" : ""}`}
                 onClick={() => setAlbumSection(section)}
               >
-                {section === "all" ? "All photos" : section}
+                {section === "all" ? tSections("all") : tSections(section)}
               </button>
             ))}
           </nav>
@@ -673,9 +693,7 @@ export function EventManagePage() {
             onQueueIdle={handleUploadQueueIdle}
           />
           {!allowAlbumUpload && (
-            <p className="event-manage__hint">
-              Your photographer manages album uploads. You can remove individual photos if needed.
-            </p>
+            <p className="event-manage__hint">{tPath("photographerUploadHint")}</p>
           )}
 
           {galleryLoading ? (
@@ -702,26 +720,26 @@ export function EventManagePage() {
       {activeTab === "settings" && (
         <>
           <section className="event-manage__section">
-            <h2>Guest link & QR</h2>
+            <h2>{tPath("guestLinkTitle")}</h2>
             <div className="event-manage__link-row">
               <code>{guestUrl}</code>
               <button type="button" className="btn btn-ghost" onClick={copyGuestLink}>
-                Copy
+                {t("copy")}
               </button>
             </div>
-            <p className="event-manage__hint">Share this link or QR code with wedding guests at the venue.</p>
+            <p className="event-manage__hint">{tPath("guestLinkHint")}</p>
             <GuestQrCode url={guestUrl} eventTitle={event.title} coupleNames={coupleNames || undefined} />
           </section>
 
           <form className="event-manage__section" onSubmit={handleSaveSettings}>
-            <h2>Branding & settings</h2>
-            <label htmlFor="title">Event title</label>
+            <h2>{tPath("brandingTitle")}</h2>
+            <label htmlFor="title">{tPath("eventTitleLabel")}</label>
             <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
 
-            <label htmlFor="couple">Couple names</label>
+            <label htmlFor="couple">{tPath("coupleNamesLabel")}</label>
             <input id="couple" value={coupleNames} onChange={(e) => setCoupleNames(e.target.value)} />
 
-            <label htmlFor="date">Wedding date</label>
+            <label htmlFor="date">{tPath("weddingDateLabel")}</label>
             <input
               id="date"
               type="date"
@@ -729,18 +747,18 @@ export function EventManagePage() {
               onChange={(e) => setWeddingDate(e.target.value)}
             />
 
-            <label htmlFor="status">Status</label>
+            <label htmlFor="status">{tPath("statusLabel")}</label>
             <select
               id="status"
               value={status}
               onChange={(e) => setStatus(e.target.value as EventPublic["status"])}
             >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
+              <option value="draft">{tStatus("draft")}</option>
+              <option value="active">{tStatus("active")}</option>
+              <option value="closed">{tStatus("closed")}</option>
             </select>
 
-            <label htmlFor="accent">Accent color</label>
+            <label htmlFor="accent">{tPath("accentLabel")}</label>
             <input
               id="accent"
               type="color"
@@ -748,7 +766,7 @@ export function EventManagePage() {
               onChange={(e) => setAccentColor(e.target.value)}
             />
 
-            <label htmlFor="threshold">Match threshold ({threshold.toFixed(2)})</label>
+            <label htmlFor="threshold">{tPath("thresholdLabel", { value: threshold.toFixed(2) })}</label>
             <input
               id="threshold"
               type="range"
@@ -759,7 +777,7 @@ export function EventManagePage() {
               onChange={(e) => setThreshold(Number(e.target.value))}
             />
 
-            <label htmlFor="close-days">Auto-close after wedding (days)</label>
+            <label htmlFor="close-days">{tPath("autoCloseLabel")}</label>
             <input
               id="close-days"
               type="number"
@@ -770,25 +788,23 @@ export function EventManagePage() {
             />
 
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              Save settings
+              {tPath("saveSettings")}
             </button>
           </form>
 
           <form className="event-manage__section" onSubmit={handleInvite}>
-            <h2>Invite co-admin</h2>
-            <p className="event-manage__hint">
-              We will email them a sign-in link. After they join, they can manage this event.
-            </p>
-            <label htmlFor="invite">Partner email</label>
+            <h2>{tPath("inviteCoAdminTitle")}</h2>
+            <p className="event-manage__hint">{tPath("inviteCoAdminHint")}</p>
+            <label htmlFor="invite">{tPath("partnerEmailLabel")}</label>
             <input
               id="invite"
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="partner@example.com"
+              placeholder={tPath("partnerEmailPlaceholder")}
             />
             <button type="submit" className="btn btn-secondary" disabled={busy || !inviteEmail.trim()}>
-              Send invite
+              {tPath("sendInvite")}
             </button>
           </form>
         </>

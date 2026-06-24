@@ -7,6 +7,7 @@ import {
 import { useAuth } from "../../auth/AuthProvider";
 import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import { setStoredStudioOrgId } from "../../lib/studioOrg";
+import { useTranslation } from "../../i18n";
 import "../../styles/AuthPages.scss";
 import "../../styles/StudioLayout.scss";
 
@@ -14,8 +15,20 @@ export function StudioSelectPage() {
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
   const { organizations, pendingInvites, refreshMembership, setActiveOrgId } = useStudioOrg();
+  const { t, tPath } = useTranslation("studio.select");
+  const { tPath: tRole } = useTranslation("studio.roles");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function formatRole(role: string): string {
+    if (role === "owner") {
+      return tRole("owner");
+    }
+    if (role === "associate") {
+      return tRole("associate");
+    }
+    return role;
+  }
 
   async function enterStudio(orgId: string) {
     setStoredStudioOrgId(orgId);
@@ -29,13 +42,13 @@ export function StudioSelectPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await acceptStudioInvite(inviteId, token);
       await refreshMembership();
       await enterStudio(orgId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not accept invite");
+      setError(err instanceof Error ? err.message : tPath("acceptFailed"));
     } finally {
       setBusyId(null);
     }
@@ -47,12 +60,12 @@ export function StudioSelectPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await declineStudioInvite(inviteId, token);
       await refreshMembership();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not decline invite");
+      setError(err instanceof Error ? err.message : tPath("declineFailed"));
     } finally {
       setBusyId(null);
     }
@@ -60,23 +73,23 @@ export function StudioSelectPage() {
 
   return (
     <div className="auth-page studio-select">
-      <p className="auth-page__eyebrow">Snapic Studio</p>
-      <h1>Choose a studio</h1>
-      <p className="auth-page__lead">
-        Pick which studio to manage, or respond to pending invitations below.
-      </p>
+      <p className="auth-page__eyebrow">{tPath("eyebrow")}</p>
+      <h1>{tPath("title")}</h1>
+      <p className="auth-page__lead">{tPath("lead")}</p>
 
       {pendingInvites.length > 0 && (
         <section className="studio-select__section">
-          <h2>Pending invitations</h2>
+          <h2>{tPath("pendingInvites")}</h2>
           <ul className="studio-select__list">
             {pendingInvites.map((invite) => (
               <li key={invite.id} className="studio-select__item">
                 <div>
-                  <strong>{invite.org_name ?? "Studio invite"}</strong>
+                  <strong>{invite.org_name ?? tPath("studioInviteFallback")}</strong>
                   <p>
-                    Join as {invite.role === "owner" ? "owner" : "associate"}
-                    {invite.invited_by_email ? ` · invited by ${invite.invited_by_email}` : ""}
+                    {tPath("joinAs", { role: formatRole(invite.role) })}
+                    {invite.invited_by_email
+                      ? ` · ${tPath("invitedBy", { email: invite.invited_by_email })}`
+                      : ""}
                   </p>
                 </div>
                 <div className="studio-select__actions">
@@ -86,7 +99,7 @@ export function StudioSelectPage() {
                     disabled={busyId === invite.id}
                     onClick={() => void handleDecline(invite.id)}
                   >
-                    Decline
+                    {t("decline")}
                   </button>
                   <button
                     type="button"
@@ -94,7 +107,7 @@ export function StudioSelectPage() {
                     disabled={busyId === invite.id}
                     onClick={() => void handleAccept(invite.id, invite.org_id)}
                   >
-                    Accept
+                    {t("accept")}
                   </button>
                 </div>
               </li>
@@ -105,18 +118,18 @@ export function StudioSelectPage() {
 
       {organizations.length > 0 && (
         <section className="studio-select__section">
-          <h2>Your studios</h2>
+          <h2>{tPath("yourStudios")}</h2>
           <ul className="studio-select__list">
             {organizations.map((org) => (
               <li key={org.id} className="studio-select__item">
                 <div>
                   <strong>{org.name}</strong>
                   <p>
-                    {org.member_role === "owner" ? "Owner" : "Associate"} · {org.slug}
+                    {formatRole(org.member_role ?? "associate")} · {org.slug}
                   </p>
                 </div>
                 <button type="button" className="btn btn-primary" onClick={() => void enterStudio(org.id)}>
-                  Open
+                  {tPath("open")}
                 </button>
               </li>
             ))}
@@ -125,13 +138,13 @@ export function StudioSelectPage() {
       )}
 
       {organizations.length === 0 && pendingInvites.length === 0 && (
-        <p>No studios yet.</p>
+        <p>{tPath("noStudios")}</p>
       )}
 
       {error && <p className="error-banner">{error}</p>}
 
       <Link className="auth-page__back" to="/studio/signup">
-        Create your own studio
+        {tPath("createOwn")}
       </Link>
     </div>
   );

@@ -1,4 +1,5 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { createTranslator } from "../i18n";
 
 export interface AdminLiveFeedItem {
   id: string;
@@ -7,6 +8,8 @@ export interface AdminLiveFeedItem {
 }
 
 type Row = Record<string, unknown>;
+
+const { tPath } = createTranslator("admin.liveFeed.messages");
 
 function rowId(row: Row | undefined): string | null {
   if (!row || typeof row.id !== "string") {
@@ -28,19 +31,31 @@ function formatAuditMessage(action: string, metadata: Row): string {
 
   switch (action) {
     case "signup.approve":
-      return couple ? `Signup approved — ${couple}` : "Signup request approved";
+      return couple ? tPath("signupApproved", { couple }) : tPath("signupApprovedGeneric");
     case "signup.reject":
-      return couple ? `Signup rejected — ${couple}` : "Signup request rejected";
+      return couple ? tPath("signupRejected", { couple }) : tPath("signupRejectedGeneric");
     case "event.create":
-      return title ? `Event created — ${title}` : slug ? `Event created — /e/${slug}` : "Event created";
+      return title
+        ? tPath("eventCreated", { title })
+        : slug
+          ? tPath("eventCreatedSlug", { slug })
+          : tPath("eventCreatedGeneric");
     case "event.update":
-      return title ? `Event updated — ${title}` : slug ? `Event updated — /e/${slug}` : "Event updated";
+      return title
+        ? tPath("eventUpdated", { title })
+        : slug
+          ? tPath("eventUpdatedSlug", { slug })
+          : tPath("eventUpdatedGeneric");
     case "event.delete":
-      return title ? `Event deleted — ${title}` : slug ? `Event deleted — /e/${slug}` : "Event deleted";
+      return title
+        ? tPath("eventDeleted", { title })
+        : slug
+          ? tPath("eventDeletedSlug", { slug })
+          : tPath("eventDeletedGeneric");
     case "event.invite":
-      return email ? `Invite sent — ${email}` : "Event invite sent";
+      return email ? tPath("inviteSent", { email }) : tPath("inviteSentGeneric");
     case "sentry_test":
-      return "Sentry test event sent";
+      return tPath("sentryTest");
     default:
       return action.replace(/\./g, " · ").replace(/_/g, " ");
   }
@@ -61,7 +76,10 @@ export function feedItemFromSignupChange(
   const email = typeof row?.email === "string" ? row.email : "";
   return {
     id: `signup-insert-${id}`,
-    message: `New signup request — ${couple}${email ? ` (${email})` : ""}`,
+    message: tPath("newSignup", {
+      couple,
+      emailPart: email ? tPath("newSignupEmailPart", { email }) : "",
+    }),
     createdAt: String(row?.created_at ?? new Date().toISOString()),
   };
 }
@@ -102,7 +120,7 @@ export function feedItemFromEventChange(
   const slug = typeof row?.slug === "string" ? row.slug : null;
   return {
     id: `event-insert-${id}`,
-    message: slug ? `New event — ${title} (/e/${slug})` : `New event — ${title}`,
+    message: slug ? tPath("newEvent", { title, slug }) : tPath("newEventNoSlug", { title }),
     createdAt: String(row.created_at ?? new Date().toISOString()),
   };
 }
@@ -119,10 +137,19 @@ export function feedItemFromMatchRunChange(
     return null;
   }
   const matched = typeof row.matched_count === "number" ? row.matched_count : null;
-  const detail = matched !== null ? ` — ${matched} match${matched === 1 ? "" : "es"}` : "";
+  if (matched === null) {
+    return {
+      id: `match-${id}`,
+      message: tPath("guestSearchCompleted"),
+      createdAt: String(row.created_at ?? new Date().toISOString()),
+    };
+  }
   return {
     id: `match-${id}`,
-    message: `Guest search completed${detail}`,
+    message:
+      matched === 1
+        ? tPath("guestSearchCompletedMatches", { count: matched })
+        : tPath("guestSearchCompletedMatchesPlural", { count: matched }),
     createdAt: String(row.created_at ?? new Date().toISOString()),
   };
 }

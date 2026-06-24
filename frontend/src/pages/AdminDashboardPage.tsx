@@ -33,10 +33,16 @@ import { isSupabaseConfigured } from "../lib/supabase";
 import type { AdminLiveFeedItem } from "../monitoring/adminLiveFeed";
 import type { AdminAttention, AdminEventSummary, AuditLogEntry, SignupRequest } from "../types";
 import type { IndexStreamEvent } from "../api/client";
+import { useTranslation } from "../i18n";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import "../styles/AdminDashboard.scss";
 
 export function AdminDashboardPage() {
+  const { t, tPath } = useTranslation("admin");
+  const { tPath: tEvents } = useTranslation("admin.events");
+  const { tPath: tCreate } = useTranslation("admin.createEvent");
+  const { tPath: tSignup } = useTranslation("admin.signupRequests");
+  const { tPath: tErrors } = useTranslation("errors.api");
   const { getAccessToken, isSuperAdmin, session } = useAuth();
   const [stats, setStats] = useState({
     events_count: 0,
@@ -94,7 +100,7 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
 
       let failures = 0;
@@ -147,9 +153,7 @@ export function AdminDashboardPage() {
 
       if (failures > 0) {
         setError(
-          failures === 4
-            ? "Could not load dashboard"
-            : "Some dashboard sections failed to load. Try refreshing the page.",
+          failures === 4 ? tPath("loadFailed") : tPath("loadPartialFailed"),
         );
       }
     } catch (err) {
@@ -158,7 +162,7 @@ export function AdminDashboardPage() {
       setEventsLoading(false);
       setRequestsLoading(false);
       setAuditLoading(false);
-      setError(err instanceof Error ? err.message : "Could not load dashboard");
+      setError(err instanceof Error ? err.message : tPath("loadFailed"));
     }
   }, [getAccessToken]);
 
@@ -200,7 +204,7 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await createAdminEvent(
         {
@@ -219,7 +223,7 @@ export function AdminDashboardPage() {
       setWeddingDate("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(err instanceof Error ? err.message : tCreate("createFailed"));
     } finally {
       setBusy(false);
     }
@@ -235,7 +239,7 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const updated = await updateAdminEvent(eventId, { status }, token);
       setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
@@ -243,7 +247,7 @@ export function AdminDashboardPage() {
       setAttention(attentionRow);
     } catch (err) {
       setEvents(previous);
-      setError(err instanceof Error ? err.message : "Could not update status");
+      setError(err instanceof Error ? err.message : tEvents("statusUpdateFailed"));
     } finally {
       setBusy(false);
     }
@@ -259,7 +263,7 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const extra =
         action === "approve"
@@ -271,25 +275,21 @@ export function AdminDashboardPage() {
           : undefined;
       const reviewed = await reviewSignupRequest(requestId, action, token, extra);
       if (action === "approve" && reviewed.welcome_email_sent === false) {
-        setSuccess(
-          "Request approved. Supabase invite sent, but the Snapic welcome email could not be sent — check RESEND_API_KEY and SNAPIC_FROM_EMAIL on Render.",
-        );
+        setSuccess(tSignup("approveSuccessEmailFailed"));
       } else if (action === "approve") {
-        setSuccess("Request approved and welcome email sent.");
+        setSuccess(tSignup("approveSuccessEmail"));
       } else if (action === "reject") {
         setSignupTab("rejected");
         if (reviewed.rejection_email_sent === true) {
-          setSuccess("Request rejected and notification email sent.");
+          setSuccess(tSignup("rejectSuccessEmail"));
         } else {
-          setSuccess(
-            "Request rejected. The rejection email could not be sent — set RESEND_API_KEY on Render and use a verified SNAPIC_FROM_EMAIL (Resend sandbox only delivers to your account email).",
-          );
+          setSuccess(tSignup("rejectSuccessEmailFailed"));
         }
       }
       await load({ clearSuccess: false });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Review failed");
+      setError(err instanceof Error ? err.message : tSignup("reviewFailed"));
     } finally {
       setBusy(false);
     }
@@ -304,7 +304,7 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const result = await reindexEventGallery(eventId, token, (progress) => {
         setIndexProgress(progress);
@@ -321,7 +321,7 @@ export function AdminDashboardPage() {
         `${formatIndexResult(result)}${event ? ` for ${event.title}` : ""}.`,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Indexing failed");
+      setError(err instanceof Error ? err.message : tEvents("indexingFailed"));
     } finally {
       setIndexingEventId(null);
       setIndexProgress(null);
@@ -331,7 +331,7 @@ export function AdminDashboardPage() {
   const checkCreateEventSlug = useCallback(async (slugValue: string) => {
     const token = await getAccessToken();
     if (!token) {
-      throw new Error("Not signed in");
+      throw new Error(t("notSignedIn"));
     }
     return checkAdminSlug(slugValue, token);
   }, [getAccessToken]);
@@ -343,12 +343,12 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await inviteAdminEventMember(eventId, email, token, "admin");
-      setSuccess(`Invite sent to ${email}`);
+      setSuccess(tEvents("inviteSent", { email }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not invite admin");
+      setError(err instanceof Error ? err.message : tErrors("inviteAdmin"));
       throw err;
     } finally {
       setBusy(false);
@@ -359,7 +359,9 @@ export function AdminDashboardPage() {
     const event = events.find((row) => row.id === eventId);
     if (
       !window.confirm(
-        `Delete "${event?.title ?? "this event"}" permanently? Photos, searches, and storage will be removed.`,
+        tEvents("deleteConfirm", {
+          title: event?.title ?? tEvents("deleteFallbackTitle"),
+        }),
       )
     ) {
       return;
@@ -370,13 +372,13 @@ export function AdminDashboardPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await deleteAdminEvent(eventId, token);
       await load({ clearSuccess: false });
-      setSuccess(`Deleted ${event?.title ?? "event"}.`);
+      setSuccess(tEvents("deleted", { title: event?.title ?? "event" }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete event");
+      setError(err instanceof Error ? err.message : tEvents("deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -398,11 +400,11 @@ export function AdminDashboardPage() {
     <div className="admin">
       <header className="admin__header">
         <div>
-          <p className="admin__eyebrow">Super admin</p>
-          <h1>Dashboard</h1>
+          <p className="admin__eyebrow">{tPath("eyebrow")}</p>
+          <h1>{tPath("title")}</h1>
         </div>
         <Link to="/" className="btn btn-ghost">
-          Home
+          {tPath("home")}
         </Link>
       </header>
 
@@ -416,30 +418,30 @@ export function AdminDashboardPage() {
       {statsLoading ? (
         <AdminStatsSkeleton />
       ) : (
-        <section className="admin__stats" aria-label="Dashboard stats">
+        <section className="admin__stats" aria-label={tPath("statsAria")}>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.events_count}</span>
-            <span>Events</span>
+            <span>{tPath("stats.events")}</span>
           </div>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.pending_requests}</span>
-            <span>Pending requests</span>
+            <span>{tPath("stats.pendingRequests")}</span>
           </div>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.total_gallery_photos}</span>
-            <span>Gallery photos</span>
+            <span>{tPath("stats.galleryPhotos")}</span>
           </div>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.total_match_runs}</span>
-            <span>Match runs</span>
+            <span>{tPath("stats.matchRuns")}</span>
           </div>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.organizations_count ?? 0}</span>
-            <span>Studios</span>
+            <span>{tPath("stats.studios")}</span>
           </div>
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.photographer_signups_pending ?? 0}</span>
-            <span>Photographer signups</span>
+            <span>{tPath("stats.photographerSignups")}</span>
           </div>
         </section>
       )}
@@ -462,7 +464,7 @@ export function AdminDashboardPage() {
           aria-controls="admin-create-event-panel"
           onClick={() => setCreateEventOpen((open) => !open)}
         >
-          <h2>Create event</h2>
+          <h2>{tCreate("title")}</h2>
         </button>
         <div
           id="admin-create-event-panel"
@@ -472,7 +474,7 @@ export function AdminDashboardPage() {
         >
           <div className="admin__collapsible-inner">
             <form className="admin__collapsible-body" onSubmit={handleCreateEvent}>
-              <label htmlFor="slug">Slug</label>
+              <label htmlFor="slug">{tCreate("slugLabel")}</label>
               <SlugAvailabilityInput
                 id="slug"
                 value={slug}
@@ -481,13 +483,13 @@ export function AdminDashboardPage() {
                 onStatusChange={setSlugStatus}
                 disabled={busy}
                 required
-                placeholder="smith-wedding-2026"
+                placeholder={tCreate("slugPlaceholder")}
               />
 
-              <label htmlFor="title">Title</label>
+              <label htmlFor="title">{tCreate("titleLabel")}</label>
               <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
 
-              <label htmlFor="admin-email">Admin email (optional)</label>
+              <label htmlFor="admin-email">{tCreate("adminEmailLabel")}</label>
               <input
                 id="admin-email"
                 type="email"
@@ -495,7 +497,7 @@ export function AdminDashboardPage() {
                 onChange={(e) => setAdminEmail(e.target.value)}
               />
 
-              <label htmlFor="wedding-date">Wedding date</label>
+              <label htmlFor="wedding-date">{tCreate("weddingDateLabel")}</label>
               <input
                 id="wedding-date"
                 type="date"
@@ -508,7 +510,7 @@ export function AdminDashboardPage() {
                 className="btn btn-primary"
                 disabled={busy || !slug.trim() || slugStatus !== "available"}
               >
-                Create event
+                {tCreate("createBtn")}
               </button>
             </form>
           </div>
@@ -529,7 +531,7 @@ export function AdminDashboardPage() {
       )}
 
       <section className="admin__section">
-        <h2>Events</h2>
+        <h2>{tEvents("title")}</h2>
         {eventsLoading ? (
           <AdminEventsTableSkeleton />
         ) : (

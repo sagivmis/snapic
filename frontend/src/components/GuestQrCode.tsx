@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { createTranslator } from "../i18n";
+import { useTranslation } from "../i18n";
 import "../styles/GuestQrCode.scss";
 
 interface GuestQrCodeProps {
@@ -9,20 +11,22 @@ interface GuestQrCodeProps {
   coupleNames?: string | null;
 }
 
-function displayTitle(coupleNames?: string | null, eventTitle?: string): string {
+function displayTitle(
+  coupleNames: string | null | undefined,
+  eventTitle: string | undefined,
+  fallback: string,
+): string {
   if (coupleNames?.trim()) {
     return coupleNames.trim();
   }
   if (eventTitle?.trim()) {
     return eventTitle.trim();
   }
-  return "Find your photos";
+  return fallback;
 }
 
-async function drawPrintableCard(
-  url: string,
-  heading: string,
-): Promise<string> {
+async function drawPrintableCard(url: string, heading: string): Promise<string> {
+  const { tPath } = createTranslator("components.guestQr");
   const width = 800;
   const height = 1040;
   const canvas = document.createElement("canvas");
@@ -30,7 +34,7 @@ async function drawPrintableCard(
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not create printable card");
+    throw new Error(tPath("cardFailed"));
   }
 
   ctx.fillStyle = "#fdfbf7";
@@ -47,7 +51,7 @@ async function drawPrintableCard(
 
   ctx.font = "22px 'DM Sans', system-ui, sans-serif";
   ctx.fillStyle = "#6b5e52";
-  ctx.fillText("Scan to find your wedding photos", width / 2, 190);
+  ctx.fillText(tPath("printHeading"), width / 2, 190);
 
   const qrCanvas = document.createElement("canvas");
   await QRCode.toCanvas(qrCanvas, url, {
@@ -60,9 +64,9 @@ async function drawPrintableCard(
   ctx.font = "20px 'DM Sans', system-ui, sans-serif";
   ctx.fillStyle = "#6b5e52";
   const steps = [
-    "1. Open your camera and scan the code",
-    "2. Upload a clear selfie of your face",
-    "3. View and download your photos",
+    tPath("printSteps.1"),
+    tPath("printSteps.2"),
+    tPath("printSteps.3"),
   ];
   steps.forEach((line, index) => {
     ctx.fillText(line, width / 2, 700 + index * 38);
@@ -77,14 +81,16 @@ async function drawPrintableCard(
 
 export function GuestQrCode({
   url,
-  label = "Guest link QR code",
+  label,
   eventTitle,
   coupleNames,
 }: GuestQrCodeProps) {
+  const { t, tPath } = useTranslation("components.guestQr");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const heading = displayTitle(coupleNames, eventTitle);
+  const qrLabel = label ?? tPath("label");
+  const heading = displayTitle(coupleNames, eventTitle, tPath("defaultTitle"));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -96,9 +102,9 @@ export function GuestQrCode({
       margin: 2,
       color: { dark: "#3d3832", light: "#ffffff" },
     }).catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : "Could not generate QR code");
+      setError(err instanceof Error ? err.message : tPath("generateFailed"));
     });
-  }, [url]);
+  }, [url, tPath]);
 
   async function downloadPng() {
     try {
@@ -108,7 +114,7 @@ export function GuestQrCode({
       anchor.download = "snapic-guest-qr.png";
       anchor.click();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      setError(err instanceof Error ? err.message : tPath("downloadFailed"));
     }
   }
 
@@ -122,7 +128,7 @@ export function GuestQrCode({
       anchor.download = "snapic-guest-card.png";
       anchor.click();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create printable card");
+      setError(err instanceof Error ? err.message : tPath("cardFailed"));
     } finally {
       setBusy(false);
     }
@@ -130,16 +136,16 @@ export function GuestQrCode({
 
   return (
     <div className="guest-qr">
-      <canvas ref={canvasRef} className="guest-qr__canvas" aria-label={label} role="img" />
+      <canvas ref={canvasRef} className="guest-qr__canvas" aria-label={qrLabel} role="img" />
       <div className="guest-qr__actions">
         <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void downloadPrintableCard()}>
-          {busy ? "Creating…" : "Download printable card"}
+          {busy ? t("creating") : tPath("downloadCard")}
         </button>
         <button type="button" className="btn btn-ghost guest-qr__download" onClick={() => void downloadPng()}>
-          QR only (PNG)
+          {tPath("qrOnly")}
         </button>
       </div>
-      <p className="guest-qr__hint">Print the card and place it at tables or the entrance so guests can scan easily.</p>
+      <p className="guest-qr__hint">{tPath("hint")}</p>
       {error && <p className="error-banner">{error}</p>}
     </div>
   );

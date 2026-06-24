@@ -3,7 +3,8 @@ export type SidebarSectionId = "studio" | "your-events";
 
 export interface SidebarSectionConfig {
   id: SidebarSectionId;
-  title: string;
+  /** Key relative to the `nav` translation namespace. */
+  titleKey: string;
   /** Expanded on first visit when no saved preference exists. */
   defaultExpanded: boolean;
   /** Allow the body to scroll independently (long lists). */
@@ -13,12 +14,12 @@ export interface SidebarSectionConfig {
 export const APP_SIDEBAR_SECTIONS = {
   studio: {
     id: "studio",
-    title: "Studio",
+    titleKey: "studio",
     defaultExpanded: true,
   },
   yourEvents: {
     id: "your-events",
-    title: "Your events",
+    titleKey: "yourEvents",
     defaultExpanded: false,
     scrollable: true,
   },

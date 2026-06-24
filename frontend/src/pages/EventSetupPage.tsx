@@ -12,17 +12,11 @@ import { AlbumStatusBanner } from "../components/AlbumStatusBanner";
 import { useAuth } from "../auth/AuthProvider";
 import type { EventPublic, EventSetupStatus } from "../types";
 import type { IndexStreamEvent } from "../api/client";
+import { useTranslation } from "../i18n";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import { getNextSetupAction, parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
 import { canManageEvent } from "../utils/eventAccess";
 import "../styles/EventSetup.scss";
-
-const STEP_LABELS: Record<SetupStep, string> = {
-  welcome: "Welcome",
-  branding: "Branding",
-  invite: "Partner",
-  ready: "Go live",
-};
 
 function buildBrandingPatch(
   event: EventPublic,
@@ -32,6 +26,8 @@ function buildBrandingPatch(
 }
 
 export function EventSetupPage() {
+  const { t, tPath } = useTranslation("events.setup");
+  const { tPath: tManage } = useTranslation("events.manage");
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const { session, getAccessToken, isSuperAdmin } = useAuth();
@@ -55,6 +51,12 @@ export function EventSetupPage() {
   const [accentColor, setAccentColor] = useState("#c9a962");
   const [inviteEmail, setInviteEmail] = useState("");
 
+  const stepLabels: Record<SetupStep, string> = {
+    welcome: tPath("steps.welcome"),
+    branding: tPath("steps.branding"),
+    invite: tPath("steps.invite"),
+    ready: tPath("steps.ready"),
+  };
   const stepIndex = SETUP_STEPS.indexOf(step);
   const manageHref = `/e/${slug}/manage?from=setup`;
   const uploadHref = `${manageHref}&tab=album`;
@@ -112,7 +114,7 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const ev = await fetchEventBySlug(slug, token);
       setEvent(ev);
@@ -135,13 +137,13 @@ export function EventSetupPage() {
       const hasMembership = await canManageEvent(ev, token, isSuperAdmin);
       setIsAdmin(hasMembership);
       if (!hasMembership) {
-        setError("You do not have permission to set up this event.");
+        setError(tPath("noPermission"));
         return;
       }
 
       setSetupStatus(await fetchEventSetupStatus(ev.id, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load event");
+      setError(err instanceof Error ? err.message : tPath("loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -202,7 +204,7 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const updated = await updateEvent(
         event.id,
@@ -221,7 +223,7 @@ export function EventSetupPage() {
       setStep("ready");
       await refreshSetupStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save branding");
+      setError(err instanceof Error ? err.message : tPath("brandingSaveFailed"));
     } finally {
       setBusy(false);
     }
@@ -237,13 +239,13 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await inviteEventMember(event.id, inviteEmail.trim(), token);
       setInviteEmail("");
       setInviteSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send invite");
+      setError(err instanceof Error ? err.message : tPath("inviteFailed"));
     } finally {
       setBusy(false);
     }
@@ -260,7 +262,7 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const result = await reindexEventGallery(event.id, token, (progress) => {
         setIndexProgress(progress);
@@ -270,24 +272,18 @@ export function EventSetupPage() {
       setSetupStatus(latest);
 
       if (latest.faces_indexed) {
-        setNotice(`${formatIndexResult(result)} Your album is ready to go live.`);
+        setNotice(tPath("indexReadyNotice", { result: formatIndexResult(result) }));
         return;
       }
 
       if (result.processed === 0 && result.indexed === 0) {
-        setError(
-          "No photos were indexed. Some images may be corrupted or missing faces — try re-uploading them.",
-        );
+        setError(tPath("indexNoPhotos"));
         return;
       }
 
-      setNotice(`${formatIndexResult(result)} ${latest.unindexed_count} still need attention.`);
+      setNotice(tPath("indexPartialNotice", { result: formatIndexResult(result), remaining: latest.unindexed_count }));
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Face indexing failed. Wait a moment and try again, or upload clearer photos.",
-      );
+      setError(err instanceof Error ? err.message : tPath("indexFailed"));
     } finally {
       setBusy(false);
       setIndexProgress(null);
@@ -303,13 +299,13 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       const updated = await updateEvent(event.id, { status: "active" }, token);
       setEvent(updated);
       await refreshSetupStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not activate event");
+      setError(err instanceof Error ? err.message : tPath("activateFailed"));
     } finally {
       setBusy(false);
     }
@@ -324,7 +320,7 @@ export function EventSetupPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await updateEvent(
         event.id,
@@ -336,7 +332,7 @@ export function EventSetupPage() {
       );
       navigate(`/e/${slug}/live`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not finish setup");
+      setError(err instanceof Error ? err.message : tPath("finishFailed"));
     } finally {
       setBusy(false);
     }
@@ -354,10 +350,10 @@ export function EventSetupPage() {
     return (
       <div className="event-setup">
         <div className="event-setup__card">
-          <h1>Event setup</h1>
-          <p>{error ?? "This event could not be loaded."}</p>
+          <h1>{tPath("title")}</h1>
+          <p>{error ?? tPath("loadFailed")}</p>
           <Link to="/" className="btn btn-secondary">
-            Back home
+            {t("backHome")}
           </Link>
         </div>
       </div>
@@ -374,10 +370,10 @@ export function EventSetupPage() {
       <div className="event-setup__shell">
         <header className="event-setup__header">
           <div className="event-setup__header-top">
-            <p className="event-setup__eyebrow">Snapic setup</p>
+            <p className="event-setup__eyebrow">{tPath("eyebrow")}</p>
             {isSuperAdmin && (
               <Link className="event-setup__admin-link" to="/admin">
-                Admin dashboard
+                {tManage("adminDashboard")}
               </Link>
             )}
           </div>
@@ -393,39 +389,39 @@ export function EventSetupPage() {
             ))}
           </div>
           <p className="event-setup__step-label">
-            Step {stepIndex + 1} of {SETUP_STEPS.length} · {STEP_LABELS[step]}
+            {tPath("stepLabel", {
+              current: stepIndex + 1,
+              total: SETUP_STEPS.length,
+              stepName: stepLabels[step],
+            })}
           </p>
         </header>
 
         <div className="event-setup__card">
           {step === "welcome" && (
             <section className="event-setup__section">
-              <h2>Welcome to your wedding gallery</h2>
+              <h2>{tPath("welcomeTitle")}</h2>
               <p className="event-setup__lead">
-                {event.photographer_led
-                  ? "Your photographer has prepared your gallery. Personalize branding and go live when you're ready."
-                  : "We'll walk you through branding your guest page, inviting your partner, and getting ready to share your album."}
+                {event.photographer_led ? tPath("welcomeLeadPhotographer") : tPath("welcomeLeadSelf")}
               </p>
               <ul className="event-setup__bullets">
-                <li>Personalize how guests see your event</li>
-                <li>Optionally invite your partner as co-admin</li>
-                {!event.photographer_led && <li>Upload photos and go live when you&apos;re ready</li>}
-                {event.photographer_led && <li>Review your gallery and go live when you&apos;re ready</li>}
+                <li>{tPath("bulletPersonalize")}</li>
+                <li>{tPath("bulletInvitePartner")}</li>
+                {!event.photographer_led && <li>{tPath("bulletUploadSelf")}</li>}
+                {event.photographer_led && <li>{tPath("bulletReviewPhotographer")}</li>}
               </ul>
               <button type="button" className="btn btn-primary" onClick={() => goToStep("branding")}>
-                Get started
+                {tPath("getStarted")}
               </button>
             </section>
           )}
 
           {step === "branding" && (
             <section className="event-setup__section">
-              <h2>Make it yours</h2>
-              <p className="event-setup__lead">
-                These details appear on your guest page and printable QR cards.
-              </p>
+              <h2>{tPath("brandingTitle")}</h2>
+              <p className="event-setup__lead">{tPath("brandingLead")}</p>
               <form className="event-setup__form" onSubmit={handleBrandingSubmit}>
-                <label htmlFor="setup-title">Event title</label>
+                <label htmlFor="setup-title">{tPath("eventTitleLabel")}</label>
                 <input
                   id="setup-title"
                   value={title}
@@ -433,15 +429,15 @@ export function EventSetupPage() {
                   required
                 />
 
-                <label htmlFor="setup-couple">Couple names</label>
+                <label htmlFor="setup-couple">{tPath("coupleNamesLabel")}</label>
                 <input
                   id="setup-couple"
                   value={coupleNames}
                   onChange={(e) => setCoupleNames(e.target.value)}
-                  placeholder="Alex & Jordan"
+                  placeholder={tPath("coupleNamesPlaceholder")}
                 />
 
-                <label htmlFor="setup-date">Wedding date</label>
+                <label htmlFor="setup-date">{tPath("weddingDateLabel")}</label>
                 <input
                   id="setup-date"
                   type="date"
@@ -449,7 +445,7 @@ export function EventSetupPage() {
                   onChange={(e) => setWeddingDate(e.target.value)}
                 />
 
-                <label htmlFor="setup-accent">Accent color</label>
+                <label htmlFor="setup-accent">{tPath("accentLabel")}</label>
                 <div className="event-setup__color-row">
                   <input
                     id="setup-accent"
@@ -457,15 +453,15 @@ export function EventSetupPage() {
                     value={accentColor}
                     onChange={(e) => setAccentColor(e.target.value)}
                   />
-                  <span>Used on buttons, links, and guest page accents</span>
+                  <span>{tPath("accentHint")}</span>
                 </div>
 
                 <div className="event-setup__actions">
                   <button type="button" className="btn btn-ghost" onClick={() => goToStep("welcome")}>
-                    Back
+                    {t("back")}
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={busy}>
-                    {busy ? "Saving…" : "Save & continue"}
+                    {busy ? tPath("saving") : tPath("saveContinue")}
                   </button>
                 </div>
               </form>
@@ -474,36 +470,33 @@ export function EventSetupPage() {
 
           {step === "invite" && (
             <section className="event-setup__section">
-              <h2>Invite your partner</h2>
-              <p className="event-setup__lead">
-                Optional — send a co-admin invite so they can upload photos and manage settings
-                too.
-              </p>
+              <h2>{tPath("inviteTitle")}</h2>
+              <p className="event-setup__lead">{tPath("inviteLead")}</p>
               <form className="event-setup__form" onSubmit={handleInviteSubmit}>
-                <label htmlFor="setup-invite">Partner email</label>
+                <label htmlFor="setup-invite">{tPath("partnerEmailLabel")}</label>
                 <input
                   id="setup-invite"
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="partner@example.com"
+                  placeholder={tPath("partnerEmailPlaceholder")}
                 />
                 {inviteSent && (
-                  <p className="event-setup__success">Invite sent — they&apos;ll get an email to join.</p>
+                  <p className="event-setup__success">{tPath("inviteSent")}</p>
                 )}
                 <div className="event-setup__actions">
                   <button type="button" className="btn btn-ghost" onClick={() => goToStep("branding")}>
-                    Back
+                    {t("back")}
                   </button>
                   <button type="button" className="btn btn-secondary" onClick={() => goToStep("ready")}>
-                    Skip for now
+                    {tPath("skipForNow")}
                   </button>
                   <button
                     type="submit"
                     className="btn btn-primary"
                     disabled={busy || !inviteEmail.trim()}
                   >
-                    {busy ? "Sending…" : "Send invite"}
+                    {busy ? tPath("sending") : tPath("sendInvite")}
                   </button>
                 </div>
               </form>
@@ -513,7 +506,7 @@ export function EventSetupPage() {
                   className="btn btn-primary event-setup__continue"
                   onClick={() => goToStep("ready")}
                 >
-                  Continue
+                  {t("continue")}
                 </button>
               )}
             </section>
@@ -521,10 +514,8 @@ export function EventSetupPage() {
 
           {step === "ready" && setupStatus && (
             <section className="event-setup__section">
-              <h2>Almost there</h2>
-              <p className="event-setup__lead">
-                Complete each step below to get your gallery ready for wedding guests.
-              </p>
+              <h2>{tPath("readyTitle")}</h2>
+              <p className="event-setup__lead">{tPath("readyLead")}</p>
 
               <AlbumStatusBanner
                 status={{
@@ -542,13 +533,16 @@ export function EventSetupPage() {
               <ul className="event-setup__checklist">
                 <li className={setupStatus.branding_ok ? "event-setup__checklist-item--done" : ""}>
                   <span className="event-setup__checkmark" aria-hidden="true" />
-                  Branding saved
+                  {tPath("checklistBranding")}
                 </li>
                 <li className={setupStatus.has_photos ? "event-setup__checklist-item--done" : ""}>
                   <span className="event-setup__checkmark" aria-hidden="true" />
                   {setupStatus.has_photos
-                    ? `${setupStatus.photo_count} photo${setupStatus.photo_count === 1 ? "" : "s"} uploaded`
-                    : "Upload wedding photos"}
+                    ? tPath(
+                        setupStatus.photo_count === 1 ? "checklistPhotos_one" : "checklistPhotos_other",
+                        { count: setupStatus.photo_count },
+                      )
+                    : tPath("checklistUpload")}
                 </li>
                 <li
                   className={
@@ -560,17 +554,17 @@ export function EventSetupPage() {
                   <span className="event-setup__checkmark" aria-hidden="true" />
                   {setupStatus.faces_indexed
                     ? setupStatus.failed_count > 0
-                      ? `Faces indexed (${setupStatus.failed_count} failed — retry from album tab)`
-                      : "Faces indexed for matching"
+                      ? tPath("checklistIndexedFailed", { count: setupStatus.failed_count })
+                      : tPath("checklistIndexed")
                     : setupStatus.indexing_in_progress
-                      ? "Indexing faces…"
+                      ? tPath("checklistIndexing")
                       : setupStatus.has_photos
-                        ? `Index faces (${setupStatus.unindexed_count} remaining)`
-                        : "Index faces after upload"}
+                        ? tPath("checklistIndexRemaining", { count: setupStatus.unindexed_count })
+                        : tPath("checklistIndexAfterUpload")}
                 </li>
                 <li className={setupStatus.is_active ? "event-setup__checklist-item--done" : ""}>
                   <span className="event-setup__checkmark" aria-hidden="true" />
-                  {setupStatus.is_active ? "Event is live for guests" : "Set event to Active when ready"}
+                  {setupStatus.is_active ? tPath("checklistLive") : tPath("checklistActivate")}
                 </li>
               </ul>
 
@@ -616,15 +610,15 @@ export function EventSetupPage() {
                   )}
                   {nextAction.action !== "complete" && (
                     <button type="button" className="btn btn-ghost" onClick={() => goToStep("invite")}>
-                      Invite your partner
+                      {tPath("invitePartnerBtn")}
                     </button>
                   )}
                 </div>
               )}
               <p className="event-setup__hint">
                 {nextAction?.action === "complete"
-                  ? "Your gallery is ready for guests. Finish setup to hide this wizard."
-                  : "Return here after each step — the next action will update automatically."}
+                  ? tPath("readyHintComplete")
+                  : tPath("readyHintProgress")}
               </p>
             </section>
           )}
@@ -634,7 +628,7 @@ export function EventSetupPage() {
         </div>
 
         <p className="event-setup__footer">
-          <Link to={manageHref}>Skip to dashboard</Link>
+          <Link to={manageHref}>{tPath("skipToDashboard")}</Link>
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "../i18n";
 import type { SlugCheckResult } from "../types";
 import { isEventSlugLongEnough, MIN_EVENT_SLUG_LENGTH, slugifyEventName } from "../utils/onboarding";
 import "../styles/SlugAvailabilityInput.scss";
@@ -39,6 +40,7 @@ export function SlugAvailabilityInput({
   required = false,
   placeholder,
 }: SlugAvailabilityInputProps) {
+  const { tPath } = useTranslation("components.slugInput");
   const hintId = useId();
   const statusHintId = useId();
   const [slugCheck, setSlugCheck] = useState<SlugCheckState>(null);
@@ -132,13 +134,13 @@ export function SlugAvailabilityInput({
           onChange={(event) => onChange(slugifyEventName(event.target.value))}
         />
         {showLoader && (
-          <span className="slug-field__icon slug-field__icon--loading" title="Checking slug availability">
+          <span className="slug-field__icon slug-field__icon--loading" title={tPath("checkingTitle")}>
             <span className="slug-field__spinner" aria-hidden="true" />
-            <span className="sr-only">Checking slug availability</span>
+            <span className="sr-only">{tPath("checkingAria")}</span>
           </span>
         )}
         {showError && !showLoader && (
-          <span className="slug-field__icon slug-field__icon--error" title="Slug invalid">
+          <span className="slug-field__icon slug-field__icon--error" title={tPath("invalidTitle")}>
             <SlugErrorIcon />
           </span>
         )}
@@ -146,23 +148,23 @@ export function SlugAvailabilityInput({
 
       {showLoader && (
         <p id={statusHintId} className="slug-field__message slug-field__message--checking">
-          Checking availability…
+          {tPath("checking")}
         </p>
       )}
 
       {tooShort && (
         <p id={hintId} className="slug-field__message slug-field__message--error" role="alert">
-          Slug must be at least {MIN_EVENT_SLUG_LENGTH} characters.
+          {tPath("tooShort", { min: MIN_EVENT_SLUG_LENGTH })}
         </p>
       )}
 
       {isTaken && (
         <p id={hintId} className="slug-field__message slug-field__message--error" role="alert">
-          This slug is already taken.
+          {tPath("taken")}
           {takenCheck?.suggestion ? (
             <>
               {" "}
-              Try{" "}
+              {tPath("trySuggestion")}{" "}
               <button
                 type="button"
                 className="slug-field__suggestion"

@@ -3,10 +3,12 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchSharedResults } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { ResultsGrid } from "../components/ResultsGrid";
+import { useTranslation } from "../i18n";
 import type { MatchResponse } from "../types";
 import "../styles/EventGuest.scss";
 
 export function SharePage() {
+  const { t, tPath } = useTranslation("events.share");
   const { shareId: paramShareId } = useParams();
   const [searchParams] = useSearchParams();
   const shareId = paramShareId ?? searchParams.get("share");
@@ -27,16 +29,16 @@ export function SharePage() {
         setError(null);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Could not load shared results");
+        setError(err instanceof Error ? err.message : tPath("loadFailed"));
       })
       .finally(() => setLoading(false));
-  }, [shareId]);
+  }, [shareId, tPath]);
 
   if (!shareId) {
     return (
       <div className="event-guest">
-        <p className="error-banner">Invalid share link</p>
-        <Link to="/">Back home</Link>
+        <p className="error-banner">{tPath("invalidLink")}</p>
+        <Link to="/">{t("backHome")}</Link>
       </div>
     );
   }
@@ -45,9 +47,9 @@ export function SharePage() {
     <div className="event-guest">
       <InstallPrompt />
       <header className="event-guest__header">
-        <p className="event-guest__eyebrow">Shared gallery</p>
-        <h1>Wedding moments</h1>
-        <p className="event-guest__desc">Photos shared from a Snapic search</p>
+        <p className="event-guest__eyebrow">{tPath("eyebrow")}</p>
+        <h1>{tPath("title")}</h1>
+        <p className="event-guest__desc">{tPath("desc")}</p>
       </header>
 
       <div className="event-guest__content">

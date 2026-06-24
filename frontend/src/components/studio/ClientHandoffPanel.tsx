@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { buildEventGuestUrl } from "../../api/client";
+import { useTranslation } from "../../i18n";
 import { GuestQrCode } from "../GuestQrCode";
 import type { StudioClient } from "../../types";
 
@@ -11,6 +12,7 @@ interface ClientHandoffPanelProps {
 }
 
 export function ClientHandoffPanel({ client, onInvite, onGoLive, busy }: ClientHandoffPanelProps) {
+  const { tPath } = useTranslation("studio.clientDetail.handoff");
   const guestUrl = buildEventGuestUrl(client.slug);
   const coupleNames =
     typeof client.branding.couple_names === "string" ? client.branding.couple_names : client.title;
@@ -25,15 +27,21 @@ export function ClientHandoffPanel({ client, onInvite, onGoLive, busy }: ClientH
   }
 
   const checklist = [
-    { label: "Photos uploaded", done: client.gallery_photo_count > 0 },
-    { label: "Faces indexed", done: client.unindexed_photo_count === 0 && client.gallery_photo_count > 0 },
-    { label: "Couple invited", done: client.handoff_status === "invited" || client.handoff_status === "live" },
-    { label: "Gallery live", done: client.status === "active" },
+    { label: tPath("photosUploaded"), done: client.gallery_photo_count > 0 },
+    {
+      label: tPath("facesIndexed"),
+      done: client.unindexed_photo_count === 0 && client.gallery_photo_count > 0,
+    },
+    {
+      label: tPath("coupleInvited"),
+      done: client.handoff_status === "invited" || client.handoff_status === "live",
+    },
+    { label: tPath("galleryLive"), done: client.status === "active" },
   ];
 
   return (
     <section className="studio-handoff">
-      <h2>Handoff checklist</h2>
+      <h2>{tPath("title")}</h2>
       <ul className="studio-handoff__checklist">
         {checklist.map((item) => (
           <li key={item.label} className={item.done ? "studio-handoff__done" : ""}>
@@ -43,18 +51,24 @@ export function ClientHandoffPanel({ client, onInvite, onGoLive, busy }: ClientH
       </ul>
 
       <form className="studio-form" onSubmit={handleInviteSubmit}>
-        <h3>Invite couple (optional)</h3>
-        <label htmlFor="couple-email">Couple email</label>
-        <input id="couple-email" name="email" type="email" defaultValue={client.client_email ?? ""} placeholder="couple@example.com" />
+        <h3>{tPath("inviteCoupleTitle")}</h3>
+        <label htmlFor="couple-email">{tPath("coupleEmailLabel")}</label>
+        <input
+          id="couple-email"
+          name="email"
+          type="email"
+          defaultValue={client.client_email ?? ""}
+          placeholder={tPath("coupleEmailPlaceholder")}
+        />
         <button type="submit" className="btn btn-secondary" disabled={busy}>
-          Send invite
+          {tPath("sendInvite")}
         </button>
       </form>
 
       <div className="studio-handoff__share">
-        <h3>Share kit</h3>
+        <h3>{tPath("shareKitTitle")}</h3>
         <p>
-          Guest link: <code>{guestUrl}</code>
+          {tPath("guestLink")} <code>{guestUrl}</code>
         </p>
         <GuestQrCode url={guestUrl} eventTitle={client.title} coupleNames={coupleNames} />
       </div>
@@ -62,11 +76,11 @@ export function ClientHandoffPanel({ client, onInvite, onGoLive, busy }: ClientH
       <div className="studio-handoff__actions">
         {client.status !== "active" && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void onGoLive()}>
-            Go live
+            {tPath("goLive")}
           </button>
         )}
         <Link className="btn btn-secondary" to={`/e/${client.slug}`} target="_blank" rel="noreferrer">
-          Preview guest page
+          {tPath("previewGuestPage")}
         </Link>
       </div>
     </section>

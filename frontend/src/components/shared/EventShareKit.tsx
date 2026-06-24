@@ -1,4 +1,5 @@
 import { buildEventGuestUrl } from "../../api/client";
+import { useTranslation } from "../../i18n";
 import { GuestQrCode } from "../GuestQrCode";
 
 interface EventShareKitProps {
@@ -8,6 +9,7 @@ interface EventShareKitProps {
 }
 
 export function EventShareKit({ slug, title, coupleNames }: EventShareKitProps) {
+  const { t, tPath } = useTranslation("components.eventShareKit");
   const guestUrl = buildEventGuestUrl(slug);
 
   function copyLink() {
@@ -16,11 +18,11 @@ export function EventShareKit({ slug, title, coupleNames }: EventShareKitProps) 
 
   return (
     <section className="event-share-kit">
-      <h2>Guest link & QR</h2>
+      <h2>{tPath("title")}</h2>
       <div className="event-share-kit__row">
         <code>{guestUrl}</code>
         <button type="button" className="btn btn-ghost" onClick={copyLink}>
-          Copy
+          {t("copy")}
         </button>
       </div>
       <GuestQrCode url={guestUrl} eventTitle={title} coupleNames={coupleNames} />

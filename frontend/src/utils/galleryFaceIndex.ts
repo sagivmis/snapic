@@ -1,3 +1,5 @@
+import { createTranslator } from "../i18n";
+
 export type IndexStreamResult = {
   processed: number;
   indexed: number;
@@ -7,18 +9,19 @@ export type IndexStreamResult = {
 };
 
 export function formatIndexResult(result: IndexStreamResult): string {
+  const { tPath } = createTranslator("events.manage.indexResult");
   const parts: string[] = [];
   if (result.indexed > 0) {
-    parts.push(`${result.indexed} indexed`);
+    parts.push(tPath("indexed", { count: result.indexed }));
   }
   if (result.no_face > 0) {
-    parts.push(`${result.no_face} without faces`);
+    parts.push(tPath("noFace", { count: result.no_face }));
   }
   if (result.failed > 0) {
-    parts.push(`${result.failed} failed`);
+    parts.push(tPath("failed", { count: result.failed }));
   }
   if (parts.length === 0 && result.processed === 0) {
-    return "All photos were already indexed.";
+    return tPath("allIndexed");
   }
-  return parts.length > 0 ? parts.join(", ") : `Processed ${result.processed} photo(s).`;
+  return parts.length > 0 ? parts.join(", ") : tPath("processed", { count: result.processed });
 }

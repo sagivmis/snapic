@@ -15,12 +15,15 @@ import {
   recordGalleryAtSearch,
 } from "../utils/guestSearchBaseline";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
+import { useTranslation } from "../i18n";
 import { isGallerySearchReady } from "../types";
 import "../styles/EventGuest.scss";
 
 type GuestStep = "portrait" | "results";
 
 export function EventGuestPage() {
+  const { t, tPath } = useTranslation("events.guest");
+  const { tPath: tCommon } = useTranslation("events.common");
   const { slug = "" } = useParams();
   const { session, getAccessToken, anonymousSessionId, signInWithGoogle } = useAuth();
   const [event, setEvent] = useState<EventPublic | null>(null);
@@ -90,7 +93,7 @@ export function EventGuestPage() {
         setError(null);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Event not found");
+        setError(err instanceof Error ? err.message : tPath("eventNotFound"));
       })
       .finally(() => setLoadingEvent(false));
   }, [slug]);
@@ -197,7 +200,7 @@ export function EventGuestPage() {
       setEvent(row);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not refresh event");
+      setError(err instanceof Error ? err.message : tPath("refreshFailed"));
     } finally {
       setRefreshingEvent(false);
     }
@@ -208,9 +211,7 @@ export function EventGuestPage() {
       return;
     }
     if (!isGallerySearchReady(event)) {
-      setError(
-        "The wedding album is still being prepared for search. Please check back in a few minutes.",
-      );
+      setError(tPath("albumNotReady"));
       return;
     }
 
@@ -266,16 +267,12 @@ export function EventGuestPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setRateLimited(true);
-        setError(
-          "You've reached the search limit for this hour. Please wait about an hour before trying again.",
-        );
+        setError(tPath("rateLimited"));
       } else if (err instanceof ApiError && err.status === 503) {
-        setError(
-          "The wedding album is still being prepared for search. Please wait a few minutes and try again.",
-        );
+        setError(tPath("albumNotReadyRetry"));
         void refreshEvent();
       } else {
-        setError(err instanceof Error ? err.message : "Something went wrong");
+        setError(err instanceof Error ? err.message : t("somethingWentWrong"));
       }
       setStep("portrait");
       setResult(null);
@@ -293,10 +290,10 @@ export function EventGuestPage() {
     return (
       <div className="event-guest event-guest--state">
         <div className="event-guest__state-card">
-          <h1>Event not found</h1>
-          <p>{error ?? "This link may be incorrect or the event is not public yet."}</p>
+          <h1>{tPath("notFoundTitle")}</h1>
+          <p>{error ?? tPath("notFoundLead")}</p>
           <Link className="btn btn-secondary" to="/">
-            Back home
+            {t("backHome")}
           </Link>
         </div>
       </div>
@@ -314,8 +311,8 @@ export function EventGuestPage() {
       >
         <div className="event-guest__state-card">
           <h1>{title}</h1>
-          <p className="event-guest__state-lead">This event has ended.</p>
-          <p>Photo matching is no longer available. Thank you for celebrating with us.</p>
+          <p className="event-guest__state-lead">{tPath("closedLead")}</p>
+          <p>{tPath("closedDetail")}</p>
         </div>
       </div>
     );
@@ -332,15 +329,15 @@ export function EventGuestPage() {
             📷
           </div>
           <h1>{title}</h1>
-          <p className="event-guest__state-lead">Photos coming soon</p>
-          <p>The album is still being uploaded. Check back in a few minutes — the photographer is adding photos now.</p>
+          <p className="event-guest__state-lead">{tPath("photosComingSoon")}</p>
+          <p>{tPath("photosComingSoonDetail")}</p>
           <button
             type="button"
             className="btn btn-primary"
             disabled={refreshingEvent}
             onClick={() => void refreshEvent()}
           >
-            {refreshingEvent ? "Checking…" : "Check again"}
+            {refreshingEvent ? t("checking") : tPath("checkAgain")}
           </button>
         </div>
       </div>
@@ -360,13 +357,15 @@ export function EventGuestPage() {
             ⏳
           </div>
           <h1>{title}</h1>
-          <p className="event-guest__state-lead">Gallery almost ready</p>
+          <p className="event-guest__state-lead">{tPath("galleryAlmostReady")}</p>
           <p>
             {unindexed > 0
-              ? `We're preparing ${unindexed} photo${unindexed === 1 ? "" : "s"} for face search — this usually takes a few minutes after upload.`
+              ? tPath(unindexed === 1 ? "preparingPhotos_one" : "preparingPhotos_other", {
+                  count: unindexed,
+                })
               : indexing
-                ? "We're indexing the album for face search. This usually takes a few minutes."
-                : "We're preparing the album for face search. This usually takes a few minutes after upload."}
+                ? tPath("indexingAlbum")
+                : tPath("preparingAlbum")}
           </p>
           <button
             type="button"
@@ -374,7 +373,7 @@ export function EventGuestPage() {
             disabled={refreshingEvent}
             onClick={() => void refreshEvent()}
           >
-            {refreshingEvent ? "Checking…" : "Check again"}
+            {refreshingEvent ? t("checking") : tPath("checkAgain")}
           </button>
         </div>
       </div>
@@ -393,7 +392,7 @@ export function EventGuestPage() {
       <p className="event-guest__studio-name">{org.name}</p>
       {org.website_url && (
         <a href={org.website_url} target="_blank" rel="noreferrer" className="event-guest__studio-link">
-          Photos by {org.name}
+          {tCommon("photosBy", { name: org.name })}
         </a>
       )}
     </div>
@@ -409,26 +408,27 @@ export function EventGuestPage() {
 
       {!network.online && (
         <div className="event-guest__network-banner event-guest__network-banner--offline" role="status">
-          You&apos;re offline. Reconnect to search or download photos.
+          {tPath("offlineBanner")}
         </div>
       )}
       {network.online && network.isSlowConnection && (loading || step === "portrait") && (
         <div className="event-guest__network-banner" role="status">
-          Slow connection detected — searching may take a little longer.
+          {tPath("slowConnectionBanner")}
         </div>
       )}
       {searchStale && loading && (
         <div className="event-guest__network-banner event-guest__network-banner--patience" role="status">
-          Still searching a large album. Matches will keep appearing as we find them.
+          {tPath("stillSearchingBanner")}
         </div>
       )}
       {newPhotosAvailable && !loading && (
         <div className="event-guest__new-photos-banner" role="status">
           <p>
             {newPhotoCount > 0
-              ? `${newPhotoCount} new photo${newPhotoCount === 1 ? "" : "s"} were added since your last search.`
-              : "New photos were added since your last search."}{" "}
-            Search again to find more.
+              ? tPath(newPhotoCount === 1 ? "newPhotosBanner_one" : "newPhotosBanner_other", {
+                  count: newPhotoCount,
+                })
+              : tPath("newPhotosBannerGeneric")}
           </p>
           {step === "results" && (
             <button
@@ -440,7 +440,7 @@ export function EventGuestPage() {
                 void handleMatch();
               }}
             >
-              Search again
+              {tPath("searchAgain")}
             </button>
           )}
         </div>
@@ -450,11 +450,11 @@ export function EventGuestPage() {
         <header className="event-guest__header">
           {studioCoBrand}
           <p className="event-guest__eyebrow">{title}</p>
-          <h1>Find your photos</h1>
+          <h1>{tPath("findYourPhotos")}</h1>
           {event.wedding_date && (
             <p className="event-guest__date">{new Date(event.wedding_date).toLocaleDateString()}</p>
           )}
-          <p className="event-guest__desc">Upload a clear selfie to search {photoCount} wedding photos.</p>
+          <p className="event-guest__desc">{tPath("uploadSelfieDesc", { count: photoCount })}</p>
         </header>
       )}
 
@@ -462,7 +462,7 @@ export function EventGuestPage() {
         <header className="event-guest__header event-guest__header--compact">
           {studioCoBrand}
           <p className="event-guest__eyebrow">{title}</p>
-          <h1>{showCompactHeader ? "No matches yet" : "Your photos"}</h1>
+          <h1>{showCompactHeader ? tPath("noMatchesYet") : tPath("yourPhotos")}</h1>
         </header>
       )}
 
@@ -487,7 +487,7 @@ export function EventGuestPage() {
               disabled={!hasPortrait || loading || !network.online}
               onClick={() => void handleMatch()}
             >
-              {!network.online ? "Offline" : loading ? "Searching…" : "Find my photos"}
+              {!network.online ? t("offline") : loading ? tPath("searching") : tPath("findMyPhotos")}
             </button>
           </>
         )}
@@ -507,27 +507,27 @@ export function EventGuestPage() {
 
             {!loading && result && result.matched.length === 0 && (
               <div className="event-guest__tips">
-                <p className="event-guest__tips-title">Tips for a better match</p>
+                <p className="event-guest__tips-title">{tPath("tipsTitle")}</p>
                 <ul>
-                  <li>Use a well-lit photo with your face clearly visible</li>
-                  <li>Look straight at the camera, without sunglasses or a mask</li>
-                  <li>Try a different selfie if this one was blurry or far away</li>
+                  <li>{tPath("tip1")}</li>
+                  <li>{tPath("tip2")}</li>
+                  <li>{tPath("tip3")}</li>
                 </ul>
               </div>
             )}
 
             {!session && !loading && result && result.matched.length > 0 && (
               <div className="event-guest__save">
-                <p>Save these results to your account</p>
+                <p>{tPath("saveResults")}</p>
                 <Link className="btn btn-primary" to={loginHref}>
-                  Sign in to save
+                  {tPath("signInToSave")}
                 </Link>
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => void signInWithGoogle(loginNext)}
                 >
-                  Continue with Google
+                  {t("continueGoogle")}
                 </button>
               </div>
             )}
@@ -540,7 +540,7 @@ export function EventGuestPage() {
                 setError(null);
               }}
             >
-              Search again
+              {tPath("searchAgain")}
             </button>
           </>
         )}
@@ -551,14 +551,14 @@ export function EventGuestPage() {
       </div>
 
       {step === "portrait" && (
-        <p className="event-guest__privacy">Your selfie is processed in memory and never stored.</p>
+        <p className="event-guest__privacy">{tPath("privacy")}</p>
       )}
       {(showSnapicFooter || showMinSnapicFooter) && (
         <footer className="event-guest__powered">
           {showMinSnapicFooter ? (
             <a href="https://snapic.app">Snapic</a>
           ) : (
-            <span>Powered by Snapic</span>
+            <span>{tCommon("poweredBy")}</span>
           )}
         </footer>
       )}

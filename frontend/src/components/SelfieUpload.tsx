@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validatePortrait } from "../api/client";
+import { useTranslation } from "../i18n";
 import type { PortraitQualityResponse } from "../types";
 import "../styles/SelfieUpload.scss";
 
@@ -11,6 +12,7 @@ interface PortraitSlotProps {
 }
 
 function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) {
+  const { t, tPath } = useTranslation("components.selfieUpload");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [quality, setQuality] = useState<PortraitQualityResponse | null>(null);
@@ -70,10 +72,10 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
         await videoRef.current.play();
       }
     } catch {
-      setCameraError("Could not access the camera. Upload a photo instead.");
+      setCameraError(tPath("cameraError"));
       stopCamera();
     }
-  }, [stopCamera]);
+  }, [stopCamera, tPath]);
 
   const capturePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -115,9 +117,9 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
           <div className="portrait-slot__ready">
             <img src={previewUrl} alt={label} className="portrait-slot__avatar" />
             <div>
-              <p className="portrait-slot__ready-text">Ready</p>
+              <p className="portrait-slot__ready-text">{tPath("ready")}</p>
               <button type="button" className="btn-ghost flush-left" onClick={() => handleFileChange(null)}>
-                Change
+                {tPath("change")}
               </button>
             </div>
           </div>
@@ -130,16 +132,18 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
                 className="hidden-input"
                 onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
               />
-              <span className="portrait-slot__tile-label">Upload</span>
+              <span className="portrait-slot__tile-label">{tPath("upload")}</span>
             </label>
             <button type="button" onClick={startCamera} className="upload-tile portrait-slot__tile">
-              <span className="portrait-slot__tile-label">Camera</span>
+              <span className="portrait-slot__tile-label">{tPath("camera")}</span>
             </button>
           </div>
         )}
       </div>
 
-      {checkingQuality && <p className="portrait-slot__quality portrait-slot__quality--loading">Checking portrait...</p>}
+      {checkingQuality && (
+        <p className="portrait-slot__quality portrait-slot__quality--loading">{tPath("checkingPortrait")}</p>
+      )}
       {quality && quality.warnings.length > 0 && (
         <ul className="portrait-slot__quality portrait-slot__quality--warn">
           {quality.warnings.map((warning) => (
@@ -148,20 +152,20 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
         </ul>
       )}
       {quality?.face_detected && quality.warnings.length === 0 && !checkingQuality && (
-        <p className="portrait-slot__quality portrait-slot__quality--ok">Great portrait — ready to search</p>
+        <p className="portrait-slot__quality portrait-slot__quality--ok">{tPath("portraitOk")}</p>
       )}
 
       {cameraOpen && (
         <div className="camera-overlay">
           <div className="camera-modal">
-            <h3 className="camera-modal__title">Capture {label.toLowerCase()}</h3>
+            <h3 className="camera-modal__title">{tPath("captureTitle", { label })}</h3>
             <div className="camera-modal__video-wrap">
               <video ref={videoRef} autoPlay playsInline muted className="camera-modal__video" />
             </div>
             {cameraError && <p className="camera-modal__error">{cameraError}</p>}
             <div className="camera-modal__actions">
               <button type="button" onClick={closeCamera} className="btn-ghost">
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -169,7 +173,7 @@ function PortraitSlot({ label, file, previewUrl, onChange }: PortraitSlotProps) 
                 disabled={Boolean(cameraError)}
                 className="btn-primary"
               >
-                Capture
+                {tPath("capture")}
               </button>
             </div>
           </div>
@@ -204,20 +208,18 @@ export function SelfieUpload({
   onContinue,
   hasGallery,
 }: SelfieUploadProps) {
+  const { tPath } = useTranslation("components.selfieUpload");
   const portraitReady = Boolean(file) && (!coupleMode || Boolean(partnerFile));
 
   return (
     <div className="selfie-upload">
       <div className="card-wedding">
         <p className="selfie-upload__intro">
-          Share a clear photo of your face so we can find every picture of you from the celebration.
-          {coupleMode && " In couple mode, we search for either partner."}
+          {tPath("intro")}
+          {coupleMode && tPath("coupleModeSuffix")}
         </p>
 
-        <p className="selfie-upload__privacy">
-          Your portraits are used only for this search and are not stored on our servers. Shared
-          result links expire after 7 days.
-        </p>
+        <p className="selfie-upload__privacy">{tPath("privacy")}</p>
 
         <label className="selfie-upload__couple-toggle">
           <input
@@ -232,16 +234,16 @@ export function SelfieUpload({
             className="selfie-upload__checkbox"
           />
           <span>
-            <span className="selfie-upload__couple-title">Couple mode</span>
-            <span className="selfie-upload__couple-desc">Find photos with either person</span>
+            <span className="selfie-upload__couple-title">{tPath("coupleModeTitle")}</span>
+            <span className="selfie-upload__couple-desc">{tPath("coupleModeDesc")}</span>
           </span>
         </label>
 
         <div className="selfie-upload__slots">
-          <PortraitSlot label="Person 1" file={file} previewUrl={previewUrl} onChange={onChange} />
+          <PortraitSlot label={tPath("person1")} file={file} previewUrl={previewUrl} onChange={onChange} />
           {coupleMode && (
             <PortraitSlot
-              label="Person 2"
+              label={tPath("person2")}
               file={partnerFile}
               previewUrl={partnerPreviewUrl}
               onChange={onPartnerChange}
@@ -252,15 +254,13 @@ export function SelfieUpload({
         {portraitReady && (
           <div className="selfie-upload__continue">
             <button type="button" className="btn-primary" onClick={onContinue}>
-              {hasGallery ? "Review gallery →" : "Add gallery photos →"}
+              {hasGallery ? tPath("reviewGallery") : tPath("addGallery")}
             </button>
           </div>
         )}
       </div>
 
-      <p className="selfie-upload__tip">
-        Tip: face the camera with good lighting — just like a wedding portrait.
-      </p>
+      <p className="selfie-upload__tip">{tPath("tip")}</p>
     </div>
   );
 }

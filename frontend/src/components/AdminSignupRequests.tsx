@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link } from "react-router-dom";
 import { buildEventGuestUrl } from "../api/client";
 import { SlugAvailabilityInput, type SlugCheckStatus } from "./SlugAvailabilityInput";
+import { useTranslation } from "../i18n";
 import type { AdminEventSummary, SignupRequest, SlugCheckResult } from "../types";
 import { defaultEventTitle, slugifyEventName } from "../utils/onboarding";
 import "../styles/AdminSignupRequests.scss";
@@ -30,9 +31,9 @@ interface AdminSignupRequestsProps {
   onCheckSlug?: (slug: string) => Promise<SlugCheckResult>;
 }
 
-function formatDateTime(value?: string | null): string {
+function formatDateTime(value: string | null | undefined, emDash: string): string {
   if (!value) {
-    return "—";
+    return emDash;
   }
   return new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -43,9 +44,9 @@ function formatDateTime(value?: string | null): string {
   });
 }
 
-function formatWeddingDate(value?: string | null): string {
+function formatWeddingDate(value: string | null | undefined, dateTbd: string): string {
   if (!value) {
-    return "Date TBD";
+    return dateTbd;
   }
   return new Date(value).toLocaleDateString(undefined, {
     month: "short",
@@ -113,6 +114,7 @@ export function AdminSignupRequests({
   onReview,
   onCheckSlug,
 }: AdminSignupRequestsProps) {
+  const { t, tPath } = useTranslation("admin.signupRequests");
   const [tab, setTab] = useState<SignupTab>(initialTab);
   const [viewMode, setViewMode] = useState<SignupViewMode>("single");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -261,10 +263,10 @@ export function AdminSignupRequests({
       <>
         <strong>{req.couple_names}</strong>
         <span>{req.email}</span>
-        {req.wedding_date && <span>Wedding {formatWeddingDate(req.wedding_date)}</span>}
-        <span>Submitted {formatDateTime(req.created_at)}</span>
+        {req.wedding_date && <span>{tPath("wedding", { date: formatWeddingDate(req.wedding_date, tPath("dateTbd")) })}</span>}
+        <span>{tPath("submitted", { date: formatDateTime(req.created_at, t("emDash")) })}</span>
         {req.reviewed_at && tab !== "pending" && (
-          <span>Reviewed {formatDateTime(req.reviewed_at)}</span>
+          <span>{tPath("reviewed", { date: formatDateTime(req.reviewed_at, t("emDash")) })}</span>
         )}
         {req.message && <span className="admin-signups__grid-tooltip-message">{req.message}</span>}
         {linkedEvent && (
@@ -292,17 +294,19 @@ export function AdminSignupRequests({
           <span className="admin-signups__email">{req.email}</span>
           {req.wedding_date && (
             <span className="admin-signups__meta">
-              Wedding {new Date(req.wedding_date).toLocaleDateString()}
+              {tPath("wedding", {
+                date: new Date(req.wedding_date).toLocaleDateString(),
+              })}
             </span>
           )}
-          <span className="admin-signups__meta">Submitted {formatDateTime(req.created_at)}</span>
+          <span className="admin-signups__meta">{tPath("submitted", { date: formatDateTime(req.created_at, t("emDash")) })}</span>
           {req.reviewed_at && tab !== "pending" && (
-            <span className="admin-signups__meta">Reviewed {formatDateTime(req.reviewed_at)}</span>
+            <span className="admin-signups__meta">{tPath("reviewed", { date: formatDateTime(req.reviewed_at, t("emDash")) })}</span>
           )}
           {req.message && <p className="admin-signups__message">{req.message}</p>}
           {linkedEvent && (
             <p className="admin-signups__linked">
-              Linked event:{" "}
+              {tPath("linkedEvent")}{" "}
               <Link to={`/e/${linkedEvent.slug}/manage`}>{linkedEvent.title}</Link>
               <span className="admin-signups__slug">/e/{linkedEvent.slug}</span>
             </p>
@@ -312,7 +316,7 @@ export function AdminSignupRequests({
         {tab === "pending" && (
           <>
             <div className="admin-signups__approve-plan">
-              <label htmlFor={`approve-event-${req.id}`}>On approve</label>
+              <label htmlFor={`approve-event-${req.id}`}>{tPath("onApprove")}</label>
               <select
                 id={`approve-event-${req.id}`}
                 value={plan}
@@ -336,10 +340,10 @@ export function AdminSignupRequests({
                   }
                 }}
               >
-                <option value={CREATE_NEW_EVENT}>Create new event</option>
+                <option value={CREATE_NEW_EVENT}>{tPath("createNewEvent")}</option>
                 {events.map((ev) => (
                   <option key={ev.id} value={ev.id}>
-                    Link to {ev.title} (/e/{ev.slug})
+                    {tPath("linkToEvent", { title: ev.title, slug: ev.slug })}
                   </option>
                 ))}
               </select>
@@ -347,7 +351,7 @@ export function AdminSignupRequests({
 
             {plan === CREATE_NEW_EVENT && (
               <div className="admin-signups__preview">
-                <label htmlFor={`approve-title-${req.id}`}>Event title</label>
+                <label htmlFor={`approve-title-${req.id}`}>{tPath("eventTitleLabel")}</label>
                 <input
                   id={`approve-title-${req.id}`}
                   value={draft.title}
@@ -360,7 +364,7 @@ export function AdminSignupRequests({
                   }
                 />
 
-                <label htmlFor={`approve-slug-${req.id}`}>Guest URL slug</label>
+                <label htmlFor={`approve-slug-${req.id}`}>{tPath("guestSlugLabel")}</label>
                 {onCheckSlug ? (
                   <div className="admin-signups__slug-row">
                     <span>/e/</span>
@@ -376,7 +380,7 @@ export function AdminSignupRequests({
                       onCheckSlug={onCheckSlug}
                       onStatusChange={(status) => updateSlugStatus(req.id, status)}
                       disabled={busy}
-                      placeholder="smith-wedding"
+                      placeholder={tPath("guestSlugPlaceholder")}
                     />
                   </div>
                 ) : (
@@ -401,9 +405,9 @@ export function AdminSignupRequests({
 
                 {guestPreviewUrl && slugStatus === "available" && (
                   <p className="admin-signups__preview-links">
-                    Guest page: <a href={guestPreviewUrl}>{guestPreviewUrl}</a>
+                    {tPath("guestPage")} <a href={guestPreviewUrl}>{guestPreviewUrl}</a>
                     <br />
-                    Setup: <code>/e/{draft.slug}/setup</code>
+                    {tPath("setupPath")} <code>/e/{draft.slug}/setup</code>
                   </p>
                 )}
               </div>
@@ -420,7 +424,7 @@ export function AdminSignupRequests({
                 }
                 onClick={() => void handleReview(req.id, "approve")}
               >
-                Approve
+                {tPath("approve")}
               </button>
               <button
                 type="button"
@@ -428,7 +432,7 @@ export function AdminSignupRequests({
                 disabled={busy}
                 onClick={() => void handleReview(req.id, "reject")}
               >
-                Reject
+                {tPath("reject")}
               </button>
             </div>
           </>
@@ -463,7 +467,7 @@ export function AdminSignupRequests({
                 aria-pressed={isSelected}
                 onClick={() => handleGridTileClick(req.id)}
               >
-                <span className="admin-signups__grid-date">{formatWeddingDate(req.wedding_date)}</span>
+                <span className="admin-signups__grid-date">{formatWeddingDate(req.wedding_date, tPath("dateTbd"))}</span>
                 <span className="admin-signups__grid-names">{req.couple_names}</span>
                 <span className="admin-signups__grid-tooltip" role="tooltip">
                   {renderRequestTooltip(req)}
@@ -481,7 +485,7 @@ export function AdminSignupRequests({
               className="btn btn-primary admin-signups__grid-peek-review"
               onClick={() => handleGridReviewSelect(mobilePeekRequest.id)}
             >
-              Review
+              {tPath("review")}
             </button>
           </div>
         )}
@@ -495,10 +499,10 @@ export function AdminSignupRequests({
         )}
 
         {!selectedGridRequest && finePointer && visible.length > 0 && (
-          <p className="admin-signups__grid-hint">Click a card to review. Hover for details.</p>
+          <p className="admin-signups__grid-hint">{tPath("gridHintDesktop")}</p>
         )}
         {!selectedGridRequest && !finePointer && !mobilePeekRequest && visible.length > 0 && (
-          <p className="admin-signups__grid-hint">Tap a card for details, then tap Review.</p>
+          <p className="admin-signups__grid-hint">{tPath("gridHintMobile")}</p>
         )}
       </div>
     );
@@ -513,19 +517,19 @@ export function AdminSignupRequests({
               type="button"
               className="admin-signups__nav"
               disabled={activeIndex === 0}
-              aria-label="Previous request"
+              aria-label={tPath("prevAria")}
               onClick={goPrev}
             >
               <NavChevron direction="prev" />
             </button>
             <span className="admin-signups__pager-label">
-              Request {activeIndex + 1} of {visible.length}
+              {tPath("requestOf", { current: activeIndex + 1, total: visible.length })}
             </span>
             <button
               type="button"
               className="admin-signups__nav"
               disabled={activeIndex >= visible.length - 1}
-              aria-label="Next request"
+              aria-label={tPath("nextAria")}
               onClick={goNext}
             >
               <NavChevron direction="next" />
@@ -554,36 +558,36 @@ export function AdminSignupRequests({
   return (
     <section className="admin-signups admin__section" id="admin-signup-requests">
       <div className="admin-signups__header">
-        <h2>Signup requests</h2>
+        <h2>{tPath("title")}</h2>
         <div className="admin-signups__header-controls">
-          <div className="admin-signups__view-toggle" role="group" aria-label="Signup request layout">
+          <div className="admin-signups__view-toggle" role="group" aria-label={tPath("layoutAria")}>
             <button
               type="button"
               className={`admin-signups__view-btn${viewMode === "grid" ? " admin-signups__view-btn--active" : ""}`}
               aria-pressed={viewMode === "grid"}
-              title="Grid view"
+              title={tPath("gridViewTitle")}
               onClick={() => setViewMode("grid")}
             >
               <GridIcon />
-              <span>Grid</span>
+              <span>{tPath("gridView")}</span>
             </button>
             <button
               type="button"
               className={`admin-signups__view-btn${viewMode === "single" ? " admin-signups__view-btn--active" : ""}`}
               aria-pressed={viewMode === "single"}
-              title="Single view"
+              title={tPath("singleViewTitle")}
               onClick={() => setViewMode("single")}
             >
               <SingleIcon />
-              <span>Single</span>
+              <span>{tPath("singleView")}</span>
             </button>
           </div>
-          <div className="admin-signups__tabs" role="tablist" aria-label="Signup request status">
+          <div className="admin-signups__tabs" role="tablist" aria-label={tPath("tabsAria")}>
             {(
               [
-                ["pending", `Pending (${counts.pending})`],
-                ["approved", `Approved (${counts.approved})`],
-                ["rejected", `Rejected (${counts.rejected})`],
+                ["pending", tPath("tabs.pending", { count: counts.pending })],
+                ["approved", tPath("tabs.approved", { count: counts.approved })],
+                ["rejected", tPath("tabs.rejected", { count: counts.rejected })],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -602,7 +606,7 @@ export function AdminSignupRequests({
       </div>
 
       {visible.length === 0 ? (
-        <p className="admin-signups__empty">No {tab} requests.</p>
+        <p className="admin-signups__empty">{tPath("empty", { tab })}</p>
       ) : viewMode === "grid" ? (
         renderGridView()
       ) : (

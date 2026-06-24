@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { buildEventGuestUrl } from "../api/client";
+import { useTranslation } from "../i18n";
 import type { AdminEventSummary } from "../types";
 import "../styles/AdminEventsTable.scss";
 
@@ -21,9 +22,9 @@ interface AdminEventsTableProps {
   onDeleteEvent?: (eventId: string) => void | Promise<void>;
 }
 
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, emDash: string): string {
   if (!value) {
-    return "—";
+    return emDash;
   }
   return new Date(value).toLocaleDateString(undefined, {
     month: "short",
@@ -32,9 +33,9 @@ function formatDate(value?: string | null): string {
   });
 }
 
-function formatDateTime(value?: string | null): string {
+function formatDateTime(value: string | null | undefined, emDash: string): string {
   if (!value) {
-    return "—";
+    return emDash;
   }
   return new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -69,6 +70,8 @@ export function AdminEventsTable({
   onInviteAdmin,
   onDeleteEvent,
 }: AdminEventsTableProps) {
+  const { t, tPath } = useTranslation("admin.events");
+  const { tPath: tStatus } = useTranslation("events.common.status");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("created");
@@ -197,7 +200,7 @@ export function AdminEventsTable({
   }
 
   if (events.length === 0) {
-    return <p className="admin-events__empty">No events yet.</p>;
+    return <p className="admin-events__empty">{tPath("empty")}</p>;
   }
 
   const openMenuEvent = openMenuEventId ? events.find((event) => event.id === openMenuEventId) : undefined;
@@ -209,13 +212,13 @@ export function AdminEventsTable({
       {attentionFilter && (
         <div className="admin-events__attention-banner">
           <span>
-            {attentionFilter === "empty_album" && "Showing active events with no photos"}
-            {attentionFilter === "unindexed" && "Showing events with photos needing face index"}
-            {attentionFilter === "archive_due" && "Showing events past their archive date"}
+            {attentionFilter === "empty_album" && tPath("attention.emptyAlbum")}
+            {attentionFilter === "unindexed" && tPath("attention.unindexed")}
+            {attentionFilter === "archive_due" && tPath("attention.archiveDue")}
           </span>
           {onClearAttentionFilter && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClearAttentionFilter}>
-              Clear filter
+              {tPath("attention.clearFilter")}
             </button>
           )}
         </div>
@@ -225,19 +228,19 @@ export function AdminEventsTable({
         <input
           type="search"
           className="admin-events__search"
-          placeholder="Search title, slug, couple…"
+          placeholder={tPath("searchPlaceholder")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          aria-label="Search events"
+          aria-label={tPath("searchAria")}
         />
 
-        <div className="admin-events__filters" role="tablist" aria-label="Filter by status">
+        <div className="admin-events__filters" role="tablist" aria-label={tPath("filterAria")}>
           {(
             [
-              ["all", `All (${events.length})`],
-              ["draft", `Draft (${statusCounts.draft})`],
-              ["active", `Active (${statusCounts.active})`],
-              ["closed", `Closed (${statusCounts.closed})`],
+              ["all", tPath("filters.all", { count: events.length })],
+              ["draft", tPath("filters.draft", { count: statusCounts.draft })],
+              ["active", tPath("filters.active", { count: statusCounts.active })],
+              ["closed", tPath("filters.closed", { count: statusCounts.closed })],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -254,43 +257,43 @@ export function AdminEventsTable({
         </div>
 
         <label className="admin-events__sort">
-          <span>Sort</span>
+          <span>{tPath("sortLabel")}</span>
           <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-            <option value="created">Newest first</option>
-            <option value="title">Title A–Z</option>
-            <option value="wedding">Wedding date</option>
-            <option value="photos">Most photos</option>
-            <option value="searches">Most searches</option>
-            <option value="activity">Recent activity</option>
+            <option value="created">{tPath("sort.created")}</option>
+            <option value="title">{tPath("sort.title")}</option>
+            <option value="wedding">{tPath("sort.wedding")}</option>
+            <option value="photos">{tPath("sort.photos")}</option>
+            <option value="searches">{tPath("sort.searches")}</option>
+            <option value="activity">{tPath("sort.activity")}</option>
           </select>
         </label>
       </div>
 
       <p className="admin-events__count">
-        Showing {filtered.length} of {events.length} event{events.length === 1 ? "" : "s"}
+        {tPath("showing", { shown: filtered.length, total: events.length })}
       </p>
 
       <div className="admin-events__table-wrap">
         <table className="admin-events__table">
           <thead>
             <tr>
-              <th scope="col">Studio</th>
-              <th scope="col">Event</th>
-              <th scope="col">Status</th>
-              <th scope="col">Wedding</th>
-              <th scope="col">Photos</th>
-              <th scope="col">Index</th>
-              <th scope="col">Searches</th>
-              <th scope="col">Guests</th>
-              <th scope="col">Last search</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{tPath("columns.studio")}</th>
+              <th scope="col">{tPath("columns.event")}</th>
+              <th scope="col">{tPath("columns.status")}</th>
+              <th scope="col">{tPath("columns.wedding")}</th>
+              <th scope="col">{tPath("columns.photos")}</th>
+              <th scope="col">{tPath("columns.index")}</th>
+              <th scope="col">{tPath("columns.searches")}</th>
+              <th scope="col">{tPath("columns.guests")}</th>
+              <th scope="col">{tPath("columns.lastSearch")}</th>
+              <th scope="col">{tPath("columns.actions")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={10} className="admin-events__no-results">
-                  No events match your filters.
+                  {tPath("noResults")}
                 </td>
               </tr>
             ) : (
@@ -302,7 +305,7 @@ export function AdminEventsTable({
 
                 return (
                   <tr key={event.id}>
-                    <td>{event.organization_name ?? "—"}</td>
+                    <td>{event.organization_name ?? t("emDash")}</td>
                     <td className="admin-events__event-cell">
                       <strong>{event.title}</strong>
                       {names && <span className="admin-events__couple">{names}</span>}
@@ -321,28 +324,30 @@ export function AdminEventsTable({
                           )
                         }
                       >
-                        <option value="draft">Draft</option>
-                        <option value="active">Active</option>
-                        <option value="closed">Closed</option>
+                        <option value="draft">{tStatus("draft")}</option>
+                        <option value="active">{tStatus("active")}</option>
+                        <option value="closed">{tStatus("closed")}</option>
                       </select>
                       {event.archive_due && event.status !== "closed" && (
-                        <span className="admin-events__archive-badge">Archive due</span>
+                        <span className="admin-events__archive-badge">{tPath("archiveBadge")}</span>
                       )}
                     </td>
-                    <td>{formatDate(event.wedding_date)}</td>
+                    <td>{formatDate(event.wedding_date, t("emDash"))}</td>
                     <td>{event.gallery_photo_count}</td>
                     <td>
                       {event.gallery_photo_count === 0 ? (
-                        "—"
+                        t("emDash")
                       ) : event.unindexed_photo_count > 0 ? (
-                        <span className="admin-events__index-warn">{event.unindexed_photo_count} pending</span>
+                        <span className="admin-events__index-warn">
+                          {tPath("indexPending", { count: event.unindexed_photo_count })}
+                        </span>
                       ) : (
-                        <span className="admin-events__index-ok">Indexed</span>
+                        <span className="admin-events__index-ok">{tPath("indexOk")}</span>
                       )}
                     </td>
                     <td>{event.match_run_count}</td>
                     <td>{event.unique_guest_sessions}</td>
-                    <td>{formatDateTime(event.last_match_at)}</td>
+                    <td>{formatDateTime(event.last_match_at, t("emDash"))}</td>
                     <td className="admin-events__actions-cell">
                       {showInviteForm ? (
                         <form
@@ -352,14 +357,14 @@ export function AdminEventsTable({
                           <input
                             type="email"
                             required
-                            placeholder="Admin email"
+                            placeholder={tPath("adminEmailPlaceholder")}
                             value={inviteEmail}
                             disabled={busy}
                             onChange={(changeEvent) => setInviteEmail(changeEvent.target.value)}
                             aria-label={`Admin email for ${event.title}`}
                           />
                           <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-                            Invite
+                            {t("invite")}
                           </button>
                           <button
                             type="button"
@@ -367,16 +372,16 @@ export function AdminEventsTable({
                             disabled={busy}
                             onClick={cancelInvite}
                           >
-                            Cancel
+                            {t("cancel")}
                           </button>
                         </form>
                       ) : (
                         <div className="admin-events__actions">
                           <Link className="btn btn-secondary btn-sm" to={`/e/${event.slug}/manage`}>
-                            Manage
+                            {tPath("manage")}
                           </Link>
                           <a className="btn btn-ghost btn-sm" href={buildEventGuestUrl(event.slug)}>
-                            Guest
+                            {tPath("guest")}
                           </a>
                           {(onIndexFaces || onInviteAdmin || onDeleteEvent) && (
                             <button
@@ -388,7 +393,7 @@ export function AdminEventsTable({
                               disabled={rowBusy && openMenuEventId !== event.id}
                               onClick={(clickEvent) => toggleMenu(event.id, clickEvent.currentTarget)}
                             >
-                              More
+                              {tPath("more")}
                             </button>
                           )}
                         </div>
@@ -425,7 +430,7 @@ export function AdminEventsTable({
                   void onIndexFaces?.(openMenuEvent.id);
                 }}
               >
-                {openMenuIsIndexing ? "Indexing…" : "Index faces"}
+                {openMenuIsIndexing ? t("indexing") : tPath("indexFaces")}
               </button>
             )}
             {onInviteAdmin && (
@@ -436,7 +441,7 @@ export function AdminEventsTable({
                 disabled={busy}
                 onClick={() => startInvite(openMenuEvent.id)}
               >
-                Invite admin
+                {tPath("inviteAdmin")}
               </button>
             )}
             {onDeleteEvent && (
@@ -450,7 +455,7 @@ export function AdminEventsTable({
                   void onDeleteEvent(openMenuEvent.id);
                 }}
               >
-                Delete event
+                {tPath("deleteEvent")}
               </button>
             )}
           </div>,

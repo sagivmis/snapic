@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { useTranslation } from "../i18n";
 import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/AuthPages.scss";
 
@@ -15,6 +16,7 @@ function defaultPathForRole(globalRole: string | undefined): string {
 }
 
 export function LoginPage() {
+  const { t, tPath } = useTranslation("auth");
   const { signInWithGoogle, signInWithMagicLink, session, loading, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,9 +41,9 @@ export function LoginPage() {
   if (!isSupabaseConfigured) {
     return (
       <div className="auth-page">
-        <h1>Sign in</h1>
-        <p>Authentication is not configured for this deployment.</p>
-        <Link to="/">Back home</Link>
+        <h1>{tPath("loginTitle")}</h1>
+        <p>{tPath("supabaseNotConfigured")}</p>
+        <Link to="/">{t("backHome")}</Link>
       </div>
     );
   }
@@ -54,7 +56,7 @@ export function LoginPage() {
       await signInWithMagicLink(email.trim(), from);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send magic link");
+      setError(err instanceof Error ? err.message : tPath("magicLinkFailed"));
     } finally {
       setBusy(false);
     }
@@ -62,8 +64,8 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <h1>Sign in</h1>
-      <p className="auth-page__lead">Use Google or a magic link sent to your email.</p>
+      <h1>{tPath("loginTitle")}</h1>
+      <p className="auth-page__lead">{tPath("loginLead")}</p>
 
       <button
         type="button"
@@ -72,38 +74,38 @@ export function LoginPage() {
         onClick={() => {
           setBusy(true);
           void signInWithGoogle(from).catch((err) => {
-            setError(err instanceof Error ? err.message : "Google sign-in failed");
+            setError(err instanceof Error ? err.message : tPath("googleSignInFailed"));
             setBusy(false);
           });
         }}
       >
-        Continue with Google
+        {tPath("continueGoogle")}
       </button>
 
-      <div className="auth-page__divider">or</div>
+      <div className="auth-page__divider">{tPath("orEmail")}</div>
 
       {sent ? (
-        <p className="auth-page__success">Check your email for a sign-in link.</p>
+        <p className="auth-page__success">{tPath("magicLinkSent")}</p>
       ) : (
         <form className="auth-page__form" onSubmit={handleMagicLink}>
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{tPath("emailLabel")}</label>
           <input
             id="email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={tPath("emailPlaceholder")}
           />
           <button type="submit" className="btn btn-secondary" disabled={busy}>
-            Send magic link
+            {tPath("sendMagicLink")}
           </button>
         </form>
       )}
 
       {error && <p className="error-banner">{error}</p>}
       <Link className="auth-page__back" to="/">
-        Back home
+        {t("backHome")}
       </Link>
     </div>
   );

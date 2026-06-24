@@ -2,25 +2,28 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMyEvents } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { useTranslation } from "../i18n";
 import type { UserEventSummary } from "../types";
 import "../styles/MyEventsSelect.scss";
 
-function formatEventLabel(event: UserEventSummary): string {
-  if (event.search_count > 0) {
-    return `${event.title} (${event.search_count} search${event.search_count === 1 ? "" : "es"})`;
-  }
-  if (event.is_admin) {
-    return `${event.title} (admin)`;
-  }
-  return event.title;
-}
-
 export function MyEventsSelect() {
+  const { t, tPath } = useTranslation("components.myEventsSelect");
   const navigate = useNavigate();
   const { session, getAccessToken } = useAuth();
   const [events, setEvents] = useState<UserEventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function formatEventLabel(event: UserEventSummary): string {
+    if (event.search_count > 0) {
+      const key = event.search_count === 1 ? "searchCount_one" : "searchCount_other";
+      return tPath(key, { title: event.title, count: event.search_count });
+    }
+    if (event.is_admin) {
+      return tPath("adminSuffix", { title: event.title });
+    }
+    return event.title;
+  }
 
   useEffect(() => {
     if (!session) {
@@ -35,23 +38,23 @@ export function MyEventsSelect() {
       try {
         const token = await getAccessToken();
         if (!token) {
-          throw new Error("Not signed in");
+          throw new Error(t("notSignedIn"));
         }
         setEvents(await fetchMyEvents(token));
       } catch (err) {
         setEvents([]);
-        setError(err instanceof Error ? err.message : "Could not load events");
+        setError(err instanceof Error ? err.message : tPath("loadFailed"));
       } finally {
         setLoading(false);
       }
     })();
-  }, [session, getAccessToken]);
+  }, [session, getAccessToken, t, tPath]);
 
   if (loading) {
     return (
       <div className="my-events-select my-events-select--loading" aria-busy="true">
         <span className="spinner" />
-        <span>Loading events…</span>
+        <span>{tPath("loading")}</span>
       </div>
     );
   }
@@ -63,14 +66,14 @@ export function MyEventsSelect() {
   if (events.length === 0) {
     return (
       <div className="my-events-select my-events-select--empty btn btn-primary" aria-disabled="true">
-        No events yet
+        {tPath("empty")}
       </div>
     );
   }
 
   return (
     <label className="my-events-select">
-      <span className="visually-hidden">Go to one of your events</span>
+      <span className="visually-hidden">{tPath("label")}</span>
       <select
         className="my-events-select__control btn btn-primary"
         defaultValue=""
@@ -90,7 +93,7 @@ export function MyEventsSelect() {
         }}
       >
         <option value="" disabled>
-          Your events
+          {tPath("placeholder")}
         </option>
         {events.map((event) => (
           <option key={event.id} value={event.slug}>

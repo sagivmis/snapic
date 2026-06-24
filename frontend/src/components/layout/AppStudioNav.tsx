@@ -1,19 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
 import { useStudioMembership } from "../../hooks/useStudioMembership";
+import { useTranslation } from "../../i18n";
 import { APP_SIDEBAR_SECTIONS } from "../../lib/appSidebarSections";
 import { AppSidebarSection } from "./AppSidebarSection";
 
 const STUDIO_NAV = [
-  { to: "/studio", label: "Dashboard", end: true },
-  { to: "/studio/clients", label: "Clients" },
-  { to: "/studio/settings", label: "Settings" },
-  { to: "/studio/billing", label: "Billing" },
-  { to: "/studio/team", label: "Team" },
+  { to: "/studio", labelKey: "dashboard", end: true },
+  { to: "/studio/clients", labelKey: "clients" },
+  { to: "/studio/settings", labelKey: "settings" },
+  { to: "/studio/billing", labelKey: "billing" },
+  { to: "/studio/team", labelKey: "team" },
 ] as const;
 
 export function AppStudioNav() {
   const location = useLocation();
   const { organizations, pendingInvites } = useStudioMembership();
+  const { tPath } = useTranslation("nav");
+  const { tPath: tStudioNav } = useTranslation("studio.nav");
 
   function isActive(to: string, end?: boolean): boolean {
     if (end) {
@@ -29,12 +32,12 @@ export function AppStudioNav() {
     <>
       {organizations.length > 1 && (
         <Link to="/studio/select" className="app-layout__meta-link">
-          Switch studio
+          {tPath("switchStudio")}
         </Link>
       )}
       {pendingInvites.length > 0 && (
         <Link to="/studio/select" className="app-layout__invites-link">
-          Pending invitations ({pendingInvites.length})
+          {tPath("pendingInvites", { count: pendingInvites.length })}
         </Link>
       )}
     </>
@@ -51,9 +54,9 @@ export function AppStudioNav() {
         <Link
           key={item.to}
           to={item.to}
-          className={`app-layout__nav-link${isActive(item.to, item.end) ? " app-layout__nav-link--active" : ""}`}
+          className={`app-layout__nav-link${isActive(item.to, "end" in item ? item.end : undefined) ? " app-layout__nav-link--active" : ""}`}
         >
-          {item.label}
+          {tStudioNav(item.labelKey)}
         </Link>
       ))}
     </AppSidebarSection>

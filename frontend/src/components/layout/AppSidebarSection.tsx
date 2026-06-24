@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useSidebarSection } from "../../hooks/useSidebarSection";
+import { useTranslation } from "../../i18n";
 import type { SidebarSectionConfig } from "../../lib/appSidebarSections";
 
 interface AppSidebarSectionProps {
@@ -19,12 +20,14 @@ export function AppSidebarSection({
   headerExtra,
   children,
 }: AppSidebarSectionProps) {
+  const { tPath } = useTranslation("nav");
   const { expanded, toggle } = useSidebarSection({
     sectionId: config.id,
     defaultExpanded: config.defaultExpanded,
     hasActiveChild,
   });
 
+  const title = tPath(config.titleKey);
   const panelId = `sidebar-section-${config.id}`;
 
   return (
@@ -39,14 +42,14 @@ export function AppSidebarSection({
         onClick={toggle}
       >
         <span className="app-sidebar-section__chevron" aria-hidden="true" />
-        <span className="app-sidebar-section__title">{config.title}</span>
+        <span className="app-sidebar-section__title">{title}</span>
         {badge !== undefined && badge > 0 && (
           <span className="app-sidebar-section__badge">{badge}</span>
         )}
       </button>
       <div id={panelId} className="app-sidebar-section__body" hidden={!expanded}>
         {headerExtra}
-        <nav className="app-layout__nav" aria-label={ariaLabel ?? config.title}>
+        <nav className="app-layout__nav" aria-label={ariaLabel ?? title}>
           {children}
         </nav>
       </div>

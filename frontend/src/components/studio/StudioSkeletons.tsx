@@ -1,11 +1,17 @@
+import { useTranslation } from "../../i18n";
 import "../../styles/StudioSkeletons.scss";
 
-export const DASHBOARD_STAT_LABELS = [
-  "Live",
-  "In progress",
-  "Guest searches",
-  "Pending handoff",
+const DASHBOARD_STAT_KEYS = [
+  "stats.activeClients",
+  "stats.draftClients",
+  "stats.totalSearches",
+  "stats.pendingHandoffs",
 ] as const;
+
+export function useDashboardStatLabels(): string[] {
+  const { tPath } = useTranslation("studio.dashboard");
+  return DASHBOARD_STAT_KEYS.map((key) => tPath(key));
+}
 
 export function StudioStatsSkeleton({
   count = 4,
@@ -61,11 +67,14 @@ export function StudioFormSkeleton({ fields = 5 }: { fields?: number }) {
 }
 
 export function StudioDashboardContentSkeleton() {
+  const { tPath } = useTranslation("studio.dashboard");
+  const statLabels = useDashboardStatLabels();
+
   return (
     <>
-      <StudioStatsSkeleton labels={DASHBOARD_STAT_LABELS} />
+      <StudioStatsSkeleton labels={statLabels} />
       <section>
-        <h2>Recent clients</h2>
+        <h2>{tPath("recentClients")}</h2>
         <StudioClientsTableSkeleton rows={3} />
       </section>
     </>
@@ -99,12 +108,14 @@ export function StudioTeamMembersSkeleton() {
 }
 
 export function StudioLayoutLoading() {
+  const { t, tPath } = useTranslation("studio.dashboard");
+
   return (
-    <div className="studio-page" aria-busy="true" aria-label="Loading studio">
+    <div className="studio-page" aria-busy="true" aria-label={t("loadingStudio")}>
       <header className="studio-page__header">
         <div>
-          <h1>Dashboard</h1>
-          <p>Overview of your client galleries</p>
+          <h1>{tPath("title")}</h1>
+          <p>{tPath("subtitle")}</p>
         </div>
       </header>
       <StudioDashboardContentSkeleton />
@@ -113,8 +124,10 @@ export function StudioLayoutLoading() {
 }
 
 export function StudioSelectLoading() {
+  const { t } = useTranslation();
+
   return (
-    <div className="auth-page studio-select studio-select--loading" aria-busy="true" aria-label="Loading studios">
+    <div className="auth-page studio-select studio-select--loading" aria-busy="true" aria-label={t("loadingStudios")}>
       <span className="studio-skeleton studio-skeleton--eyebrow" aria-hidden="true" />
       <span className="studio-skeleton studio-skeleton--title" aria-hidden="true" />
       <span className="studio-skeleton studio-skeleton--line-medium" aria-hidden="true" />

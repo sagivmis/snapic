@@ -1,5 +1,7 @@
-import type { AppTab } from "../navigation";
-import { NAV_ITEMS } from "../navigation";
+import { useMemo } from "react";
+import type { AppTab, NavItem } from "../navigation";
+import { getNavItems } from "../navigation";
+import { useTranslation } from "../i18n";
 import "../styles/Sidebar.scss";
 
 interface SidebarProps {
@@ -32,7 +34,7 @@ function NavButton({
   badge,
   onClick,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  item: NavItem;
   active: boolean;
   complete: boolean;
   badge?: number | null;
@@ -70,16 +72,21 @@ export function Sidebar({
   onThresholdChange,
   onMatch,
 }: SidebarProps) {
+  const { t } = useTranslation("common");
+  const { tPath: tSidebar } = useTranslation("components.sidebar");
+  const { tPath: tNav } = useTranslation("navigation");
+  const navItems = useMemo(() => getNavItems(tNav), [tNav]);
+
   const matchSection = (
     <div className="sidebar__match">
       <button type="button" onClick={onToggleAdvanced} className="sidebar__sensitivity-toggle">
-        {showAdvanced ? "Hide" : "Show"} sensitivity
+        {showAdvanced ? tSidebar("hideSensitivity") : tSidebar("showSensitivity")}
       </button>
 
       {showAdvanced && (
         <div>
           <label htmlFor="threshold" className="sidebar__threshold-label">
-            Match sensitivity: {threshold.toFixed(2)}
+            {tSidebar("matchSensitivity", { value: threshold.toFixed(2) })}
           </label>
           <input
             id="threshold"
@@ -91,9 +98,7 @@ export function Sidebar({
             onChange={(event) => onThresholdChange(Number(event.target.value))}
             className="sidebar__threshold-input"
           />
-          <p className="sidebar__threshold-hint">
-            Lower = more photos found, higher = stricter matching.
-          </p>
+          <p className="sidebar__threshold-hint">{tSidebar("sensitivityHint")}</p>
         </div>
       )}
 
@@ -106,10 +111,10 @@ export function Sidebar({
         {loading ? (
           <>
             <span className="spinner" />
-            Searching...
+            {tSidebar("searching")}
           </>
         ) : (
-          "Find my photos"
+          tSidebar("findMyPhotos")
         )}
       </button>
     </div>
@@ -119,26 +124,26 @@ export function Sidebar({
     <>
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <p className="sidebar__brand-title">Snapic</p>
-          <p className="sidebar__brand-sub">Wedding memories</p>
+          <p className="sidebar__brand-title">{t("brand")}</p>
+          <p className="sidebar__brand-sub">{tSidebar("brandSub")}</p>
         </div>
 
         <nav className="sidebar__nav">
           <NavButton
-            item={NAV_ITEMS[0]}
+            item={navItems[0]}
             active={activeTab === "portrait"}
             complete={hasPortrait}
             onClick={() => onTabChange("portrait")}
           />
           <NavButton
-            item={NAV_ITEMS[1]}
+            item={navItems[1]}
             active={activeTab === "gallery"}
             complete={galleryCount > 0}
             badge={galleryCount > 0 ? galleryCount : undefined}
             onClick={() => onTabChange("gallery")}
           />
           <NavButton
-            item={NAV_ITEMS[2]}
+            item={navItems[2]}
             active={activeTab === "results"}
             complete={matchCount != null && matchCount > 0}
             badge={matchCount != null && matchCount > 0 ? matchCount : undefined}
@@ -151,7 +156,7 @@ export function Sidebar({
 
       <div className="mobile-bar">
         <div className="mobile-bar__tabs">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const complete =
               item.id === "portrait"
                 ? hasPortrait
@@ -189,7 +194,7 @@ export function Sidebar({
           onClick={onMatch}
           className="btn-primary mobile-bar__cta"
         >
-          {loading ? "Searching..." : "Find my photos"}
+          {loading ? tSidebar("searching") : tSidebar("findMyPhotos")}
         </button>
       </div>
     </>

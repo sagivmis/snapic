@@ -5,8 +5,9 @@ import { GalleryInput } from "./components/GalleryInput";
 import { ResultsGrid } from "./components/ResultsGrid";
 import { SelfieUpload } from "./components/SelfieUpload";
 import { Sidebar } from "./components/Sidebar";
+import { useTranslation } from "./i18n";
 import type { AppTab } from "./navigation";
-import { NAV_ITEMS } from "./navigation";
+import { getNavItems } from "./navigation";
 import type { MatchResponse } from "./types";
 import "./styles/App.scss";
 
@@ -22,6 +23,11 @@ function getShareIdFromUrl(): string | null {
 }
 
 export default function App() {
+  const { t, tPath: tShare } = useTranslation("events.share");
+  const { tPath: tDemo } = useTranslation("demo");
+  const { tPath: tNav } = useTranslation("navigation");
+  const navItems = useMemo(() => getNavItems(tNav), [tNav]);
+
   const [isGuestView, setIsGuestView] = useState(false);
   const [loadingShare, setLoadingShare] = useState(Boolean(getShareIdFromUrl()));
   const [activeTab, setActiveTab] = useState<AppTab>("portrait");
@@ -44,7 +50,7 @@ export default function App() {
     ? Boolean(selfie) && Boolean(partnerSelfie)
     : Boolean(selfie);
   const canMatch = hasPortrait && galleryCount > 0;
-  const activeItem = NAV_ITEMS.find((item) => item.id === activeTab) ?? NAV_ITEMS[0];
+  const activeItem = navItems.find((item) => item.id === activeTab) ?? navItems[0];
 
   useEffect(() => {
     if (!selfie) {
@@ -82,7 +88,7 @@ export default function App() {
         setError(null);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Could not load shared results");
+        setError(err instanceof Error ? err.message : tShare("loadFailed"));
       })
       .finally(() => setLoadingShare(false));
   }, []);
@@ -114,7 +120,7 @@ export default function App() {
       setResult(response);
       setActiveTab("results");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("somethingWentWrong"));
     } finally {
       setLoading(false);
     }
@@ -125,9 +131,9 @@ export default function App() {
       <div className="app-guest">
         <InstallPrompt />
         <header className="header header--guest">
-          <p className="header__step">Shared gallery</p>
-          <h1 className="header__title">Wedding moments</h1>
-          <p className="header__desc">Photos shared from a Snapic search</p>
+          <p className="header__step">{tShare("eyebrow")}</p>
+          <h1 className="header__title">{tShare("title")}</h1>
+          <p className="header__desc">{tShare("desc")}</p>
         </header>
 
         <div className="content content--guest">
@@ -164,7 +170,7 @@ export default function App() {
 
       <main className="main">
         <header className="header">
-          <p className="header__step">Step {activeItem.step} of 3</p>
+          <p className="header__step">{tDemo("stepOf3", { step: activeItem.step })}</p>
           <h1 className="header__title">{activeItem.label}</h1>
           <p className="header__desc">{activeItem.description}</p>
         </header>

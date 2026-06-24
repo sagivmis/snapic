@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from "../types";
+import { useTranslation } from "../i18n";
 import "../styles/AdminAuditLog.scss";
 
 interface AdminAuditLogProps {
@@ -10,9 +11,9 @@ function formatAction(action: string): string {
   return action.replace(/\./g, " · ").replace(/_/g, " ");
 }
 
-function formatDateTime(value?: string | null): string {
+function formatDateTime(value: string | null | undefined, emDash: string): string {
   if (!value) {
-    return "—";
+    return emDash;
   }
   return new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -23,32 +24,34 @@ function formatDateTime(value?: string | null): string {
 }
 
 export function AdminAuditLog({ entries, loading = false }: AdminAuditLogProps) {
+  const { t, tPath } = useTranslation("admin.auditLog");
+
   return (
     <section className="admin-audit admin__section">
-      <h2>Audit log</h2>
+      <h2>{tPath("title")}</h2>
       {loading ? (
-        <p className="admin-audit__empty">Loading recent actions…</p>
+        <p className="admin-audit__empty">{tPath("loading")}</p>
       ) : entries.length === 0 ? (
-        <p className="admin-audit__empty">No admin actions recorded yet.</p>
+        <p className="admin-audit__empty">{tPath("empty")}</p>
       ) : (
         <div className="admin-audit__table-wrap">
           <table className="admin-audit__table">
             <thead>
               <tr>
-                <th>When</th>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Details</th>
+                <th>{tPath("columns.when")}</th>
+                <th>{tPath("columns.action")}</th>
+                <th>{tPath("columns.actor")}</th>
+                <th>{tPath("columns.details")}</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id}>
-                  <td>{formatDateTime(entry.created_at)}</td>
+                  <td>{formatDateTime(entry.created_at, t("emDash"))}</td>
                   <td>
                     <span className="admin-audit__action">{formatAction(entry.action)}</span>
                   </td>
-                  <td>{entry.actor_email ?? "—"}</td>
+                  <td>{entry.actor_email ?? t("emDash")}</td>
                   <td className="admin-audit__meta">
                     {typeof entry.metadata.event_slug === "string" && (
                       <span>/e/{entry.metadata.event_slug}</span>

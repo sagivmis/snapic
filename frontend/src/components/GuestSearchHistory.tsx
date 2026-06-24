@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "../i18n";
 import type { MatchRunSummary } from "../types";
 import "../styles/GuestSearchHistory.scss";
 
 const PAST_SEARCHES_PREVIEW = 4;
 
-function formatRunParts(value?: string | null): { date: string; time: string } {
+function formatRunParts(
+  value: string | null | undefined,
+  recentLabel: string,
+  searchLabel: string,
+): { date: string; time: string } {
   if (!value) {
-    return { date: "Recent", time: "search" };
+    return { date: recentLabel, time: searchLabel };
   }
   const parsed = new Date(value);
   return {
@@ -16,18 +21,12 @@ function formatRunParts(value?: string | null): { date: string; time: string } {
   };
 }
 
-function formatMatchCount(count: number): string {
-  if (count === 0) {
-    return "No matches";
-  }
-  return `${count} photo${count === 1 ? "" : "s"}`;
-}
-
 interface GuestSearchHistoryProps {
   runs: MatchRunSummary[];
 }
 
 export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
+  const { tPath } = useTranslation("components.guestHistory");
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -63,6 +62,14 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
     };
   }, [open]);
 
+  function formatMatchCount(count: number): string {
+    if (count === 0) {
+      return tPath("noMatches");
+    }
+    const key = count === 1 ? "photo_one" : "photo_other";
+    return tPath(key, { count });
+  }
+
   if (runs.length === 0) {
     return null;
   }
@@ -74,7 +81,7 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
         className={`guest-history__trigger${open ? " guest-history__trigger--open" : ""}`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={`Search history, ${runs.length} past searches`}
+        aria-label={tPath("triggerAria", { count: runs.length })}
         onClick={() => setOpen((value) => !value)}
       >
         <svg className="guest-history__trigger-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -101,13 +108,13 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
       </button>
 
       {open && (
-        <div className="guest-history__panel" role="dialog" aria-label="Past searches">
+        <div className="guest-history__panel" role="dialog" aria-label={tPath("dialogAria")}>
           <div className="guest-history__panel-header">
-            <h2>Past searches</h2>
+            <h2>{tPath("title")}</h2>
             <button
               type="button"
               className="guest-history__close"
-              aria-label="Close search history"
+              aria-label={tPath("closeAria")}
               onClick={() => setOpen(false)}
             >
               ×
@@ -118,7 +125,11 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
             className={`guest-history__list${showAll ? " guest-history__list--expanded" : ""}`}
           >
             {visibleRuns.map((run) => {
-              const { date, time } = formatRunParts(run.created_at);
+              const { date, time } = formatRunParts(
+                run.created_at,
+                tPath("recent"),
+                tPath("search"),
+              );
               const countLabel = formatMatchCount(run.matched_count);
               const row = (
                 <>
@@ -185,7 +196,9 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
               className="guest-history__toggle btn btn-ghost"
               onClick={() => setShowAll((value) => !value)}
             >
-              {showAll ? "Show fewer" : `Show all ${runs.length} searches`}
+              {showAll
+                ? tPath("showFewer")
+                : tPath("showAll", { count: runs.length })}
             </button>
           )}
         </div>

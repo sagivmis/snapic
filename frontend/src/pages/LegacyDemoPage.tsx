@@ -5,8 +5,9 @@ import { GalleryInput } from "../components/GalleryInput";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import { Sidebar } from "../components/Sidebar";
+import { useTranslation } from "../i18n";
 import type { AppTab } from "../navigation";
-import { NAV_ITEMS } from "../navigation";
+import { getNavItems } from "../navigation";
 import type { MatchResponse } from "../types";
 import { MAX_DEMO_GALLERY_PHOTOS } from "../lib/demoLimits";
 import "../styles/App.scss";
@@ -19,6 +20,10 @@ function parseUrls(text: string): string[] {
 }
 
 export function LegacyDemoPage() {
+  const { t, tPath } = useTranslation("demo");
+  const { tPath: tNav } = useTranslation("navigation");
+  const navItems = useMemo(() => getNavItems(tNav), [tNav]);
+
   const [activeTab, setActiveTab] = useState<AppTab>("portrait");
   const [coupleMode, setCoupleMode] = useState(false);
   const [selfie, setSelfie] = useState<File | null>(null);
@@ -42,7 +47,7 @@ export function LegacyDemoPage() {
     ? Boolean(selfie) && Boolean(partnerSelfie)
     : Boolean(selfie);
   const canMatch = hasPortrait && galleryCount > 0 && galleryCount <= MAX_DEMO_GALLERY_PHOTOS;
-  const activeItem = NAV_ITEMS.find((item) => item.id === activeTab) ?? NAV_ITEMS[0];
+  const activeItem = navItems.find((item) => item.id === activeTab) ?? navItems[0];
 
   useEffect(() => {
     if (!selfie) {
@@ -75,7 +80,7 @@ export function LegacyDemoPage() {
     }
     if (galleryCount > MAX_DEMO_GALLERY_PHOTOS) {
       setActiveTab("gallery");
-      setError(`Demo albums are limited to ${MAX_DEMO_GALLERY_PHOTOS} photos.`);
+      setError(tPath("demoLimitError", { max: MAX_DEMO_GALLERY_PHOTOS }));
       return;
     }
     if (!selfie) {
@@ -125,7 +130,7 @@ export function LegacyDemoPage() {
       );
       setResult(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("somethingWentWrong"));
       setActiveTab("gallery");
       setResult(null);
     } finally {
@@ -154,7 +159,7 @@ export function LegacyDemoPage() {
 
       <main className="main">
         <header className="header">
-          <p className="header__step">Step {activeItem.step} of 3</p>
+          <p className="header__step">{tPath("stepOf3", { step: activeItem.step })}</p>
           <h1 className="header__title">{activeItem.label}</h1>
           <p className="header__desc">{activeItem.description}</p>
         </header>

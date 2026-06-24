@@ -12,16 +12,20 @@ import { AlbumManager } from "../../components/shared/AlbumManager";
 import { ClientHandoffPanel } from "../../components/studio/ClientHandoffPanel";
 import { StudioClientDetailSkeleton } from "../../components/studio/StudioSkeletons";
 import { useAuth } from "../../auth/AuthProvider";
+import { useTranslation } from "../../i18n";
 import { clearStudioDashboardCache } from "../../lib/studioCache";
 import type { EventPublic, StudioClient } from "../../types";
 import "../../styles/StudioLayout.scss";
 
 type ClientTab = "album" | "handoff" | "analytics";
 
+const TAB_KEYS: ClientTab[] = ["album", "handoff", "analytics"];
+
 export function StudioClientDetailPage() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const { getAccessToken } = useAuth();
+  const { t, tPath } = useTranslation("studio.clientDetail");
   const [client, setClient] = useState<StudioClient | null>(null);
   const [event, setEvent] = useState<EventPublic | null>(null);
   const [tab, setTab] = useState<ClientTab>("album");
@@ -44,11 +48,11 @@ export function StudioClientDetailPage() {
         setEvent(studioClientToEventPublic(clientRow));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load client");
+      setError(err instanceof Error ? err.message : tPath("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [eventId, getAccessToken]);
+  }, [eventId, getAccessToken, tPath]);
 
   useEffect(() => {
     void load();
@@ -59,7 +63,7 @@ export function StudioClientDetailPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await studioInviteCouple(eventId, email, token);
       await load();
@@ -73,12 +77,12 @@ export function StudioClientDetailPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await studioGoLive(eventId, token);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Go live failed");
+      setError(err instanceof Error ? err.message : tPath("goLiveFailed"));
     } finally {
       setBusy(false);
     }
@@ -88,11 +92,7 @@ export function StudioClientDetailPage() {
     if (!client) {
       return;
     }
-    if (
-      !window.confirm(
-        `Delete "${client.title}" permanently? Photos, searches, and gallery data will be removed. This cannot be undone.`,
-      )
-    ) {
+    if (!window.confirm(tPath("deleteConfirm", { title: client.title }))) {
       return;
     }
     setBusy(true);
@@ -100,13 +100,13 @@ export function StudioClientDetailPage() {
     try {
       const token = await getAccessToken();
       if (!token) {
-        throw new Error("Not signed in");
+        throw new Error(t("notSignedIn"));
       }
       await deleteStudioClient(eventId, token);
       clearStudioDashboardCache();
       navigate("/studio/clients", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete client");
+      setError(err instanceof Error ? err.message : tPath("deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -114,11 +114,11 @@ export function StudioClientDetailPage() {
 
   if (loading) {
     return (
-      <div className="studio-page" aria-busy="true" aria-label="Loading client">
+      <div className="studio-page" aria-busy="true" aria-label={t("loadingClient")}>
         <header className="studio-page__header">
           <div>
             <p>
-              <Link to="/studio/clients">Clients</Link>
+              <Link to="/studio/clients">{tPath("clientsBreadcrumb")}</Link>
             </p>
             <h1 className="studio-skeleton studio-skeleton--title-inline" aria-hidden="true" />
           </div>
@@ -132,7 +132,7 @@ export function StudioClientDetailPage() {
     return (
       <div className="studio-page">
         {error && <p className="error-banner">{error}</p>}
-        {!error && <p>Client not found.</p>}
+        {!error && <p>{tPath("notFound")}</p>}
       </div>
     );
   }
@@ -142,7 +142,7 @@ export function StudioClientDetailPage() {
       <header className="studio-page__header">
         <div>
           <p>
-            <Link to="/studio/clients">Clients</Link>
+            <Link to="/studio/clients">{tPath("clientsBreadcrumb")}</Link>
           </p>
           <h1>{client.title}</h1>
           <p>
@@ -151,7 +151,7 @@ export function StudioClientDetailPage() {
         </div>
         <div className="studio-page__header-actions">
           <Link className="btn btn-secondary" to={`/e/${client.slug}/manage?from=studio&tab=album`}>
-            Full manage page
+            {tPath("fullManagePage")}
           </Link>
           <button
             type="button"
@@ -159,20 +159,20 @@ export function StudioClientDetailPage() {
             disabled={busy}
             onClick={() => void handleDelete()}
           >
-            Delete client
+            {tPath("deleteClient")}
           </button>
         </div>
       </header>
 
       <nav className="event-manage__tabs">
-        {(["album", "handoff", "analytics"] as ClientTab[]).map((item) => (
+        {TAB_KEYS.map((item) => (
           <button
             key={item}
             type="button"
             className={`event-manage__tab${tab === item ? " event-manage__tab--active" : ""}`}
             onClick={() => setTab(item)}
           >
-            {item.charAt(0).toUpperCase() + item.slice(1)}
+            {tPath(`tabs.${item}`)}
           </button>
         ))}
       </nav>
@@ -186,15 +186,15 @@ export function StudioClientDetailPage() {
           <div className="studio-page__stats">
             <div className="studio-page__stat">
               <span className="studio-page__stat-value">{client.match_run_count}</span>
-              <span className="studio-page__stat-label">Searches</span>
+              <span className="studio-page__stat-label">{tPath("stats.searches")}</span>
             </div>
             <div className="studio-page__stat">
               <span className="studio-page__stat-value">{client.unique_guest_sessions}</span>
-              <span className="studio-page__stat-label">Unique guests</span>
+              <span className="studio-page__stat-label">{tPath("stats.uniqueGuests")}</span>
             </div>
             <div className="studio-page__stat">
               <span className="studio-page__stat-value">{client.gallery_photo_count}</span>
-              <span className="studio-page__stat-label">Photos</span>
+              <span className="studio-page__stat-label">{tPath("stats.photos")}</span>
             </div>
           </div>
         </section>
