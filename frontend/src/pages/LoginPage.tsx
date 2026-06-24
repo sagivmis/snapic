@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useAuth } from "../auth/AuthProvider";
 import { useTranslation } from "../i18n";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -41,6 +42,9 @@ export function LoginPage() {
   if (!isSupabaseConfigured) {
     return (
       <div className="auth-page">
+        <div className="auth-page__language">
+          <LanguageSwitcher />
+        </div>
         <h1>{tPath("loginTitle")}</h1>
         <p>{tPath("supabaseNotConfigured")}</p>
         <Link to="/">{t("backHome")}</Link>
@@ -64,6 +68,9 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
+      <div className="auth-page__language">
+        <LanguageSwitcher />
+      </div>
       <h1>{tPath("loginTitle")}</h1>
       <p className="auth-page__lead">{tPath("loginLead")}</p>
 

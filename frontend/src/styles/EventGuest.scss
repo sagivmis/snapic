@@ -20,6 +20,10 @@
     min-height: 100dvh;
   }
 
+  &__language {
+    margin-bottom: 1rem;
+  }
+
   &--results {
     .event-guest__content {
       border: none;

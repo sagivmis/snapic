@@ -4,11 +4,15 @@ import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import { AppRouter } from "./AppRouter";
 import { AuthProvider } from "./auth/AuthProvider";
-import { createTranslator } from "./i18n";
+import { createTranslator, LocaleProvider } from "./i18n";
+import { applyDocumentLocale, readStoredLocale, setActiveLocale } from "./i18n";
 import { initSentry, Sentry } from "./monitoring/sentry";
 import "./styles/global.scss";
 
-const { t } = createTranslator();
+const bootLocale = readStoredLocale();
+setActiveLocale(bootLocale);
+applyDocumentLocale(bootLocale);
+const { t } = createTranslator(undefined, bootLocale);
 
 initSentry();
 registerSW({ immediate: true });
@@ -16,9 +20,11 @@ registerSW({ immediate: true });
 const app = (
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <AppRouter />
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </LocaleProvider>
     </BrowserRouter>
   </StrictMode>
 );

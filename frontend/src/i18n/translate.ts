@@ -1,18 +1,35 @@
+import { DEFAULT_LOCALE, LOCALES, readStoredLocale, type LocaleId } from "./locale";
 import en from "./locales/en.json";
 
 export type TranslationParams = Record<string, string | number>;
 export type TranslationNode = { [key: string]: TranslationNode | string };
 
-const catalog = en as TranslationNode;
+let activeLocale: LocaleId = readStoredLocale();
+
+export function getActiveLocale(): LocaleId {
+  return activeLocale;
+}
+
+export function setActiveLocale(locale: LocaleId): void {
+  activeLocale = locale;
+}
 
 function isDev(): boolean {
   return import.meta.env.DEV;
 }
 
-function warnMissing(key: string, mode: "path" | "global"): void {
+function warnMissing(key: string, mode: "path" | "global", locale: LocaleId): void {
   if (isDev()) {
-    console.warn(`[i18n] Missing ${mode} translation: ${key}`);
+    console.warn(`[i18n] Missing ${mode} translation (${locale}): ${key}`);
   }
+}
+
+function getCatalog(locale: LocaleId): TranslationNode {
+  return LOCALES[locale].catalog;
+}
+
+function getFallbackCatalog(): TranslationNode {
+  return LOCALES[DEFAULT_LOCALE].catalog;
 }
 
 export function interpolate(template: string, params?: TranslationParams): string {
@@ -30,24 +47,35 @@ function leafKey(key: string): string {
   return parts[parts.length - 1] ?? key;
 }
 
-export function resolvePath(path: string, root: TranslationNode = catalog): string | undefined {
+export function resolvePath(
+  path: string,
+  root: TranslationNode = getCatalog(activeLocale),
+  fallback: TranslationNode = getFallbackCatalog(),
+): string | undefined {
   const segments = path.split(".").filter(Boolean);
   if (segments.length === 0) {
     return undefined;
   }
 
-  let current: TranslationNode | string = root;
-  for (const segment of segments) {
-    if (typeof current !== "object" || current === null || !(segment in current)) {
-      return undefined;
+  function walk(node: TranslationNode | string): string | undefined {
+    let current: TranslationNode | string = node;
+    for (const segment of segments) {
+      if (typeof current !== "object" || current === null || !(segment in current)) {
+        return undefined;
+      }
+      current = current[segment];
     }
-    current = current[segment];
+    return typeof current === "string" ? current : undefined;
   }
 
-  return typeof current === "string" ? current : undefined;
+  return walk(root) ?? walk(fallback);
 }
 
-export function resolveGlobal(key: string, root: TranslationNode = catalog): string | undefined {
+export function resolveGlobal(
+  key: string,
+  root: TranslationNode = getCatalog(activeLocale),
+  fallback: TranslationNode = getFallbackCatalog(),
+): string | undefined {
   const target = leafKey(key);
 
   function search(node: TranslationNode | string): string | undefined {
@@ -71,7 +99,7 @@ export function resolveGlobal(key: string, root: TranslationNode = catalog): str
     return undefined;
   }
 
-  return search(root);
+  return search(root) ?? search(fallback);
 }
 
 function joinPath(basePath: string | undefined, key: string): string {
@@ -90,21 +118,31 @@ export interface Translator {
   tPath: (key: string, params?: TranslationParams) => string;
 }
 
-export function createTranslator(basePath?: string): Translator {
+export function createTranslator(basePath?: string, fixedLocale?: LocaleId): Translator {
+  function resolveLocale(): LocaleId {
+    return fixedLocale ?? activeLocale;
+  }
+
   function t(key: string, params?: TranslationParams): string {
-    const resolved = resolveGlobal(key);
+    const locale = resolveLocale();
+    const root = getCatalog(locale);
+    const fallback = locale === DEFAULT_LOCALE ? (en as TranslationNode) : getFallbackCatalog();
+    const resolved = resolveGlobal(key, root, fallback);
     if (resolved === undefined) {
-      warnMissing(key, "global");
+      warnMissing(key, "global", locale);
       return key;
     }
     return interpolate(resolved, params);
   }
 
   function tPath(key: string, params?: TranslationParams): string {
+    const locale = resolveLocale();
+    const root = getCatalog(locale);
+    const fallback = locale === DEFAULT_LOCALE ? (en as TranslationNode) : getFallbackCatalog();
     const fullPath = joinPath(basePath, key);
-    const resolved = resolvePath(fullPath);
+    const resolved = resolvePath(fullPath, root, fallback);
     if (resolved === undefined) {
-      warnMissing(fullPath, "path");
+      warnMissing(fullPath, "path", locale);
       return key;
     }
     return interpolate(resolved, params);

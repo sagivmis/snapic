@@ -1,0 +1,35 @@
+@use "variables" as *;
+
+.language-switcher {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($cream-300, 0.75);
+  background: rgba($white, 0.55);
+
+  &__btn {
+    flex: 1;
+    border: none;
+    border-radius: $radius-lg;
+    background: transparent;
+    padding: 0.35rem 0.5rem;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $taupe-500;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.65);
+      color: $taupe-600;
+    }
+
+    &--active {
+      background: rgba($white, 0.95);
+      box-shadow: $shadow-card;
+      color: $taupe-700;
+    }
+  }
+}

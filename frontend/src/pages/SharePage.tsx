@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { fetchSharedResults } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { ResultsGrid } from "../components/ResultsGrid";
@@ -46,6 +47,9 @@ export function SharePage() {
   return (
     <div className="event-guest">
       <InstallPrompt />
+      <div className="event-guest__language">
+        <LanguageSwitcher />
+      </div>
       <header className="event-guest__header">
         <p className="event-guest__eyebrow">{tPath("eyebrow")}</p>
         <h1>{tPath("title")}</h1>

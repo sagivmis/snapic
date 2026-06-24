@@ -34,6 +34,9 @@
     "loadFailed": "Load failed",
     "saveFailed": "Save failed",
     "optional": "(optional)",
+    "language": {
+      "aria": "Language"
+    },
     "stepOf": "Step {{step}} of {{total}}",
     "photo_one": "{{count}} photo",
     "photo_other": "{{count}} photos",

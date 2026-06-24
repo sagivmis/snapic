@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useStudioMembership } from "../../hooks/useStudioMembership";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { useTranslation } from "../../i18n";
 import { isSupabaseConfigured } from "../../lib/supabase";
 import { AppEventsNav } from "./AppEventsNav";
@@ -67,6 +68,7 @@ export function AppLayout() {
         </div>
 
         <div className="app-layout__footer">
+          <LanguageSwitcher />
           {session ? (
             <>
               <p className="app-layout__user">{profile?.email ?? session.user.email}</p>

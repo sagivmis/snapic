@@ -1,0 +1,151 @@
+@use "variables" as *;
+
+html[dir="rtl"] {
+  body {
+    direction: rtl;
+    text-align: right;
+    font-family: "Heebo", $font-sans;
+  }
+
+  .app-layout {
+    direction: rtl;
+
+    &__sidebar {
+      border-right: none;
+      border-left: 1px solid rgba($cream-300, 0.6);
+    }
+
+    &__nav-link {
+      text-align: start;
+    }
+
+    &__footer {
+      text-align: start;
+    }
+  }
+
+  .app-sidebar-section {
+    &__toggle {
+      text-align: start;
+    }
+
+    &__chevron {
+      transform: rotate(135deg);
+    }
+
+    &--expanded &__chevron {
+      transform: rotate(-45deg);
+    }
+
+    &__body {
+      padding-left: 0;
+      padding-right: 0.25rem;
+    }
+  }
+
+  .sidebar {
+    border-right: none;
+    border-left: 1px solid rgba($cream-300, 0.6);
+
+    &__nav-link {
+      text-align: start;
+    }
+
+    &__footer {
+      text-align: start;
+    }
+  }
+
+  .studio-layout__sidebar {
+    border-right: none;
+    border-left: 1px solid rgba($cream-300, 0.6);
+  }
+
+  .btn-ghost.flush-left {
+    padding-left: 1rem;
+    padding-right: 0;
+  }
+
+  .photographers-hero__content,
+  .photographers-section-head,
+  .request-page__intro {
+    text-align: center;
+
+    @media (min-width: $breakpoint-lg) {
+      text-align: start;
+    }
+  }
+
+  .photographers-hero__lead,
+  .request-page__lead {
+    @media (min-width: $breakpoint-lg) {
+      margin-right: 0;
+      margin-left: 0;
+    }
+  }
+
+  .photographers-hero__actions,
+  .photographers-hero__highlights {
+    @media (min-width: $breakpoint-lg) {
+      justify-content: flex-start;
+    }
+  }
+
+  .request-page__next-steps li,
+  .event-setup__checklist,
+  .event-live__tips,
+  .event-guest__tips ul {
+    padding-left: 0;
+    padding-right: 1.125rem;
+  }
+
+  .request-page__next-steps li::before,
+  .event-setup__checklist li::before {
+    left: auto;
+    right: 0;
+  }
+
+  .request-page__benefit-marker {
+    margin-top: 0.45rem;
+  }
+
+  .admin-events-table__toolbar-search,
+  .my-events-select__trigger,
+  .studio-page__header,
+  .studio-table th,
+  .admin-audit-log th {
+    text-align: start;
+  }
+
+  .admin-events-table__count,
+  .album-grid__bulk-bar {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .gallery-input__file-remove {
+    margin-left: 0;
+    margin-right: 0.5rem;
+  }
+
+  .language-switcher__btn {
+    font-family: inherit;
+  }
+
+  input[type="date"],
+  input[type="email"],
+  input[type="text"],
+  textarea,
+  select {
+    text-align: start;
+  }
+}
+
+@media (max-width: 768px) {
+  html[dir="rtl"] .app-layout {
+    &__sidebar {
+      border-left: none;
+      border-bottom: 1px solid rgba($cream-300, 0.6);
+    }
+  }
+}
