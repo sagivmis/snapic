@@ -22,10 +22,10 @@ import { AlbumUpload } from "../components/AlbumUpload";
 import { EventManageSkeleton } from "../components/EventManageSkeleton";
 import { GuestQrCode } from "../components/GuestQrCode";
 import { useAuth } from "../auth/AuthProvider";
-import { supabase } from "../lib/supabase";
 import type { EventAlbumStatus, EventPublic, EventStats, GalleryPhoto, IndexScope } from "../types";
 import type { IndexStreamEvent } from "../api/client";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
+import { canManageEvent } from "../utils/eventAccess";
 import "../styles/EventManage.scss";
 
 type ManageTab = "album" | "settings";
@@ -144,16 +144,7 @@ export function EventManagePage() {
       setCoupleNames(typeof branding.couple_names === "string" ? branding.couple_names : "");
       setAccentColor(typeof branding.accent_color === "string" ? branding.accent_color : "#c9a962");
 
-      let hasMembership = isSuperAdmin;
-      if (supabase && !hasMembership) {
-        const { data: membership } = await supabase
-          .from("event_members")
-          .select("role")
-          .eq("event_id", ev.id)
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-        hasMembership = Boolean(membership);
-      }
+      const hasMembership = await canManageEvent(ev, token, isSuperAdmin);
       setIsAdmin(hasMembership);
       setBootstrapping(false);
 
@@ -244,7 +235,7 @@ export function EventManagePage() {
       return;
     }
     const params = new URLSearchParams(location.search);
-    if (params.get("from") === "setup") {
+    if (params.get("from") === "setup" || params.get("from") === "studio") {
       return;
     }
     navigate(`/e/${slug}/setup`, { replace: true });
@@ -509,14 +500,19 @@ export function EventManagePage() {
       <div className="event-manage">
         <h1>Manage event</h1>
         <p>You do not have permission to manage this event.</p>
-        <Link to={`/e/${slug}`}>View guest page</Link>
+        {event.organization_id ? (
+          <Link to={`/studio/clients/${event.id}`}>Back to studio client</Link>
+        ) : (
+          <Link to={`/e/${slug}`}>View guest page</Link>
+        )}
       </div>
     );
   }
 
   const needsSetup = !event.onboarding_completed_at && event.status === "draft";
   const fromSetup = new URLSearchParams(location.search).get("from") === "setup";
-  const allowAlbumUpload = !event.photographer_led || isSuperAdmin || isPhotographer;
+  const fromStudio = new URLSearchParams(location.search).get("from") === "studio";
+  const allowAlbumUpload = !event.photographer_led || isSuperAdmin || isPhotographer || isAdmin;
 
   return (
     <div className="event-manage">
@@ -528,7 +524,7 @@ export function EventManagePage() {
           <p>Return here after uploading — your checklist will update automatically.</p>
         </div>
       )}
-      {needsSetup && !fromSetup && (
+      {needsSetup && !fromSetup && !fromStudio && (
         <div className="event-manage__setup-banner">
           <div>
             <strong>Finish setting up your gallery</strong>

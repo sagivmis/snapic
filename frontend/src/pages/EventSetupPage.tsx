@@ -10,11 +10,11 @@ import {
 import { IndexFacesProgress } from "../components/IndexFacesProgress";
 import { AlbumStatusBanner } from "../components/AlbumStatusBanner";
 import { useAuth } from "../auth/AuthProvider";
-import { supabase } from "../lib/supabase";
 import type { EventPublic, EventSetupStatus } from "../types";
 import type { IndexStreamEvent } from "../api/client";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import { getNextSetupAction, parseSetupStep, SETUP_STEPS, type SetupStep } from "../utils/onboarding";
+import { canManageEvent } from "../utils/eventAccess";
 import "../styles/EventSetup.scss";
 
 const STEP_LABELS: Record<SetupStep, string> = {
@@ -132,16 +132,7 @@ export function EventSetupPage() {
         return;
       }
 
-      let hasMembership = isSuperAdmin;
-      if (supabase && !hasMembership) {
-        const { data: membership } = await supabase
-          .from("event_members")
-          .select("role")
-          .eq("event_id", ev.id)
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-        hasMembership = Boolean(membership);
-      }
+      const hasMembership = await canManageEvent(ev, token, isSuperAdmin);
       setIsAdmin(hasMembership);
       if (!hasMembership) {
         setError("You do not have permission to set up this event.");

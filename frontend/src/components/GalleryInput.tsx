@@ -1,4 +1,5 @@
 import "../styles/GalleryInput.scss";
+import { countGalleryUrls, remainingGallerySlots, trimUrlsText } from "../lib/demoLimits";
 
 interface GalleryInputProps {
   files: File[];
@@ -7,6 +8,7 @@ interface GalleryInputProps {
   onUrlsTextChange: (text: string) => void;
   hasPortrait: boolean;
   onBack: () => void;
+  maxPhotos?: number;
 }
 
 export function GalleryInput({
@@ -16,8 +18,32 @@ export function GalleryInput({
   onUrlsTextChange,
   hasPortrait,
   onBack,
+  maxPhotos,
 }: GalleryInputProps) {
-  const totalCount = files.length + urlsText.split("\n").filter((line) => line.trim()).length;
+  const urlCount = countGalleryUrls(urlsText);
+  const totalCount = files.length + urlCount;
+  const atLimit = maxPhotos !== undefined && totalCount >= maxPhotos;
+  const remaining = maxPhotos !== undefined ? remainingGallerySlots(files.length, urlsText, maxPhotos) : null;
+
+  function handleFilesAdd(selected: File[]) {
+    if (maxPhotos === undefined) {
+      onFilesChange([...files, ...selected]);
+      return;
+    }
+    if (remaining === 0) {
+      return;
+    }
+    onFilesChange([...files, ...selected.slice(0, remaining)]);
+  }
+
+  function handleUrlsChange(text: string) {
+    if (maxPhotos === undefined) {
+      onUrlsTextChange(text);
+      return;
+    }
+    const maxUrls = Math.max(0, maxPhotos - files.length);
+    onUrlsTextChange(trimUrlsText(text, maxUrls));
+  }
 
   return (
     <div className="gallery-input">
@@ -25,17 +51,21 @@ export function GalleryInput({
         <p className="gallery-input__intro">
           Add the wedding album, photographer&apos;s gallery, or shared folder photos. We&apos;ll
           search through every image to find the ones you&apos;re in.
+          {maxPhotos !== undefined && (
+            <> Demo albums are limited to {maxPhotos} photos.</>
+          )}
         </p>
 
-        <label className="upload-tile gallery-input__upload">
+        <label className={`upload-tile gallery-input__upload${atLimit ? " gallery-input__upload--disabled" : ""}`}>
           <input
             type="file"
             accept="image/*"
             multiple
             className="hidden-input"
+            disabled={atLimit}
             onChange={(event) => {
-              const selected = Array.from(event.target.files ?? []);
-              onFilesChange([...files, ...selected]);
+              handleFilesAdd(Array.from(event.target.files ?? []));
+              event.target.value = "";
             }}
           />
           <span className="gallery-input__upload-title">Add photos</span>
@@ -74,11 +104,14 @@ export function GalleryInput({
             id="gallery-urls"
             rows={4}
             value={urlsText}
-            onChange={(event) => onUrlsTextChange(event.target.value)}
+            onChange={(event) => handleUrlsChange(event.target.value)}
             placeholder="https://gallery.example.com/photo1.jpg&#10;https://gallery.example.com/photo2.jpg"
             className="gallery-input__textarea"
           />
-          <p className="gallery-input__urls-hint">One URL per line — great for shared albums</p>
+          <p className="gallery-input__urls-hint">
+            One URL per line — great for shared albums
+            {maxPhotos !== undefined && ` · up to ${maxPhotos} photos total`}
+          </p>
         </div>
       </div>
 
@@ -88,8 +121,12 @@ export function GalleryInput({
         </button>
         {totalCount > 0 && (
           <p className="gallery-input__status">
-            <span className="gallery-input__status-count">{totalCount}</span> photos ready
+            <span className="gallery-input__status-count">{totalCount}</span>
+            {maxPhotos !== undefined ? ` / ${maxPhotos}` : ""} photos ready
             {hasPortrait ? " — use Find my photos in the sidebar" : " — add your portrait first"}
+            {atLimit && maxPhotos !== undefined && (
+              <> · demo limit reached</>
+            )}
           </p>
         )}
       </div>

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  deleteStudioClient,
   fetchEventBySlug,
   fetchStudioClient,
+  studioClientToEventPublic,
   studioGoLive,
   studioInviteCouple,
 } from "../../api/client";
@@ -10,6 +12,7 @@ import { AlbumManager } from "../../components/shared/AlbumManager";
 import { ClientHandoffPanel } from "../../components/studio/ClientHandoffPanel";
 import { StudioClientDetailSkeleton } from "../../components/studio/StudioSkeletons";
 import { useAuth } from "../../auth/AuthProvider";
+import { clearStudioDashboardCache } from "../../lib/studioCache";
 import type { EventPublic, StudioClient } from "../../types";
 import "../../styles/StudioLayout.scss";
 
@@ -17,6 +20,7 @@ type ClientTab = "album" | "handoff" | "analytics";
 
 export function StudioClientDetailPage() {
   const { eventId = "" } = useParams();
+  const navigate = useNavigate();
   const { getAccessToken } = useAuth();
   const [client, setClient] = useState<StudioClient | null>(null);
   const [event, setEvent] = useState<EventPublic | null>(null);
@@ -34,7 +38,11 @@ export function StudioClientDetailPage() {
     try {
       const clientRow = await fetchStudioClient(eventId, token);
       setClient(clientRow);
-      setEvent(await fetchEventBySlug(clientRow.slug, token));
+      try {
+        setEvent(await fetchEventBySlug(clientRow.slug, token));
+      } catch {
+        setEvent(studioClientToEventPublic(clientRow));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load client");
     } finally {
@@ -71,6 +79,34 @@ export function StudioClientDetailPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Go live failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!client) {
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete "${client.title}" permanently? Photos, searches, and gallery data will be removed. This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      await deleteStudioClient(eventId, token);
+      clearStudioDashboardCache();
+      navigate("/studio/clients", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete client");
     } finally {
       setBusy(false);
     }
@@ -113,9 +149,19 @@ export function StudioClientDetailPage() {
             {client.status} · {client.handoff_status}
           </p>
         </div>
-        <Link className="btn btn-secondary" to={`/e/${client.slug}/manage?from=studio&tab=album`}>
-          Full manage page
-        </Link>
+        <div className="studio-page__header-actions">
+          <Link className="btn btn-secondary" to={`/e/${client.slug}/manage?from=studio&tab=album`}>
+            Full manage page
+          </Link>
+          <button
+            type="button"
+            className="btn btn-ghost studio-clients-table__delete-btn"
+            disabled={busy}
+            onClick={() => void handleDelete()}
+          >
+            Delete client
+          </button>
+        </div>
       </header>
 
       <nav className="event-manage__tabs">

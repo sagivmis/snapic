@@ -116,6 +116,82 @@ export async function matchPhotos(request: MatchRequest): Promise<MatchResponse>
   return response.json() as Promise<MatchResponse>;
 }
 
+export async function matchPhotosStream(
+  request: MatchRequest,
+  onEvent: (event: MatchStreamEvent) => void,
+): Promise<MatchResponse> {
+  const formData = new FormData();
+  formData.append("selfie", request.selfie);
+  formData.append("threshold", String(request.threshold));
+
+  if (request.partnerSelfie) {
+    formData.append("partner_selfie", request.partnerSelfie);
+  }
+
+  for (const file of request.galleryFiles) {
+    formData.append("gallery_files", file);
+  }
+
+  if (request.galleryUrls.length > 0) {
+    formData.append("gallery_urls", JSON.stringify(request.galleryUrls));
+  }
+
+  const response = await fetch(apiUrl("/api/match/stream"), { method: "POST", body: formData });
+  if (response.status === 404) {
+    const result = await matchPhotos(request);
+    onEvent({
+      type: "progress",
+      processed: result.total_gallery,
+      total: result.total_gallery,
+      matched_count: result.matched.length,
+    });
+    for (const photo of result.matched) {
+      onEvent({ type: "match", photo });
+    }
+    onEvent({ type: "complete", result });
+    return result;
+  }
+  if (!response.ok) {
+    await parseError(response, "Failed to match photos");
+  }
+  if (!response.body) {
+    throw new Error("Match stream unavailable");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: MatchResponse | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      const event = JSON.parse(line) as MatchStreamEvent;
+      if (event.type === "error") {
+        throw new Error(event.message);
+      }
+      onEvent(event);
+      if (event.type === "complete") {
+        finalResult = event.result;
+      }
+    }
+  }
+
+  if (!finalResult) {
+    throw new Error("Match ended before completion");
+  }
+  return finalResult;
+}
+
 export async function matchEventPhotos(
   eventId: string,
   request: Omit<MatchRequest, "galleryFiles" | "galleryUrls">,
@@ -918,6 +994,48 @@ export async function updateStudioClient(
     await parseError(response, "Could not update client");
   }
   return response.json() as Promise<StudioClient>;
+}
+
+export async function deleteStudioClient(eventId: string, token: string): Promise<void> {
+  const response = await authFetch(`/api/studio/events/${eventId}`, { method: "DELETE" }, studioAuth(token));
+  if (!response.ok) {
+    await parseError(response, "Could not delete client");
+  }
+}
+
+export async function bulkDeleteStudioClients(
+  eventIds: string[],
+  token: string,
+): Promise<{ deleted: number; not_found: number; denied: number }> {
+  const response = await authFetch(
+    "/api/studio/events/bulk-delete",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_ids: eventIds }),
+    },
+    studioAuth(token),
+  );
+  if (!response.ok) {
+    await parseError(response, "Bulk delete failed");
+  }
+  return response.json() as Promise<{ deleted: number; not_found: number; denied: number }>;
+}
+
+/** Minimal event view for studio UI when public event fetch is unavailable. */
+export function studioClientToEventPublic(client: StudioClient): EventPublic {
+  return {
+    id: client.id,
+    slug: client.slug,
+    title: client.title,
+    wedding_date: client.wedding_date,
+    status: client.status,
+    branding: client.branding ?? {},
+    default_threshold: 0.4,
+    gallery_photo_count: client.gallery_photo_count,
+    photographer_led: true,
+    is_admin: true,
+  };
 }
 
 export async function studioInviteCouple(eventId: string, email: string, token: string): Promise<void> {

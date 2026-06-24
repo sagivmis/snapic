@@ -1,12 +1,10 @@
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { InstallPrompt } from "../components/InstallPrompt";
-import { MyEventsSelect } from "../components/MyEventsSelect";
 import { useAuth } from "../auth/AuthProvider";
-import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/Landing.scss";
 
 export function LandingPage() {
-  const { session, isSuperAdmin, isPhotographer, signOut } = useAuth();
+  const { session } = useAuth();
   const [searchParams] = useSearchParams();
   const legacyShare = searchParams.get("share");
   if (legacyShare) {
@@ -23,54 +21,14 @@ export function LandingPage() {
           Guests upload a selfie and instantly find every wedding photo they appear in — no scrolling
           through hundreds of shots.
         </p>
-        <div className="landing__actions">
-          {session ? (
-            <MyEventsSelect />
-          ) : (
-            <Link className="btn btn-primary" to="/demo">
-              Try demo
-            </Link>
-          )}
-          {session && isSuperAdmin && (
-            <Link className="btn btn-secondary" to="/admin">
-              Admin dashboard
-            </Link>
-          )}
-          {session && isPhotographer && (
-            <Link className="btn btn-secondary" to="/studio/select">
-              Studio dashboard
-            </Link>
-          )}
-          {isSupabaseConfigured && (
-            <Link className="btn btn-secondary" to="/for-photographers">
-              For photographers
-            </Link>
-          )}
-          {isSupabaseConfigured && (
-            <Link className="btn btn-secondary" to="/request-access">
-              Request your wedding gallery
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <section className="landing__links">
         {session ? (
-          <div className="landing__signed-in">
-            <span>Signed in as {session.user.email}</span>
-            {isSuperAdmin && (
-              <Link to="/admin" className="landing__admin-link">
-                Admin dashboard
-              </Link>
-            )}
-            <button type="button" className="btn btn-ghost" onClick={() => void signOut()}>
-              Sign out
-            </button>
-          </div>
-        ) : isSupabaseConfigured ? (
-          <Link to="/login">Sign in to save your results</Link>
-        ) : null}
-      </section>
+          <p className="landing__hint">Pick a destination from the sidebar — studio, events, or admin.</p>
+        ) : (
+          <p className="landing__hint">
+            Try the demo, request a gallery, or explore Snapic Studio for photographers.
+          </p>
+        )}
+      </header>
     </div>
   );
 }

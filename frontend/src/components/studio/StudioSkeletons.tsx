@@ -100,26 +100,14 @@ export function StudioTeamMembersSkeleton() {
 
 export function StudioLayoutLoading() {
   return (
-    <div className="studio-layout studio-layout--loading-shell" aria-busy="true" aria-label="Loading studio">
-      <aside className="studio-layout__sidebar studio-skeleton-block" aria-hidden="true">
-        <span className="studio-skeleton studio-skeleton--brand" />
-        <div className="studio-skeleton-nav">
-          {Array.from({ length: 5 }, (_, index) => (
-            <span key={index} className="studio-skeleton studio-skeleton-nav__item" />
-          ))}
+    <div className="studio-page" aria-busy="true" aria-label="Loading studio">
+      <header className="studio-page__header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Overview of your client galleries</p>
         </div>
-      </aside>
-      <main className="studio-layout__main">
-        <div className="studio-page">
-          <header className="studio-page__header">
-            <div>
-              <h1>Dashboard</h1>
-              <p>Overview of your client galleries</p>
-            </div>
-          </header>
-          <StudioDashboardContentSkeleton />
-        </div>
-      </main>
+      </header>
+      <StudioDashboardContentSkeleton />
     </div>
   );
 }

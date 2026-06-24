@@ -161,7 +161,7 @@ def _ndjson_line(payload: dict[str, Any]) -> bytes:
     return (json.dumps(payload) + "\n").encode("utf-8")
 
 
-def _event_public(row: dict[str, Any]) -> EventPublicResponse:
+def _event_public(row: dict[str, Any], user: AuthUser | None = None) -> EventPublicResponse:
     row = maybe_auto_close_event(row)
     branding = row.get("branding") or {}
     event_id = row["id"]
@@ -183,6 +183,7 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
                 "accent_color": org_row.get("accent_color"),
                 "branding_tier": org_row.get("branding_tier") or "standard",
             }
+    is_admin = user is not None and is_event_admin(user.id, event_id)
     return EventPublicResponse(
         id=event_id,
         slug=row["slug"],
@@ -203,6 +204,7 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         handoff_status=row.get("handoff_status"),
         photo_limit=row.get("photo_limit"),
         photographer_led=photographer_led,
+        is_admin=is_admin,
     )
 
 
@@ -264,10 +266,10 @@ async def get_event_by_slug(
 
     row = maybe_auto_close_event(row)
     if row["status"] in ("active", "closed"):
-        return _event_public(row)
+        return _event_public(row, user)
 
     if user is not None and is_event_admin(user.id, row["id"]):
-        return _event_public(row)
+        return _event_public(row, user)
 
     raise HTTPException(status_code=404, detail="Event not found")
 
@@ -634,7 +636,7 @@ async def patch_event(
         branding = row.get("branding") or {}
         couple_names = branding.get("couple_names") or row.get("title") or "Your gallery"
         send_gallery_live_email(list_event_admin_emails(event_id), str(couple_names), row["slug"])
-    return _event_public(row)
+    return _event_public(row, user)
 
 
 @router.get("/{event_id}/gallery/{photo_id}/image")

@@ -1,7 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useStudioMembership } from "../hooks/useStudioMembership";
 import "../styles/Landing.scss";
 
 export function ForPhotographersPage() {
+  const { hasStudios, loaded } = useStudioMembership();
+
+  if (loaded && hasStudios) {
+    return <Navigate to="/studio/select" replace />;
+  }
+
   return (
     <div className="landing">
       <header className="landing__hero">
@@ -14,9 +21,6 @@ export function ForPhotographersPage() {
         <div className="landing__actions">
           <Link to="/studio/signup" className="btn btn-primary">
             Start your studio
-          </Link>
-          <Link to="/demo" className="btn btn-secondary">
-            Try the demo
           </Link>
         </div>
       </header>

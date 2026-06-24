@@ -69,6 +69,7 @@ export interface EventPublic {
   handoff_status?: string | null;
   photo_limit?: number | null;
   photographer_led?: boolean;
+  is_admin?: boolean;
 }
 
 /** True when guests can run face search. */

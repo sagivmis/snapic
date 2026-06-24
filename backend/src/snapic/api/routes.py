@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Any
 
 import httpx
+import numpy as np
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from snapic.api.schemas import (
     HealthResponse,
     MatchResponse,
-    MatchedPhoto,
     PortraitQualityResponse,
     SharedMatchResponse,
     SignupRequestCreate,
@@ -17,16 +18,10 @@ from snapic.api.schemas import (
     SkippedPhoto,
 )
 from snapic.api.share_store import share_store
-from snapic.face.images import (
-    decode_image_bytes,
-    detect_image_mime,
-    encode_image_base64,
-    encode_original_base64,
-    encode_thumbnail_base64,
-)
+from snapic.face.demo_match import DemoGalleryImage, iter_demo_gallery_matches
+from snapic.face.images import decode_image_bytes
 from snapic.face.pipeline import (
     NoFaceInSelfieError,
-    evaluate_gallery_image,
     extract_reference_embedding,
 )
 from snapic.face.portrait_quality import analyze_portrait
@@ -34,6 +29,7 @@ from snapic.face.portrait_quality import analyze_portrait
 router = APIRouter()
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_DEMO_GALLERY_PHOTOS = 50
 DEFAULT_THRESHOLD = 0.4
 
 
@@ -74,57 +70,152 @@ def _parse_gallery_urls(raw: str | None) -> list[str]:
     return [url.strip() for url in parsed if url.strip()]
 
 
-def _process_gallery_image(
-    image_bgr: np.ndarray,
-    image_bytes: bytes,
+def _ndjson_line(payload: dict[str, Any]) -> bytes:
+    return (json.dumps(payload) + "\n").encode("utf-8")
+
+
+async def _load_legacy_gallery(
+    files: list[UploadFile],
+    urls: list[str],
+) -> tuple[list[DemoGalleryImage], list[SkippedPhoto]]:
+    gallery: list[DemoGalleryImage] = []
+    skipped: list[SkippedPhoto] = []
+
+    for index, upload in enumerate(files):
+        filename = upload.filename or f"upload_{index}"
+        try:
+            image_bytes = await _read_upload_limited(upload)
+            image_bgr = decode_image_bytes(image_bytes)
+        except HTTPException:
+            raise
+        except Exception:
+            skipped.append(
+                SkippedPhoto(
+                    source="upload",
+                    index=index,
+                    reason="decode_failed",
+                    filename=filename,
+                )
+            )
+            continue
+        gallery.append(
+            DemoGalleryImage(
+                source="upload",
+                index=index,
+                filename=filename,
+                url=None,
+                image_bgr=image_bgr,
+                image_bytes=image_bytes,
+            )
+        )
+
+    for index, url in enumerate(urls):
+        try:
+            image_bytes = await _fetch_url_image(url)
+            image_bgr = decode_image_bytes(image_bytes)
+        except HTTPException as exc:
+            reason = "fetch_failed"
+            if "not an image" in str(exc.detail):
+                reason = "not_an_image"
+            skipped.append(
+                SkippedPhoto(
+                    source="url",
+                    index=index,
+                    reason=reason,
+                    url=url,
+                )
+            )
+            continue
+        except Exception:
+            skipped.append(
+                SkippedPhoto(
+                    source="url",
+                    index=index,
+                    reason="decode_failed",
+                    url=url,
+                )
+            )
+            continue
+        gallery.append(
+            DemoGalleryImage(
+                source="url",
+                index=index,
+                filename=None,
+                url=url,
+                image_bgr=image_bgr,
+                image_bytes=image_bytes,
+            )
+        )
+
+    return gallery, skipped
+
+
+async def _prepare_legacy_match(
+    selfie: UploadFile,
+    gallery_files: list[UploadFile] | None,
+    gallery_urls: str | None,
+    partner_selfie: UploadFile | None,
+    threshold: float,
+) -> tuple[list[np.ndarray], bool, float, list[DemoGalleryImage], list[SkippedPhoto], int]:
+    if threshold < 0.0 or threshold > 1.0:
+        raise HTTPException(status_code=400, detail="threshold must be between 0 and 1")
+
+    urls = _parse_gallery_urls(gallery_urls)
+    files = gallery_files or []
+    if not files and not urls:
+        raise HTTPException(status_code=400, detail="Provide at least one gallery file or URL")
+    if len(files) + len(urls) > MAX_DEMO_GALLERY_PHOTOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Demo gallery is limited to {MAX_DEMO_GALLERY_PHOTOS} photos",
+        )
+
+    selfie_bytes = await _read_upload_limited(selfie)
+    try:
+        selfie_image = decode_image_bytes(selfie_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Could not decode selfie image") from exc
+
+    try:
+        references: list[np.ndarray] = [extract_reference_embedding(selfie_image)]
+    except NoFaceInSelfieError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    couple_mode = False
+    if partner_selfie is not None and partner_selfie.filename:
+        partner_bytes = await _read_upload_limited(partner_selfie)
+        try:
+            partner_image = decode_image_bytes(partner_bytes)
+            references.append(extract_reference_embedding(partner_image))
+            couple_mode = True
+        except NoFaceInSelfieError as exc:
+            raise HTTPException(status_code=400, detail="No face detected in partner portrait") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Could not decode partner portrait") from exc
+
+    gallery, skipped = await _load_legacy_gallery(files, urls)
+    return references, couple_mode, threshold, gallery, skipped, len(files) + len(urls)
+
+
+def _finalize_legacy_match(
     references: list[np.ndarray],
     couple_mode: bool,
     threshold: float,
-    *,
-    source: str,
-    index: int,
-    filename: str | None = None,
-    url: str | None = None,
-) -> tuple[MatchedPhoto | None, SkippedPhoto | None]:
-    evaluation = evaluate_gallery_image(references, image_bgr, threshold, couple_mode)
-    if not evaluation.had_faces:
-        return None, SkippedPhoto(
-            source=source,
-            index=index,
-            reason="no_face_detected",
-            filename=filename,
-            url=url,
-        )
-
-    if evaluation.score is None:
-        return None, None
-
-    matched_person = evaluation.matched_person if couple_mode else None
-    person_1_score = evaluation.person_1_score if couple_mode else None
-    person_2_score = evaluation.person_2_score if couple_mode else None
-    image_mime = detect_image_mime(image_bytes)
-    try:
-        image_base64 = encode_original_base64(image_bytes)
-    except Exception:
-        image_base64 = encode_image_base64(image_bgr)
-        image_mime = "image/jpeg"
-
-    return (
-        MatchedPhoto(
-            source=source,
-            index=index,
-            filename=filename,
-            url=url,
-            score=round(evaluation.score, 4),
-            preview_base64=encode_thumbnail_base64(image_bgr),
-            image_base64=image_base64,
-            image_mime=image_mime,
-            matched_person=matched_person,
-            person_1_score=person_1_score,
-            person_2_score=person_2_score,
-        ),
-        None,
-    )
+    gallery: list[DemoGalleryImage],
+    pre_skipped: list[SkippedPhoto],
+    total_gallery: int,
+) -> MatchResponse:
+    for event in iter_demo_gallery_matches(
+        gallery,
+        references,
+        couple_mode,
+        threshold,
+        total_gallery=total_gallery,
+        pre_skipped=pre_skipped,
+    ):
+        if event["type"] == "complete":
+            return MatchResponse(**event["result"])
+    raise HTTPException(status_code=500, detail="Match did not complete")
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -195,127 +286,43 @@ async def match_faces(
     partner_selfie: Annotated[UploadFile | None, File()] = None,
     threshold: Annotated[float, Form()] = DEFAULT_THRESHOLD,
 ) -> MatchResponse:
-    if threshold < 0.0 or threshold > 1.0:
-        raise HTTPException(status_code=400, detail="threshold must be between 0 and 1")
-
-    urls = _parse_gallery_urls(gallery_urls)
-    files = gallery_files or []
-
-    if not files and not urls:
-        raise HTTPException(status_code=400, detail="Provide at least one gallery file or URL")
-
-    selfie_bytes = await _read_upload_limited(selfie)
-    try:
-        selfie_image = decode_image_bytes(selfie_bytes)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Could not decode selfie image") from exc
-
-    try:
-        references: list[np.ndarray] = [extract_reference_embedding(selfie_image)]
-    except NoFaceInSelfieError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    couple_mode = False
-    if partner_selfie is not None and partner_selfie.filename:
-        partner_bytes = await _read_upload_limited(partner_selfie)
-        try:
-            partner_image = decode_image_bytes(partner_bytes)
-            references.append(extract_reference_embedding(partner_image))
-            couple_mode = True
-        except NoFaceInSelfieError as exc:
-            raise HTTPException(status_code=400, detail="No face detected in partner portrait") from exc
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="Could not decode partner portrait") from exc
-
-    matched: list[MatchedPhoto] = []
-    skipped: list[SkippedPhoto] = []
-
-    for index, upload in enumerate(files):
-        filename = upload.filename or f"upload_{index}"
-        try:
-            image_bytes = await _read_upload_limited(upload)
-            image_bgr = decode_image_bytes(image_bytes)
-        except HTTPException:
-            raise
-        except Exception:
-            skipped.append(
-                SkippedPhoto(
-                    source="upload",
-                    index=index,
-                    reason="decode_failed",
-                    filename=filename,
-                )
-            )
-            continue
-
-        match, skip = _process_gallery_image(
-            image_bgr,
-            image_bytes,
-            references,
-            couple_mode,
-            threshold,
-            source="upload",
-            index=index,
-            filename=filename,
-        )
-        if match:
-            matched.append(match)
-        elif skip:
-            skipped.append(skip)
-
-    for index, url in enumerate(urls):
-        try:
-            image_bytes = await _fetch_url_image(url)
-            image_bgr = decode_image_bytes(image_bytes)
-        except HTTPException as exc:
-            reason = "fetch_failed"
-            if "not an image" in str(exc.detail):
-                reason = "not_an_image"
-            skipped.append(
-                SkippedPhoto(
-                    source="url",
-                    index=index,
-                    reason=reason,
-                    url=url,
-                )
-            )
-            continue
-        except Exception:
-            skipped.append(
-                SkippedPhoto(
-                    source="url",
-                    index=index,
-                    reason="decode_failed",
-                    url=url,
-                )
-            )
-            continue
-
-        match, skip = _process_gallery_image(
-            image_bgr,
-            image_bytes,
-            references,
-            couple_mode,
-            threshold,
-            source="url",
-            index=index,
-            url=url,
-        )
-        if match:
-            matched.append(match)
-        elif skip:
-            skipped.append(skip)
-
-    matched.sort(key=lambda item: item.score, reverse=True)
-
-    response = MatchResponse(
-        reference_face_detected=True,
-        threshold=threshold,
-        total_gallery=len(files) + len(urls),
-        matched=matched,
-        skipped=skipped,
-        couple_mode=couple_mode,
+    references, couple_mode, effective_threshold, gallery, pre_skipped, total_gallery = (
+        await _prepare_legacy_match(selfie, gallery_files, gallery_urls, partner_selfie, threshold)
     )
-    share_id = share_store.save(response)
-    response.share_id = share_id
-    return response
+    return _finalize_legacy_match(
+        references,
+        couple_mode,
+        effective_threshold,
+        gallery,
+        pre_skipped,
+        total_gallery,
+    )
+
+
+@router.post("/match/stream")
+async def match_faces_stream(
+    selfie: Annotated[UploadFile, File()],
+    gallery_files: Annotated[list[UploadFile] | None, File()] = None,
+    gallery_urls: Annotated[str | None, Form()] = None,
+    partner_selfie: Annotated[UploadFile | None, File()] = None,
+    threshold: Annotated[float, Form()] = DEFAULT_THRESHOLD,
+) -> StreamingResponse:
+    references, couple_mode, effective_threshold, gallery, pre_skipped, total_gallery = (
+        await _prepare_legacy_match(selfie, gallery_files, gallery_urls, partner_selfie, threshold)
+    )
+
+    def generate() -> Any:
+        try:
+            for event in iter_demo_gallery_matches(
+                gallery,
+                references,
+                couple_mode,
+                effective_threshold,
+                total_gallery=total_gallery,
+                pre_skipped=pre_skipped,
+            ):
+                yield _ndjson_line(event)
+        except Exception as exc:
+            yield _ndjson_line({"type": "error", "message": str(exc)})
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")

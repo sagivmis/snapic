@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { matchPhotos } from "../api/client";
+import { matchPhotosStream } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { GalleryInput } from "../components/GalleryInput";
 import { ResultsGrid } from "../components/ResultsGrid";
@@ -8,6 +8,7 @@ import { Sidebar } from "../components/Sidebar";
 import type { AppTab } from "../navigation";
 import { NAV_ITEMS } from "../navigation";
 import type { MatchResponse } from "../types";
+import { MAX_DEMO_GALLERY_PHOTOS } from "../lib/demoLimits";
 import "../styles/App.scss";
 
 function parseUrls(text: string): string[] {
@@ -31,13 +32,16 @@ export function LegacyDemoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResponse | null>(null);
+  const [matchProgress, setMatchProgress] = useState<{ processed: number; total: number } | null>(
+    null,
+  );
 
   const galleryUrls = useMemo(() => parseUrls(galleryUrlsText), [galleryUrlsText]);
   const galleryCount = galleryFiles.length + galleryUrls.length;
   const hasPortrait = coupleMode
     ? Boolean(selfie) && Boolean(partnerSelfie)
     : Boolean(selfie);
-  const canMatch = hasPortrait && galleryCount > 0;
+  const canMatch = hasPortrait && galleryCount > 0 && galleryCount <= MAX_DEMO_GALLERY_PHOTOS;
   const activeItem = NAV_ITEMS.find((item) => item.id === activeTab) ?? NAV_ITEMS[0];
 
   useEffect(() => {
@@ -69,27 +73,64 @@ export function LegacyDemoPage() {
       setActiveTab("gallery");
       return;
     }
+    if (galleryCount > MAX_DEMO_GALLERY_PHOTOS) {
+      setActiveTab("gallery");
+      setError(`Demo albums are limited to ${MAX_DEMO_GALLERY_PHOTOS} photos.`);
+      return;
+    }
     if (!selfie) {
       return;
     }
 
     setLoading(true);
     setError(null);
+    setActiveTab("results");
+    setMatchProgress({ processed: 0, total: galleryCount });
+    setResult({
+      reference_face_detected: true,
+      threshold,
+      total_gallery: galleryCount,
+      matched: [],
+      skipped: [],
+      couple_mode: coupleMode,
+    });
 
     try {
-      const response = await matchPhotos({
-        selfie,
-        partnerSelfie: coupleMode ? partnerSelfie : null,
-        galleryFiles,
-        galleryUrls,
-        threshold,
-      });
+      const response = await matchPhotosStream(
+        {
+          selfie,
+          partnerSelfie: coupleMode ? partnerSelfie : null,
+          galleryFiles,
+          galleryUrls,
+          threshold,
+        },
+        (event) => {
+          if (event.type === "progress") {
+            setMatchProgress({ processed: event.processed, total: event.total });
+          }
+          if (event.type === "match") {
+            setResult((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    matched: [...prev.matched, event.photo],
+                  }
+                : null,
+            );
+          }
+          if (event.type === "complete") {
+            setResult(event.result);
+          }
+        },
+      );
       setResult(response);
-      setActiveTab("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setActiveTab("gallery");
+      setResult(null);
     } finally {
       setLoading(false);
+      setMatchProgress(null);
     }
   }
 
@@ -142,6 +183,7 @@ export function LegacyDemoPage() {
               onUrlsTextChange={setGalleryUrlsText}
               hasPortrait={hasPortrait}
               onBack={() => setActiveTab("portrait")}
+              maxPhotos={MAX_DEMO_GALLERY_PHOTOS}
             />
           )}
 
@@ -149,6 +191,7 @@ export function LegacyDemoPage() {
             <ResultsGrid
               result={result}
               loading={loading}
+              matchProgress={matchProgress}
               onStartSearch={handleMatch}
               canMatch={canMatch}
             />

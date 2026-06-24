@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createStudioClient } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import { clearStudioDashboardCache } from "../../lib/studioCache";
 import "../../styles/StudioLayout.scss";
 
 const NEXT_STEPS = [
@@ -47,6 +48,7 @@ export function StudioClientNewPage() {
         },
         token,
       );
+      clearStudioDashboardCache();
       navigate(`/studio/clients/${client.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create client");

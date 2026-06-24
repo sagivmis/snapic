@@ -70,6 +70,7 @@ class EventPublicResponse(BaseModel):
     handoff_status: str | None = None
     photo_limit: int | None = None
     photographer_led: bool = False
+    is_admin: bool = False
 
 
 class EventCreateRequest(BaseModel):
@@ -244,6 +245,16 @@ class StudioClientUpdateRequest(BaseModel):
     handoff_status: str | None = None
     status: Literal["draft", "active", "closed"] | None = None
     branding: dict | None = None
+
+
+class StudioClientBulkDeleteRequest(BaseModel):
+    event_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class StudioClientBulkDeleteResponse(BaseModel):
+    deleted: int
+    not_found: int
+    denied: int
 
 
 class StudioSettingsUpdateRequest(BaseModel):

@@ -12,6 +12,8 @@ from snapic.api.schemas import (
     StudioBillingResponse,
     StudioClientCreateRequest,
     StudioClientSummary,
+    StudioClientBulkDeleteRequest,
+    StudioClientBulkDeleteResponse,
     StudioClientUpdateRequest,
     StudioInviteCoupleRequest,
     StudioMeResponse,
@@ -37,6 +39,7 @@ from snapic.db.repository import (
     create_event,
     create_org_invite,
     decline_org_invite,
+    delete_event,
     fetch_event_by_id,
     fetch_organization,
     fetch_organization_by_slug,
@@ -322,6 +325,31 @@ async def studio_create_event(
     return _client_summary(row)
 
 
+@router.post("/events/bulk-delete", response_model=StudioClientBulkDeleteResponse)
+async def studio_bulk_delete_events(
+    body: StudioClientBulkDeleteRequest,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_member)],
+) -> StudioClientBulkDeleteResponse:
+    deleted = not_found = denied = 0
+    unique_ids = list(dict.fromkeys(body.event_ids))
+    org_id = org["id"]
+    for event_id in unique_ids:
+        row = fetch_event_by_id(event_id)
+        if not row:
+            not_found += 1
+            continue
+        if row.get("organization_id") != org_id:
+            denied += 1
+            continue
+        if not is_org_event_access(user.id, event_id):
+            denied += 1
+            continue
+        delete_event(event_id)
+        deleted += 1
+    return StudioClientBulkDeleteResponse(deleted=deleted, not_found=not_found, denied=denied)
+
+
 @router.get("/events/{event_id}", response_model=StudioClientSummary)
 async def studio_get_event(
     event_id: str,
@@ -342,6 +370,19 @@ async def studio_update_event(
     if patch:
         row = update_event(event_id, patch)
     return _client_summary(row)
+
+
+@router.delete("/events/{event_id}")
+async def studio_delete_event(
+    event_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_member)],
+) -> dict[str, str]:
+    row = _assert_client_access(user, event_id)
+    if row.get("organization_id") != org["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    delete_event(event_id)
+    return {"status": "deleted", "event_id": event_id}
 
 
 @router.post("/events/{event_id}/invite-couple")

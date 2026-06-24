@@ -1,0 +1,283 @@
+@use "variables" as *;
+
+.app-layout {
+  display: grid;
+  grid-template-columns: $sidebar-width 1fr;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  color: $taupe-600;
+
+  a {
+    color: $champagne-600;
+    text-decoration: none;
+    transition: color 0.2s;
+
+    &:hover {
+      color: $champagne-500;
+    }
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+    overflow: hidden;
+    border-right: 1px solid rgba($cream-300, 0.6);
+    background: rgba($cream-100, 0.55);
+    padding: 1.5rem;
+    backdrop-filter: blur(4px);
+  }
+
+  &__sidebar-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  &__nav--primary {
+    flex-shrink: 0;
+  }
+
+  &__brand a {
+    font-family: $font-display;
+    font-size: 1.375rem;
+    font-weight: 600;
+    font-style: italic;
+    color: $taupe-700;
+    text-decoration: none;
+
+    &:hover {
+      color: $taupe-600;
+    }
+  }
+
+  &__nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow: hidden;
+
+    &:last-of-type {
+      flex: 1;
+    }
+  }
+
+  &__nav-label {
+    margin: 0;
+    padding: 0 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $taupe-400;
+  }
+
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  &__nav-link {
+    padding: 0.625rem 0.75rem;
+    border-radius: $radius-xl;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $taupe-500;
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.45);
+      color: $taupe-600;
+    }
+
+    &--active {
+      background: rgba($white, 0.92);
+      box-shadow: $shadow-card;
+      outline: 1px solid rgba($cream-300, 0.8);
+      color: $taupe-700;
+    }
+  }
+
+  &__meta-link {
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  &__invites-link {
+    display: block;
+    margin: 0 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: $radius-lg;
+    border: 1px solid rgba($champagne-400, 0.35);
+    background: rgba($champagne-400, 0.12);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $champagne-600;
+    text-align: center;
+
+    &:hover {
+      background: rgba($champagne-400, 0.18);
+      color: $champagne-500;
+    }
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba($cream-300, 0.6);
+    font-size: 0.8125rem;
+  }
+
+  &__user {
+    margin: 0;
+    word-break: break-all;
+    color: $taupe-400;
+  }
+
+  &__sign-in {
+    font-weight: 600;
+  }
+
+  &__main {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.app-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  flex-shrink: 0;
+
+  &--scrollable {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &--scrollable &__body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &--scrollable .app-layout__nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: $radius-lg;
+    background: transparent;
+    font: inherit;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $taupe-400;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.35);
+      color: $taupe-500;
+    }
+  }
+
+  &__chevron {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  &--expanded &__chevron {
+    transform: rotate(45deg);
+  }
+
+  &__title {
+    flex: 1;
+  }
+
+  &__badge {
+    min-width: 1.25rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    background: rgba($cream-300, 0.65);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    color: $taupe-500;
+    text-align: center;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-left: 0.25rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: auto;
+    max-height: none;
+    min-height: 100vh;
+
+    &__sidebar {
+      border-right: none;
+      border-bottom: 1px solid rgba($cream-300, 0.6);
+      padding: 1rem 1.25rem;
+      max-height: 45vh;
+      overflow-y: auto;
+    }
+
+    &__main {
+      overflow: visible;
+    }
+  }
+}
