@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from snapic.api.schemas import (
     OrganizationPublic,
+    SlugCheckResponse,
     StudioBillingResponse,
     StudioClientCreateRequest,
     StudioClientSummary,
@@ -15,23 +17,31 @@ from snapic.api.schemas import (
     StudioSettingsUpdateRequest,
     StudioSignupRequest,
     StudioStatsResponse,
+    StudioTeamEmailCheckResponse,
     StudioTeamInviteRequest,
+    StudioTeamInviteResponse,
 )
 from snapic.auth.jwt import AuthUser, get_required_user
 from snapic.auth.org import require_org_member, require_org_owner
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
+    add_org_member,
     allocate_event_slug,
+    allocate_org_slug,
     count_failed_gallery_photos,
     count_org_events,
     count_unindexed_gallery_photos,
     create_event,
     fetch_event_by_id,
     fetch_organization,
+    fetch_organization_by_slug,
+    fetch_profile_role,
+    find_profile_by_email,
     get_event_stats,
     get_primary_org_for_user,
     increment_org_events_used,
     is_org_event_access,
+    is_org_member,
     is_org_owner,
     list_org_events,
     list_org_members,
@@ -42,6 +52,22 @@ from snapic.db.repository import (
 )
 
 router = APIRouter(prefix="/studio", tags=["studio"])
+
+MIN_ORG_SLUG_LENGTH = 2
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:80] or "studio"
+
+
+def _add_existing_user_to_org(org_id: str, user_id: str, role: str) -> None:
+    if is_org_member(user_id, org_id):
+        raise HTTPException(status_code=409, detail="This person is already on your team")
+    add_org_member(org_id, user_id, role)
+    current_role = fetch_profile_role(user_id)
+    if current_role in (None, "guest", "event_admin"):
+        update_profile_role(user_id, "photographer")
 
 
 def _org_public(org: dict[str, Any], member_role: str | None = None) -> OrganizationPublic:
@@ -266,6 +292,20 @@ async def studio_update_settings(
     return _org_public(updated, "owner")
 
 
+@router.get("/slug-check", response_model=SlugCheckResponse)
+async def studio_slug_check(
+    slug: str,
+    _: Annotated[AuthUser, Depends(get_required_user)],
+) -> SlugCheckResponse:
+    cleaned = _slugify(slug)
+    if len(cleaned) < MIN_ORG_SLUG_LENGTH:
+        return SlugCheckResponse(slug=cleaned, available=False)
+    if fetch_organization_by_slug(cleaned) is None:
+        return SlugCheckResponse(slug=cleaned, available=True)
+    suggestion = allocate_org_slug(cleaned)
+    return SlugCheckResponse(slug=cleaned, available=False, suggestion=suggestion)
+
+
 @router.get("/team")
 async def studio_list_team(
     _: Annotated[AuthUser, Depends(get_required_user)],
@@ -274,29 +314,68 @@ async def studio_list_team(
     return list_org_members(org["id"])
 
 
-@router.post("/team/invite")
+@router.get("/team/email-check", response_model=StudioTeamEmailCheckResponse)
+async def studio_team_email_check(
+    email: str,
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> StudioTeamEmailCheckResponse:
+    cleaned = email.strip().lower()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Email required")
+    profile = find_profile_by_email(cleaned)
+    already_member = profile is not None and is_org_member(profile["id"], org["id"])
+    return StudioTeamEmailCheckResponse(
+        email=cleaned,
+        registered=profile is not None,
+        already_member=already_member,
+        can_invite=not already_member,
+    )
+
+
+@router.post("/team/invite", response_model=StudioTeamInviteResponse)
 async def studio_invite_team(
     body: StudioTeamInviteRequest,
-    user: Annotated[AuthUser, Depends(get_required_user)],
+    _: Annotated[AuthUser, Depends(get_required_user)],
     org: Annotated[dict[str, Any], Depends(require_org_owner)],
-) -> dict[str, str]:
+) -> StudioTeamInviteResponse:
     from snapic.db.supabase_client import get_supabase
 
-    email = body.email.strip()
+    email = body.email.strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+
+    profile = find_profile_by_email(email)
+    if profile:
+        _add_existing_user_to_org(org["id"], profile["id"], body.role)
+        return StudioTeamInviteResponse(status="added")
+
     client = get_supabase()
-    client.auth.admin.invite_user_by_email(
-        email,
-        options={
-            "data": {
-                "pending_org_id": org["id"],
-                "pending_org_role": body.role,
+    try:
+        client.auth.admin.invite_user_by_email(
+            email,
+            options={
+                "data": {
+                    "pending_org_id": org["id"],
+                    "pending_org_role": body.role,
+                },
+                "app_metadata": {"role": "photographer"},
             },
-            "app_metadata": {"role": "photographer"},
-        },
-    )
-    return {"status": "invited"}
+        )
+    except Exception as exc:
+        message = str(exc).lower()
+        if "already been registered" in message or "already registered" in message:
+            profile = find_profile_by_email(email)
+            if profile:
+                _add_existing_user_to_org(org["id"], profile["id"], body.role)
+                return StudioTeamInviteResponse(status="added")
+            raise HTTPException(
+                status_code=409,
+                detail="This email already has a Snapic account but could not be added automatically.",
+            ) from exc
+        raise HTTPException(status_code=502, detail="Could not send invite") from exc
+
+    return StudioTeamInviteResponse(status="invited")
 
 
 @router.get("/billing", response_model=StudioBillingResponse)
@@ -319,7 +398,7 @@ async def studio_signup(
     body: StudioSignupRequest,
     user: Annotated[AuthUser, Depends(get_required_user)],
 ) -> StudioMeResponse:
-    from snapic.db.repository import add_org_member, allocate_org_slug, create_organization
+    from snapic.db.repository import create_organization
 
     existing = get_primary_org_for_user(user.id)
     if existing:
@@ -327,7 +406,18 @@ async def studio_signup(
             organization=_org_public(existing, existing.get("member_role", "owner")),
             member_role=existing.get("member_role", "owner"),
         )
-    org_slug = allocate_org_slug(body.slug or body.name)
+    slug_input = body.slug.strip()
+    if slug_input:
+        org_slug = _slugify(slug_input)
+        if len(org_slug) < MIN_ORG_SLUG_LENGTH:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Studio slug must be at least {MIN_ORG_SLUG_LENGTH} characters",
+            )
+        if fetch_organization_by_slug(org_slug):
+            raise HTTPException(status_code=409, detail=f"Studio slug '{org_slug}' is already taken")
+    else:
+        org_slug = allocate_org_slug(body.name)
     org = create_organization(
         {
             "name": body.name.strip(),

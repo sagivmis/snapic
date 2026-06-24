@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth, RequireRole } from "./auth/RequireRole";
-import { RequireOrgMember, StudioLayout } from "./components/studio/StudioLayout";
+import { StudioOrgProvider } from "./components/studio/StudioOrgContext";
+import { StudioLayout } from "./components/studio/StudioLayout";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { EventGuestPage } from "./pages/EventGuestPage";
 import { EventLivePage } from "./pages/EventLivePage";
@@ -67,9 +68,9 @@ export function AppRouter() {
         path="/studio"
         element={
           <RequireAuth>
-            <RequireOrgMember>
+            <StudioOrgProvider>
               <StudioLayout />
-            </RequireOrgMember>
+            </StudioOrgProvider>
           </RequireAuth>
         }
       >

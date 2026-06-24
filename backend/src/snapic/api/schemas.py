@@ -267,6 +267,17 @@ class StudioTeamInviteRequest(BaseModel):
     role: Literal["owner", "associate"] = "associate"
 
 
+class StudioTeamInviteResponse(BaseModel):
+    status: Literal["invited", "added"]
+
+
+class StudioTeamEmailCheckResponse(BaseModel):
+    email: str
+    registered: bool
+    already_member: bool
+    can_invite: bool
+
+
 class StudioBillingResponse(BaseModel):
     plan: str
     branding_tier: str

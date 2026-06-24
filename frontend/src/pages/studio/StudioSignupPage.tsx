@@ -1,19 +1,43 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { studioSignup } from "../../api/client";
+import { checkStudioSlug, studioSignup } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import {
+  SlugAvailabilityInput,
+  type SlugCheckStatus,
+} from "../../components/SlugAvailabilityInput";
 import "../../styles/AuthPages.scss";
+import "../../styles/SlugAvailabilityInput.scss";
 
 export function StudioSignupPage() {
   const navigate = useNavigate();
   const { getAccessToken, session, signInWithGoogle } = useAuth();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugStatus, setSlugStatus] = useState<SlugCheckStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const handleCheckSlug = useCallback(
+    async (value: string) => {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Not signed in");
+      }
+      return checkStudioSlug(value, token);
+    },
+    [getAccessToken],
+  );
+
+  const slugBlocksSubmit =
+    slug.trim().length > 0 &&
+    (slugStatus === "pending" || slugStatus === "checking" || slugStatus === "taken" || slugStatus === "too_short");
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (slugBlocksSubmit) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -69,14 +93,16 @@ export function StudioSignupPage() {
           autoComplete="organization"
         />
         <label htmlFor="slug">URL slug (optional)</label>
-        <input
+        <SlugAvailabilityInput
           id="slug"
           value={slug}
-          onChange={(e) => setSlug(e.target.value)}
+          onChange={setSlug}
+          onCheckSlug={handleCheckSlug}
+          onStatusChange={setSlugStatus}
+          disabled={busy}
           placeholder="lens-and-light"
-          spellCheck={false}
         />
-        <button type="submit" className="btn btn-primary" disabled={busy}>
+        <button type="submit" className="btn btn-primary" disabled={busy || slugBlocksSubmit}>
           {busy ? "Creating…" : "Create studio"}
         </button>
       </form>

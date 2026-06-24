@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
-import { fetchStudioMe } from "../../api/client";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import "../../styles/StudioLayout.scss";
 
@@ -55,44 +53,4 @@ export function StudioLayout() {
       </main>
     </div>
   );
-}
-
-export function RequireOrgMember({ children }: { children: React.ReactNode }) {
-  const { getAccessToken, loading, session, isSuperAdmin } = useAuth();
-  const [orgReady, setOrgReady] = useState<boolean | null>(null);
-
-  const check = useCallback(async () => {
-    if (isSuperAdmin) {
-      setOrgReady(true);
-      return;
-    }
-    const token = await getAccessToken();
-    if (!token) {
-      setOrgReady(false);
-      return;
-    }
-    try {
-      await fetchStudioMe(token);
-      setOrgReady(true);
-    } catch {
-      setOrgReady(false);
-    }
-  }, [getAccessToken, isSuperAdmin]);
-
-  useEffect(() => {
-    if (!loading && session) {
-      void check();
-    }
-  }, [loading, session, check]);
-
-  if (loading || orgReady === null) {
-    return <div className="studio-layout studio-layout--loading">Loading…</div>;
-  }
-  if (!session) {
-    return <Navigate to="/login?next=/studio" replace />;
-  }
-  if (!orgReady) {
-    return <Navigate to="/studio/signup" replace />;
-  }
-  return <>{children}</>;
 }

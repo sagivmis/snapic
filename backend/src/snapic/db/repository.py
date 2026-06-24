@@ -594,8 +594,11 @@ def add_event_member(event_id: str, user_id: str, role: str = "admin") -> None:
 
 
 def find_profile_by_email(email: str) -> dict[str, Any] | None:
+    cleaned = email.strip().lower()
+    if not cleaned:
+        return None
     client = get_supabase()
-    return _query_one(client.table("profiles").select("*").eq("email", email))
+    return _query_one(client.table("profiles").select("*").eq("email", cleaned))
 
 
 def fetch_profile_role(user_id: str) -> str | None:

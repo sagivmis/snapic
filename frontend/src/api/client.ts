@@ -874,6 +874,32 @@ export async function studioGoLive(eventId: string, token: string): Promise<Stud
   return response.json() as Promise<StudioClient>;
 }
 
+export async function checkStudioSlug(slug: string, token: string): Promise<SlugCheckResult> {
+  const params = new URLSearchParams({ slug });
+  const response = await authFetch(`/api/studio/slug-check?${params}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not check slug");
+  }
+  return response.json() as Promise<SlugCheckResult>;
+}
+
+export async function checkStudioTeamEmail(
+  email: string,
+  token: string,
+): Promise<{ email: string; registered: boolean; already_member: boolean; can_invite: boolean }> {
+  const params = new URLSearchParams({ email });
+  const response = await authFetch(`/api/studio/team/email-check?${params}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not check email");
+  }
+  return response.json() as Promise<{
+    email: string;
+    registered: boolean;
+    already_member: boolean;
+    can_invite: boolean;
+  }>;
+}
+
 export async function studioSignup(name: string, slug: string, token: string): Promise<{ organization: Organization; member_role: string }> {
   const response = await authFetch(
     "/api/studio/signup",
@@ -914,7 +940,11 @@ export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: s
   return response.json() as Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>>;
 }
 
-export async function inviteStudioTeamMember(email: string, role: string, token: string): Promise<void> {
+export async function inviteStudioTeamMember(
+  email: string,
+  role: string,
+  token: string,
+): Promise<{ status: "invited" | "added" }> {
   const response = await authFetch(
     "/api/studio/team/invite",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) },
@@ -923,6 +953,7 @@ export async function inviteStudioTeamMember(email: string, role: string, token:
   if (!response.ok) {
     await parseError(response, "Could not invite team member");
   }
+  return response.json() as Promise<{ status: "invited" | "added" }>;
 }
 
 export async function fetchStudioBilling(token: string): Promise<StudioBilling> {

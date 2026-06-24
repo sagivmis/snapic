@@ -8,6 +8,7 @@ import {
 } from "../../api/client";
 import { AlbumManager } from "../../components/shared/AlbumManager";
 import { ClientHandoffPanel } from "../../components/studio/ClientHandoffPanel";
+import { StudioClientDetailSkeleton } from "../../components/studio/StudioSkeletons";
 import { useAuth } from "../../auth/AuthProvider";
 import type { EventPublic, StudioClient } from "../../types";
 import "../../styles/StudioLayout.scss";
@@ -20,12 +21,14 @@ export function StudioClientDetailPage() {
   const [client, setClient] = useState<StudioClient | null>(null);
   const [event, setEvent] = useState<EventPublic | null>(null);
   const [tab, setTab] = useState<ClientTab>("album");
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const token = await getAccessToken();
     if (!token || !eventId) {
+      setLoading(false);
       return;
     }
     try {
@@ -34,6 +37,8 @@ export function StudioClientDetailPage() {
       setEvent(await fetchEventBySlug(clientRow.slug, token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load client");
+    } finally {
+      setLoading(false);
     }
   }, [eventId, getAccessToken]);
 
@@ -71,8 +76,29 @@ export function StudioClientDetailPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="studio-page" aria-busy="true" aria-label="Loading client">
+        <header className="studio-page__header">
+          <div>
+            <p>
+              <Link to="/studio/clients">Clients</Link>
+            </p>
+            <h1 className="studio-skeleton studio-skeleton--title-inline" aria-hidden="true" />
+          </div>
+        </header>
+        <StudioClientDetailSkeleton />
+      </div>
+    );
+  }
+
   if (!client) {
-    return <div className="studio-page">{error ?? "Loading…"}</div>;
+    return (
+      <div className="studio-page">
+        {error && <p className="error-banner">{error}</p>}
+        {!error && <p>Client not found.</p>}
+      </div>
+    );
   }
 
   return (

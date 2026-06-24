@@ -1,12 +1,24 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import { fetchStudioSettings, updateStudioSettings } from "../../api/client";
+import { FormEvent, useEffect, useState } from "react";
+import { updateStudioSettings } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import type { Organization } from "../../types";
 import "../../styles/StudioLayout.scss";
 
+function applyOrgToForm(org: Organization) {
+  const settings = org.settings ?? {};
+  return {
+    name: org.name,
+    website: org.website_url ?? "",
+    accent: org.accent_color ?? "#c9a962",
+    requireCoupleGoLive: Boolean(settings.require_couple_go_live),
+    associateScope: settings.associate_scope === "event" ? ("event" as const) : ("org" as const),
+  };
+}
+
 export function StudioSettingsPage() {
+  const { organization, setOrganization } = useStudioOrg();
   const { getAccessToken } = useAuth();
-  const [org, setOrg] = useState<Organization | null>(null);
   const [name, setName] = useState("");
   const [website, setWebsite] = useState("");
   const [accent, setAccent] = useState("#c9a962");
@@ -15,24 +27,16 @@ export function StudioSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) {
-      return;
-    }
-    const row = await fetchStudioSettings(token);
-    setOrg(row);
-    setName(row.name);
-    setWebsite(row.website_url ?? "");
-    setAccent(row.accent_color ?? "#c9a962");
-    const settings = row.settings ?? {};
-    setRequireCoupleGoLive(Boolean(settings.require_couple_go_live));
-    setAssociateScope(settings.associate_scope === "event" ? "event" : "org");
-  }, [getAccessToken]);
-
   useEffect(() => {
-    void load().catch((err) => setError(err instanceof Error ? err.message : "Load failed"));
-  }, [load]);
+    if (organization) {
+      const form = applyOrgToForm(organization);
+      setName(form.name);
+      setWebsite(form.website);
+      setAccent(form.accent);
+      setRequireCoupleGoLive(form.requireCoupleGoLive);
+      setAssociateScope(form.associateScope);
+    }
+  }, [organization]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -55,15 +59,11 @@ export function StudioSettingsPage() {
         },
         token,
       );
-      setOrg(updated);
+      setOrganization(updated);
       setSuccess("Settings saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     }
-  }
-
-  if (!org) {
-    return <div className="studio-page">Loading…</div>;
   }
 
   return (
@@ -79,26 +79,59 @@ export function StudioSettingsPage() {
         <label htmlFor="accent">Accent color</label>
         <input id="accent" type="color" value={accent} onChange={(e) => setAccent(e.target.value)} />
 
-        <label>
-          <input
-            type="checkbox"
-            checked={requireCoupleGoLive}
-            onChange={(e) => setRequireCoupleGoLive(e.target.checked)}
-          />{" "}
-          Require couple approval before go-live
-        </label>
+        <div className="studio-form__toggle">
+          <button
+            type="button"
+            role="switch"
+            id="require-couple-go-live"
+            className={`studio-form__switch${requireCoupleGoLive ? " studio-form__switch--on" : ""}`}
+            aria-checked={requireCoupleGoLive}
+            aria-labelledby="require-couple-go-live-label"
+            onClick={() => setRequireCoupleGoLive((value) => !value)}
+          >
+            <span className="studio-form__switch-thumb" aria-hidden="true" />
+          </button>
+          <span className="studio-form__toggle-copy">
+            <span id="require-couple-go-live-label" className="studio-form__toggle-label">
+              Require couple approval before go-live
+            </span>
+            <span className="studio-form__toggle-hint">
+              {requireCoupleGoLive
+                ? "Couples must approve before the gallery goes live."
+                : "You can go live without waiting for couple approval."}
+            </span>
+          </span>
+        </div>
 
-        <label htmlFor="scope">Associate access</label>
-        <select id="scope" value={associateScope} onChange={(e) => setAssociateScope(e.target.value as "org" | "event")}>
-          <option value="org">All studio events</option>
-          <option value="event">Assigned events only</option>
-        </select>
+        <div className="studio-form__toggle">
+          <button
+            type="button"
+            role="switch"
+            id="associate-access"
+            className={`studio-form__switch${associateScope === "org" ? " studio-form__switch--on" : ""}`}
+            aria-checked={associateScope === "org"}
+            aria-labelledby="associate-access-label"
+            onClick={() => setAssociateScope(associateScope === "org" ? "event" : "org")}
+          >
+            <span className="studio-form__switch-thumb" aria-hidden="true" />
+          </button>
+          <span className="studio-form__toggle-copy">
+            <span id="associate-access-label" className="studio-form__toggle-label">
+              All studio events
+            </span>
+            <span className="studio-form__toggle-hint">
+              {associateScope === "org"
+                ? "Associates can access every client gallery in your studio."
+                : "Associates only see events they’re assigned to."}
+            </span>
+          </span>
+        </div>
 
         <button type="submit" className="btn btn-primary">
           Save
         </button>
       </form>
-      {success && <p>{success}</p>}
+      {success && <p className="success-banner">{success}</p>}
       {error && <p className="error-banner">{error}</p>}
     </div>
   );

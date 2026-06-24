@@ -88,6 +88,30 @@ button {
   }
 }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $cream-400;
+  border-radius: $radius-xl;
+  background: $white;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $taupe-600;
+  text-decoration: none;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background: $cream-100;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .btn-ghost {
   border: none;
   border-radius: $radius-lg;

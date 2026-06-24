@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { createStripeCheckout, fetchStudioBilling } from "../../api/client";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { createStripeCheckout } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
-import type { StudioBilling } from "../../types";
+import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import "../../styles/StudioLayout.scss";
 
 const PLANS = [
@@ -13,21 +14,19 @@ const PLANS = [
 
 export function StudioBillingPage() {
   const { getAccessToken } = useAuth();
-  const [billing, setBilling] = useState<StudioBilling | null>(null);
+  const { organization, refreshOrganization } = useStudioOrg();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) {
+  useEffect(() => {
+    if (searchParams.get("success") !== "1") {
       return;
     }
-    setBilling(await fetchStudioBilling(token));
-  }, [getAccessToken]);
-
-  useEffect(() => {
-    void load().catch((err) => setError(err instanceof Error ? err.message : "Load failed"));
-  }, [load]);
+    void refreshOrganization().finally(() => {
+      setSearchParams({}, { replace: true });
+    });
+  }, [searchParams, refreshOrganization, setSearchParams]);
 
   async function startCheckout(plan: string) {
     setBusy(true);
@@ -58,10 +57,10 @@ export function StudioBillingPage() {
   return (
     <div className="studio-page">
       <h1>Billing</h1>
-      {billing && (
+      {organization && (
         <p>
-          Plan: <strong>{billing.plan}</strong> · Used {billing.events_used_this_period} /{" "}
-          {billing.events_included_per_period || "∞"} events
+          Plan: <strong>{organization.plan}</strong> · Used {organization.events_used_this_period} /{" "}
+          {organization.events_included_per_period || "∞"} events
         </p>
       )}
       <div className="studio-page__stats">
@@ -69,8 +68,13 @@ export function StudioBillingPage() {
           <div key={plan.id} className="studio-page__stat">
             <span className="studio-page__stat-value">{plan.price}</span>
             <span className="studio-page__stat-label">{plan.label}</span>
-            <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void startCheckout(plan.id)}>
-              Choose
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={() => void startCheckout(plan.id)}
+            >
+              {busy ? "Redirecting…" : "Choose"}
             </button>
           </div>
         ))}
