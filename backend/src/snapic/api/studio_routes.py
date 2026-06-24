@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from snapic.api.schemas import (
     OrganizationPublic,
+    OrgInviteSummary,
     SlugCheckResponse,
     StudioBillingResponse,
     StudioClientCreateRequest,
@@ -14,6 +15,7 @@ from snapic.api.schemas import (
     StudioClientUpdateRequest,
     StudioInviteCoupleRequest,
     StudioMeResponse,
+    StudioOrganizationsResponse,
     StudioSettingsUpdateRequest,
     StudioSignupRequest,
     StudioStatsResponse,
@@ -25,6 +27,7 @@ from snapic.auth.jwt import AuthUser, get_required_user
 from snapic.auth.org import require_org_member, require_org_owner
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
+    accept_org_invite,
     add_org_member,
     allocate_event_slug,
     allocate_org_slug,
@@ -32,19 +35,25 @@ from snapic.db.repository import (
     count_org_events,
     count_unindexed_gallery_photos,
     create_event,
+    create_org_invite,
+    decline_org_invite,
     fetch_event_by_id,
     fetch_organization,
     fetch_organization_by_slug,
-    fetch_profile_role,
+    fetch_profile_by_id,
     find_profile_by_email,
     get_event_stats,
     get_primary_org_for_user,
+    has_pending_org_invite,
     increment_org_events_used,
     is_org_event_access,
     is_org_member,
     is_org_owner,
     list_org_events,
     list_org_members,
+    list_pending_org_invites_for_org,
+    list_pending_org_invites_for_user,
+    list_user_organizations,
     org_can_create_event,
     update_event,
     update_organization,
@@ -61,13 +70,50 @@ def _slugify(value: str) -> str:
     return slug[:80] or "studio"
 
 
-def _add_existing_user_to_org(org_id: str, user_id: str, role: str) -> None:
-    if is_org_member(user_id, org_id):
+def _invite_to_org(org_id: str, email: str, role: str, invited_by: str) -> None:
+    from snapic.db.approval_email import send_studio_team_invite_email
+
+    cleaned = email.strip().lower()
+    profile = find_profile_by_email(cleaned)
+    if profile and is_org_member(profile["id"], org_id):
         raise HTTPException(status_code=409, detail="This person is already on your team")
-    add_org_member(org_id, user_id, role)
-    current_role = fetch_profile_role(user_id)
-    if current_role in (None, "guest", "event_admin"):
-        update_profile_role(user_id, "photographer")
+    if has_pending_org_invite(org_id, cleaned):
+        raise HTTPException(status_code=409, detail="An invite is already pending for this email")
+
+    create_org_invite(org_id, cleaned, role, invited_by, profile["id"] if profile else None)
+
+    org = fetch_organization(org_id)
+    studio_name = org.get("name") if org else "Snapic Studio"
+    inviter_profile = fetch_profile_by_id(invited_by)
+    inviter_name = None
+    if inviter_profile:
+        inviter_name = inviter_profile.get("full_name") or inviter_profile.get("email")
+
+    if profile:
+        send_studio_team_invite_email(cleaned, studio_name, role, inviter_name)
+        return
+
+    from snapic.db.supabase_client import get_supabase
+
+    client = get_supabase()
+    try:
+        client.auth.admin.invite_user_by_email(
+            cleaned,
+            options={
+                "data": {
+                    "pending_org_id": org_id,
+                    "pending_org_role": role,
+                },
+                "app_metadata": {"role": "photographer"},
+            },
+        )
+    except Exception as exc:
+        message = str(exc).lower()
+        if "already been registered" in message or "already registered" in message:
+            existing = find_profile_by_email(cleaned)
+            if existing:
+                return
+        raise HTTPException(status_code=502, detail="Could not send invite email") from exc
 
 
 def _org_public(org: dict[str, Any], member_role: str | None = None) -> OrganizationPublic:
@@ -124,6 +170,81 @@ async def studio_me(
 ) -> StudioMeResponse:
     member_role = org.get("member_role") or "associate"
     return StudioMeResponse(organization=_org_public(org, member_role), member_role=member_role)
+
+
+@router.get("/orgs", response_model=StudioOrganizationsResponse)
+async def studio_list_orgs(
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> StudioOrganizationsResponse:
+    orgs = list_user_organizations(user.id)
+    return StudioOrganizationsResponse(
+        organizations=[_org_public(org, org.get("member_role")) for org in orgs]
+    )
+
+
+@router.get("/invites", response_model=list[OrgInviteSummary])
+async def studio_list_invites(
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> list[OrgInviteSummary]:
+    rows = list_pending_org_invites_for_user(user.id, user.email or "")
+    return [
+        OrgInviteSummary(
+            id=row["id"],
+            org_id=row["org_id"],
+            org_name=row.get("org_name"),
+            org_slug=row.get("org_slug"),
+            email=row["email"],
+            role=row.get("role") or "associate",
+            status=row.get("status") or "pending",
+            created_at=row.get("created_at"),
+            invited_by_email=row.get("invited_by_email"),
+        )
+        for row in rows
+    ]
+
+
+@router.post("/invites/{invite_id}/accept", response_model=OrgInviteSummary)
+async def studio_accept_invite(
+    invite_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> OrgInviteSummary:
+    try:
+        row = accept_org_invite(invite_id, user.id, user.email or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    org = fetch_organization(row["org_id"])
+    return OrgInviteSummary(
+        id=row["id"],
+        org_id=row["org_id"],
+        org_name=org.get("name") if org else None,
+        org_slug=org.get("slug") if org else None,
+        email=row["email"],
+        role=row.get("role") or "associate",
+        status="accepted",
+        created_at=row.get("created_at"),
+    )
+
+
+@router.post("/invites/{invite_id}/decline", response_model=OrgInviteSummary)
+async def studio_decline_invite(
+    invite_id: str,
+    user: Annotated[AuthUser, Depends(get_required_user)],
+) -> OrgInviteSummary:
+    try:
+        row = decline_org_invite(invite_id, user.id, user.email or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    org = fetch_organization(row["org_id"])
+    return OrgInviteSummary(
+        id=row["id"],
+        org_id=row["org_id"],
+        org_name=org.get("name") if org else None,
+        org_slug=org.get("slug") if org else None,
+        email=row["email"],
+        role=row.get("role") or "associate",
+        status="declined",
+        created_at=row.get("created_at"),
+    )
 
 
 @router.get("/stats", response_model=StudioStatsResponse)
@@ -325,56 +446,45 @@ async def studio_team_email_check(
         raise HTTPException(status_code=400, detail="Email required")
     profile = find_profile_by_email(cleaned)
     already_member = profile is not None and is_org_member(profile["id"], org["id"])
+    invite_pending = has_pending_org_invite(org["id"], cleaned)
     return StudioTeamEmailCheckResponse(
         email=cleaned,
         registered=profile is not None,
         already_member=already_member,
-        can_invite=not already_member,
+        invite_pending=invite_pending,
+        can_invite=not already_member and not invite_pending,
     )
+
+
+@router.get("/team/pending-invites", response_model=list[OrgInviteSummary])
+async def studio_list_team_pending_invites(
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> list[OrgInviteSummary]:
+    rows = list_pending_org_invites_for_org(org["id"])
+    return [
+        OrgInviteSummary(
+            id=row["id"],
+            org_id=row["org_id"],
+            email=row["email"],
+            role=row.get("role") or "associate",
+            status=row.get("status") or "pending",
+            created_at=row.get("created_at"),
+        )
+        for row in rows
+    ]
 
 
 @router.post("/team/invite", response_model=StudioTeamInviteResponse)
 async def studio_invite_team(
     body: StudioTeamInviteRequest,
-    _: Annotated[AuthUser, Depends(get_required_user)],
+    user: Annotated[AuthUser, Depends(get_required_user)],
     org: Annotated[dict[str, Any], Depends(require_org_owner)],
 ) -> StudioTeamInviteResponse:
-    from snapic.db.supabase_client import get_supabase
-
     email = body.email.strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
-
-    profile = find_profile_by_email(email)
-    if profile:
-        _add_existing_user_to_org(org["id"], profile["id"], body.role)
-        return StudioTeamInviteResponse(status="added")
-
-    client = get_supabase()
-    try:
-        client.auth.admin.invite_user_by_email(
-            email,
-            options={
-                "data": {
-                    "pending_org_id": org["id"],
-                    "pending_org_role": body.role,
-                },
-                "app_metadata": {"role": "photographer"},
-            },
-        )
-    except Exception as exc:
-        message = str(exc).lower()
-        if "already been registered" in message or "already registered" in message:
-            profile = find_profile_by_email(email)
-            if profile:
-                _add_existing_user_to_org(org["id"], profile["id"], body.role)
-                return StudioTeamInviteResponse(status="added")
-            raise HTTPException(
-                status_code=409,
-                detail="This email already has a Snapic account but could not be added automatically.",
-            ) from exc
-        raise HTTPException(status_code=502, detail="Could not send invite") from exc
-
+    _invite_to_org(org["id"], email, body.role, user.id)
     return StudioTeamInviteResponse(status="invited")
 
 

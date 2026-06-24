@@ -268,14 +268,31 @@ class StudioTeamInviteRequest(BaseModel):
 
 
 class StudioTeamInviteResponse(BaseModel):
-    status: Literal["invited", "added"]
+    status: Literal["invited"] = "invited"
 
 
 class StudioTeamEmailCheckResponse(BaseModel):
     email: str
     registered: bool
     already_member: bool
+    invite_pending: bool = False
     can_invite: bool
+
+
+class OrgInviteSummary(BaseModel):
+    id: str
+    org_id: str
+    org_name: str | None = None
+    org_slug: str | None = None
+    email: str
+    role: str
+    status: str
+    created_at: str | None = None
+    invited_by_email: str | None = None
+
+
+class StudioOrganizationsResponse(BaseModel):
+    organizations: list[OrganizationPublic]
 
 
 class StudioBillingResponse(BaseModel):

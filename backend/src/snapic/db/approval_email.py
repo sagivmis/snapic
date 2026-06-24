@@ -159,3 +159,40 @@ def send_gallery_live_email(to_emails: list[str], couple_names: str, event_slug:
         f"Your Snapic gallery is live — {couple_names}",
         _email_shell("You're live!", body),
     )
+
+
+def send_studio_team_invite_email(
+    to_email: str,
+    studio_name: str,
+    role: str,
+    inviter_name: str | None = None,
+) -> bool:
+    """Notify an existing user they have a pending studio team invitation."""
+    invites_url = f"{app_base_url()}/login?next=/studio/select"
+    role_label = "owner" if role == "owner" else "associate"
+    invited_by = inviter_name.strip() if inviter_name and inviter_name.strip() else "A studio owner"
+    body = f"""
+      <p>Hi,</p>
+      <p>
+        {invited_by} invited you to join <strong>{studio_name}</strong> on Snapic as an
+        <strong>{role_label}</strong>.
+      </p>
+      <p>
+        Sign in to accept or decline the invitation from your studio dashboard.
+      </p>
+      <p>
+        <a href="{invites_url}" style="display: inline-block; padding: 0.75rem 1.25rem; border-radius: 999px;
+          background: #9a7649; color: #ffffff; text-decoration: none; font-weight: 600;">
+          Review invitation
+        </a>
+      </p>
+      <p style="font-size: 0.8125rem; color: #8a7b6c;">
+        If the button does not work, copy and paste this URL into your browser:<br />
+        {invites_url}
+      </p>
+    """
+    return _send_html_email(
+        [to_email],
+        f"You're invited to join {studio_name} on Snapic",
+        _email_shell(f"Join {studio_name}", body),
+    )

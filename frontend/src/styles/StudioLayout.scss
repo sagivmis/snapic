@@ -114,6 +114,48 @@
     }
   }
 
+  &__switcher {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  &__switcher-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $taupe-400;
+  }
+
+  &__switcher-select {
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    border-radius: $radius-lg;
+    border: 1px solid rgba($cream-300, 0.8);
+    background: rgba($white, 0.85);
+    font: inherit;
+    font-size: 0.8125rem;
+    color: $taupe-700;
+  }
+
+  &__invites-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: $radius-lg;
+    border: 1px solid rgba($champagne-400, 0.35);
+    background: rgba($champagne-400, 0.12);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $champagne-600;
+    text-align: center;
+
+    &:hover {
+      background: rgba($champagne-400, 0.18);
+      color: $champagne-500;
+    }
+  }
+
   &__main {
     min-height: 0;
     overflow-x: hidden;
@@ -543,6 +585,102 @@
     font-family: $font-display;
     font-size: 1.125rem;
     color: $taupe-700;
+  }
+}
+
+.studio-team-pending {
+  margin-bottom: 1.75rem;
+
+  &__heading {
+    margin: 0 0 0.25rem;
+    font-family: $font-display;
+    font-size: 1.125rem;
+    color: $taupe-700;
+  }
+
+  &__hint {
+    margin: 0 0 0.75rem !important;
+    font-size: 0.8125rem;
+    color: $taupe-500;
+  }
+
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.75rem 1rem;
+    border-radius: $radius-xl;
+    border: 1px dashed rgba($cream-300, 0.9);
+    background: rgba($white, 0.65);
+  }
+
+  &__email {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $taupe-700;
+    word-break: break-all;
+  }
+
+  &__meta {
+    font-size: 0.75rem;
+    color: $taupe-500;
+  }
+}
+
+.studio-select {
+  max-width: 36rem;
+
+  &__section {
+    margin-top: 1.75rem;
+
+    h2 {
+      margin: 0 0 0.75rem;
+      font-family: $font-display;
+      font-size: 1.125rem;
+      color: $taupe-700;
+    }
+  }
+
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.125rem;
+    border-radius: $radius-xl;
+    border: 1px solid rgba($cream-300, 0.6);
+    background: rgba($white, 0.85);
+    box-shadow: $shadow-card;
+
+    p {
+      margin: 0.25rem 0 0;
+      font-size: 0.8125rem;
+      color: $taupe-500;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 

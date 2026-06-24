@@ -601,6 +601,11 @@ def find_profile_by_email(email: str) -> dict[str, Any] | None:
     return _query_one(client.table("profiles").select("*").eq("email", cleaned))
 
 
+def fetch_profile_by_id(user_id: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    return _query_one(client.table("profiles").select("email, full_name").eq("id", user_id))
+
+
 def fetch_profile_role(user_id: str) -> str | None:
     client = get_supabase()
     row = _query_one(client.table("profiles").select("global_role").eq("id", user_id))
@@ -912,6 +917,23 @@ def get_primary_org_for_user(user_id: str) -> dict[str, Any] | None:
     return owners[0] if owners else orgs[0]
 
 
+def get_org_for_user(user_id: str, org_id: str) -> dict[str, Any] | None:
+    if not is_org_member(user_id, org_id):
+        return None
+    org = fetch_organization(org_id)
+    if not org:
+        return None
+    client = get_supabase()
+    row = _query_one(
+        client.table("org_members")
+        .select("role")
+        .eq("org_id", org_id)
+        .eq("user_id", user_id)
+    )
+    role = row.get("role") if row else "associate"
+    return {**org, "member_role": role}
+
+
 def is_org_member(user_id: str, org_id: str) -> bool:
     if is_super_admin(user_id):
         return True
@@ -1062,3 +1084,154 @@ def count_org_events(org_id: str) -> int:
     client = get_supabase()
     result = client.table("events").select("id", count="exact").eq("organization_id", org_id).execute()
     return result.count or 0
+
+
+def has_pending_org_invite(org_id: str, email: str) -> bool:
+    cleaned = email.strip().lower()
+    if not cleaned:
+        return False
+    client = get_supabase()
+    row = _query_one(
+        client.table("org_invites")
+        .select("id")
+        .eq("org_id", org_id)
+        .eq("status", "pending")
+        .ilike("email", cleaned)
+    )
+    return row is not None
+
+
+def create_org_invite(
+    org_id: str,
+    email: str,
+    role: str,
+    invited_by: str | None,
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    cleaned = email.strip().lower()
+    client = get_supabase()
+    payload = {
+        "org_id": org_id,
+        "email": cleaned,
+        "role": role,
+        "status": "pending",
+        "invited_by": invited_by,
+        "user_id": user_id,
+    }
+    result = client.table("org_invites").insert(payload).execute()
+    return (result.data or [payload])[0]
+
+
+def list_pending_org_invites_for_user(user_id: str, email: str) -> list[dict[str, Any]]:
+    cleaned = email.strip().lower()
+    client = get_supabase()
+    by_user = (
+        client.table("org_invites")
+        .select("*")
+        .eq("status", "pending")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+        or []
+    )
+    by_email = (
+        client.table("org_invites")
+        .select("*")
+        .eq("status", "pending")
+        .ilike("email", cleaned)
+        .execute()
+        .data
+        or []
+    )
+    seen: set[str] = set()
+    rows: list[dict[str, Any]] = []
+    for row in by_user + by_email:
+        invite_id = row.get("id")
+        if not invite_id or invite_id in seen:
+            continue
+        seen.add(invite_id)
+        rows.append(row)
+    enriched: list[dict[str, Any]] = []
+    for row in rows:
+        org = fetch_organization(row["org_id"])
+        if not org:
+            continue
+        inviter = None
+        if row.get("invited_by"):
+            inviter = _query_one(
+                client.table("profiles").select("email, full_name").eq("id", row["invited_by"])
+            )
+        enriched.append(
+            {
+                **row,
+                "org_name": org.get("name"),
+                "org_slug": org.get("slug"),
+                "invited_by_email": inviter.get("email") if inviter else None,
+            }
+        )
+    return enriched
+
+
+def list_pending_org_invites_for_org(org_id: str) -> list[dict[str, Any]]:
+    client = get_supabase()
+    return (
+        client.table("org_invites")
+        .select("*")
+        .eq("org_id", org_id)
+        .eq("status", "pending")
+        .order("created_at", desc=True)
+        .execute()
+        .data
+        or []
+    )
+
+
+def fetch_org_invite(invite_id: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    return _query_one(client.table("org_invites").select("*").eq("id", invite_id))
+
+
+def accept_org_invite(invite_id: str, user_id: str, email: str) -> dict[str, Any]:
+    invite = fetch_org_invite(invite_id)
+    if not invite or invite.get("status") != "pending":
+        raise ValueError("Invite not found or already handled")
+    cleaned = email.strip().lower()
+    invite_email = (invite.get("email") or "").strip().lower()
+    invite_user = invite.get("user_id")
+    if invite_user and invite_user != user_id:
+        raise ValueError("Invite is for another user")
+    if not invite_user and invite_email != cleaned:
+        raise ValueError("Invite is for another email")
+    if is_org_member(user_id, invite["org_id"]):
+        client = get_supabase()
+        client.table("org_invites").update(
+            {"status": "accepted", "responded_at": datetime.now(UTC).isoformat(), "user_id": user_id}
+        ).eq("id", invite_id).execute()
+        return invite
+    add_org_member(invite["org_id"], user_id, invite.get("role") or "associate")
+    current_role = fetch_profile_role(user_id)
+    if current_role in (None, "guest", "event_admin"):
+        update_profile_role(user_id, "photographer")
+    client = get_supabase()
+    client.table("org_invites").update(
+        {"status": "accepted", "responded_at": datetime.now(UTC).isoformat(), "user_id": user_id}
+    ).eq("id", invite_id).execute()
+    return invite
+
+
+def decline_org_invite(invite_id: str, user_id: str, email: str) -> dict[str, Any]:
+    invite = fetch_org_invite(invite_id)
+    if not invite or invite.get("status") != "pending":
+        raise ValueError("Invite not found or already handled")
+    cleaned = email.strip().lower()
+    invite_email = (invite.get("email") or "").strip().lower()
+    invite_user = invite.get("user_id")
+    if invite_user and invite_user != user_id:
+        raise ValueError("Invite is for another user")
+    if not invite_user and invite_email != cleaned:
+        raise ValueError("Invite is for another email")
+    client = get_supabase()
+    client.table("org_invites").update(
+        {"status": "declined", "responded_at": datetime.now(UTC).isoformat(), "user_id": user_id}
+    ).eq("id", invite_id).execute()
+    return invite

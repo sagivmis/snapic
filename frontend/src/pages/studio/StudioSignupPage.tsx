@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { checkStudioSlug, studioSignup } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import { setStoredStudioOrgId } from "../../lib/studioOrg";
 import {
   SlugAvailabilityInput,
   type SlugCheckStatus,
@@ -45,7 +46,8 @@ export function StudioSignupPage() {
       if (!token) {
         throw new Error("Sign in first");
       }
-      await studioSignup(name.trim(), slug.trim(), token);
+      const result = await studioSignup(name.trim(), slug.trim(), token);
+      setStoredStudioOrgId(result.organization.id);
       navigate("/studio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");

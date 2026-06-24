@@ -1,4 +1,5 @@
 import { apiUrl } from "./config";
+import { getStoredStudioOrgId } from "../lib/studioOrg";
 import type {
   AdminAttention,
   AdminEventSummary,
@@ -32,6 +33,7 @@ import type {
 export interface AuthFetchOptions {
   token?: string | null;
   anonymousSessionId?: string | null;
+  studioOrgId?: string | null;
 }
 
 async function authFetch(
@@ -46,7 +48,17 @@ async function authFetch(
   if (auth.anonymousSessionId) {
     headers.set("X-Anonymous-Session-Id", auth.anonymousSessionId);
   }
+  if (auth.studioOrgId) {
+    headers.set("X-Studio-Org-Id", auth.studioOrgId);
+  }
   return fetch(apiUrl(path), { ...init, headers });
+}
+
+function studioAuth(token: string, orgId?: string | null): AuthFetchOptions {
+  return {
+    token,
+    studioOrgId: orgId === undefined ? getStoredStudioOrgId() : orgId,
+  };
 }
 
 export class ApiError extends Error {
@@ -785,8 +797,61 @@ export async function downloadEventGalleryZip(eventId: string, token: string, fi
   URL.revokeObjectURL(url);
 }
 
-export async function fetchStudioMe(token: string): Promise<{ organization: Organization; member_role: string }> {
-  const response = await authFetch("/api/studio/me", {}, { token });
+export async function fetchStudioOrganizations(token: string): Promise<Organization[]> {
+  const response = await authFetch("/api/studio/orgs", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load studios");
+  }
+  const payload = (await response.json()) as { organizations: Organization[] };
+  return payload.organizations;
+}
+
+export interface StudioOrgInvite {
+  id: string;
+  org_id: string;
+  org_name?: string | null;
+  org_slug?: string | null;
+  email: string;
+  role: string;
+  status: string;
+  created_at?: string | null;
+  invited_by_email?: string | null;
+}
+
+export async function fetchStudioInvites(token: string): Promise<StudioOrgInvite[]> {
+  const response = await authFetch("/api/studio/invites", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load invites");
+  }
+  return response.json() as Promise<StudioOrgInvite[]>;
+}
+
+export async function acceptStudioInvite(inviteId: string, token: string): Promise<StudioOrgInvite> {
+  const response = await authFetch(
+    `/api/studio/invites/${inviteId}/accept`,
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not accept invite");
+  }
+  return response.json() as Promise<StudioOrgInvite>;
+}
+
+export async function declineStudioInvite(inviteId: string, token: string): Promise<StudioOrgInvite> {
+  const response = await authFetch(
+    `/api/studio/invites/${inviteId}/decline`,
+    { method: "POST" },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not decline invite");
+  }
+  return response.json() as Promise<StudioOrgInvite>;
+}
+
+export async function fetchStudioMe(token: string, orgId?: string | null): Promise<{ organization: Organization; member_role: string }> {
+  const response = await authFetch("/api/studio/me", {}, studioAuth(token, orgId));
   if (!response.ok) {
     await parseError(response, "Could not load studio");
   }
@@ -794,7 +859,7 @@ export async function fetchStudioMe(token: string): Promise<{ organization: Orga
 }
 
 export async function fetchStudioStats(token: string): Promise<StudioStats> {
-  const response = await authFetch("/api/studio/stats", {}, { token });
+  const response = await authFetch("/api/studio/stats", {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load studio stats");
   }
@@ -802,7 +867,7 @@ export async function fetchStudioStats(token: string): Promise<StudioStats> {
 }
 
 export async function fetchStudioClients(token: string): Promise<StudioClient[]> {
-  const response = await authFetch("/api/studio/events", {}, { token });
+  const response = await authFetch("/api/studio/events", {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load clients");
   }
@@ -823,7 +888,7 @@ export async function createStudioClient(
   const response = await authFetch(
     "/api/studio/events",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not create client");
@@ -832,7 +897,7 @@ export async function createStudioClient(
 }
 
 export async function fetchStudioClient(eventId: string, token: string): Promise<StudioClient> {
-  const response = await authFetch(`/api/studio/events/${eventId}`, {}, { token });
+  const response = await authFetch(`/api/studio/events/${eventId}`, {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load client");
   }
@@ -847,7 +912,7 @@ export async function updateStudioClient(
   const response = await authFetch(
     `/api/studio/events/${eventId}`,
     { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not update client");
@@ -859,7 +924,7 @@ export async function studioInviteCouple(eventId: string, email: string, token: 
   const response = await authFetch(
     `/api/studio/events/${eventId}/invite-couple`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not invite couple");
@@ -867,7 +932,7 @@ export async function studioInviteCouple(eventId: string, email: string, token: 
 }
 
 export async function studioGoLive(eventId: string, token: string): Promise<StudioClient> {
-  const response = await authFetch(`/api/studio/events/${eventId}/go-live`, { method: "POST" }, { token });
+  const response = await authFetch(`/api/studio/events/${eventId}/go-live`, { method: "POST" }, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not go live");
   }
@@ -886,9 +951,9 @@ export async function checkStudioSlug(slug: string, token: string): Promise<Slug
 export async function checkStudioTeamEmail(
   email: string,
   token: string,
-): Promise<{ email: string; registered: boolean; already_member: boolean; can_invite: boolean }> {
+): Promise<{ email: string; registered: boolean; already_member: boolean; invite_pending: boolean; can_invite: boolean }> {
   const params = new URLSearchParams({ email });
-  const response = await authFetch(`/api/studio/team/email-check?${params}`, {}, { token });
+  const response = await authFetch(`/api/studio/team/email-check?${params}`, {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not check email");
   }
@@ -896,6 +961,7 @@ export async function checkStudioTeamEmail(
     email: string;
     registered: boolean;
     already_member: boolean;
+    invite_pending: boolean;
     can_invite: boolean;
   }>;
 }
@@ -913,7 +979,7 @@ export async function studioSignup(name: string, slug: string, token: string): P
 }
 
 export async function fetchStudioSettings(token: string): Promise<Organization> {
-  const response = await authFetch("/api/studio/settings", {}, { token });
+  const response = await authFetch("/api/studio/settings", {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load settings");
   }
@@ -924,7 +990,7 @@ export async function updateStudioSettings(body: Record<string, unknown>, token:
   const response = await authFetch(
     "/api/studio/settings",
     { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not save settings");
@@ -933,31 +999,39 @@ export async function updateStudioSettings(body: Record<string, unknown>, token:
 }
 
 export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>> {
-  const response = await authFetch("/api/studio/team", {}, { token });
+  const response = await authFetch("/api/studio/team", {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load team");
   }
   return response.json() as Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>>;
 }
 
+export async function fetchStudioTeamPendingInvites(token: string): Promise<StudioOrgInvite[]> {
+  const response = await authFetch("/api/studio/team/pending-invites", {}, studioAuth(token));
+  if (!response.ok) {
+    await parseError(response, "Could not load pending invites");
+  }
+  return response.json() as Promise<StudioOrgInvite[]>;
+}
+
 export async function inviteStudioTeamMember(
   email: string,
   role: string,
   token: string,
-): Promise<{ status: "invited" | "added" }> {
+): Promise<{ status: "invited" }> {
   const response = await authFetch(
     "/api/studio/team/invite",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not invite team member");
   }
-  return response.json() as Promise<{ status: "invited" | "added" }>;
+  return response.json() as Promise<{ status: "invited" }>;
 }
 
 export async function fetchStudioBilling(token: string): Promise<StudioBilling> {
-  const response = await authFetch("/api/studio/billing", {}, { token });
+  const response = await authFetch("/api/studio/billing", {}, studioAuth(token));
   if (!response.ok) {
     await parseError(response, "Could not load billing");
   }
@@ -977,7 +1051,7 @@ export async function createStripeCheckout(
   const response = await authFetch(
     "/api/billing/checkout",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    { token },
+    studioAuth(token),
   );
   if (!response.ok) {
     await parseError(response, "Could not start checkout");

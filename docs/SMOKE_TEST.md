@@ -2,7 +2,7 @@
 
 Use this checklist before a real wedding. Run against **production** (Vercel + Render + Supabase) with a fresh test event.
 
-**Prerequisites for studio / photographer flows:** Supabase migrations `010`–`013` applied (`closed` status, `organizations`, `photographer` role, billing fields). Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) is optional — skip billing steps until configured.
+**Prerequisites for studio / photographer flows:** Supabase migrations `010`–`014` applied (`closed` status, `organizations`, `photographer` role, billing fields, `org_invites`). Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) is optional — skip billing steps until configured.
 
 ---
 
@@ -82,8 +82,13 @@ Run with a **fresh test Google account** (not super admin, not an existing coupl
 
 ### 2G. Team invite *(optional)*
 
-- [ ] **Team** — invite associate email
-- [ ] Associate receives invite; after sign-in can access `/studio` and client list
+- [ ] **Team** — invite associate email (existing Snapic user)
+- [ ] **Pending invitations** list shows the invite on Team page (owner)
+- [ ] Associate receives **Snapic email** (Resend) with link to `/studio/select`
+- [ ] Associate signs in → **Pending invitations** on `/studio/select` → **Accept**
+- [ ] Associate lands in studio; appears in owner **Team** member grid
+- [ ] User in **2+ studios** → `/studio/select` or sidebar **Studio** dropdown to switch
+- [ ] New user invite still receives Supabase email; must accept from `/studio/select` after signup
 - [ ] Associate can upload/index on org events (when **org-wide** scope)
 
 ---

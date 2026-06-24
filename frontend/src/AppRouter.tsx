@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { RequireAuth, RequireRole } from "./auth/RequireRole";
 import { StudioOrgProvider } from "./components/studio/StudioOrgContext";
 import { StudioLayout } from "./components/studio/StudioLayout";
@@ -19,6 +19,7 @@ import { StudioClientNewPage } from "./pages/studio/StudioClientNewPage";
 import { StudioClientsPage } from "./pages/studio/StudioClientsPage";
 import { StudioDashboardPage } from "./pages/studio/StudioDashboardPage";
 import { StudioSettingsPage } from "./pages/studio/StudioSettingsPage";
+import { StudioSelectPage } from "./pages/studio/StudioSelectPage";
 import { StudioSignupPage } from "./pages/studio/StudioSignupPage";
 import { StudioTeamPage } from "./pages/studio/StudioTeamPage";
 
@@ -69,18 +70,21 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <StudioOrgProvider>
-              <StudioLayout />
+              <Outlet />
             </StudioOrgProvider>
           </RequireAuth>
         }
       >
-        <Route index element={<StudioDashboardPage />} />
-        <Route path="clients" element={<StudioClientsPage />} />
-        <Route path="clients/new" element={<StudioClientNewPage />} />
-        <Route path="clients/:eventId" element={<StudioClientDetailPage />} />
-        <Route path="settings" element={<StudioSettingsPage />} />
-        <Route path="billing" element={<StudioBillingPage />} />
-        <Route path="team" element={<StudioTeamPage />} />
+        <Route path="select" element={<StudioSelectPage />} />
+        <Route element={<StudioLayout />}>
+          <Route index element={<StudioDashboardPage />} />
+          <Route path="clients" element={<StudioClientsPage />} />
+          <Route path="clients/new" element={<StudioClientNewPage />} />
+          <Route path="clients/:eventId" element={<StudioClientDetailPage />} />
+          <Route path="settings" element={<StudioSettingsPage />} />
+          <Route path="billing" element={<StudioBillingPage />} />
+          <Route path="team" element={<StudioTeamPage />} />
+        </Route>
       </Route>
       <Route path="/share/:shareId" element={<SharePage />} />
       <Route path="/share" element={<SharePage />} />
