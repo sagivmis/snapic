@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { clearAnonymousSessionId, getAnonymousSessionId } from "./anonymousSession";
+import { clearStudioCaches } from "../lib/studioCache";
 import { isSupabaseConfigured, supabase, type Profile } from "../lib/supabase";
 
 interface AuthContextValue {
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     await supabase.auth.signOut();
+    clearStudioCaches();
     setProfile(null);
   }, []);
 

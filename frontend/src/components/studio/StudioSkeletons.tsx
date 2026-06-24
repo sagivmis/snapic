@@ -123,3 +123,17 @@ export function StudioLayoutLoading() {
     </div>
   );
 }
+
+export function StudioSelectLoading() {
+  return (
+    <div className="auth-page studio-select studio-select--loading" aria-busy="true" aria-label="Loading studios">
+      <span className="studio-skeleton studio-skeleton--eyebrow" aria-hidden="true" />
+      <span className="studio-skeleton studio-skeleton--title" aria-hidden="true" />
+      <span className="studio-skeleton studio-skeleton--line-medium" aria-hidden="true" />
+      <div className="studio-select__list studio-skeleton-block" aria-hidden="true">
+        <span className="studio-skeleton studio-skeleton--select-card" />
+        <span className="studio-skeleton studio-skeleton--select-card" />
+      </div>
+    </div>
+  );
+}

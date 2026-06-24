@@ -37,7 +37,7 @@ export function LandingPage() {
             </Link>
           )}
           {session && isPhotographer && (
-            <Link className="btn btn-secondary" to="/studio">
+            <Link className="btn btn-secondary" to="/studio/select">
               Studio dashboard
             </Link>
           )}

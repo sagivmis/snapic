@@ -2,11 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchStudioClients, fetchStudioStats } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
+import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import {
   DASHBOARD_STAT_LABELS,
   StudioClientsTableSkeleton,
   StudioStatsSkeleton,
 } from "../../components/studio/StudioSkeletons";
+import {
+  getStudioDashboardCache,
+  setStudioDashboardCache,
+} from "../../lib/studioCache";
 import type { StudioClient, StudioStats } from "../../types";
 import "../../styles/StudioLayout.scss";
 
@@ -19,12 +24,28 @@ const STAT_KEYS: (keyof StudioStats)[] = [
 
 export function StudioDashboardPage() {
   const { getAccessToken } = useAuth();
+  const { activeOrgId } = useStudioOrg();
   const [stats, setStats] = useState<StudioStats | null>(null);
   const [clients, setClients] = useState<StudioClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const orgId = activeOrgId;
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
+
+    const cached = getStudioDashboardCache(orgId);
+    if (cached) {
+      setStats(cached.stats);
+      setClients(cached.clients.slice(0, 5));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const token = await getAccessToken();
     if (!token) {
       setLoading(false);
@@ -34,12 +55,15 @@ export function StudioDashboardPage() {
       const [statsRow, clientRows] = await Promise.all([fetchStudioStats(token), fetchStudioClients(token)]);
       setStats(statsRow);
       setClients(clientRows.slice(0, 5));
+      setStudioDashboardCache(orgId, statsRow, clientRows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load dashboard");
+      if (!cached) {
+        setError(err instanceof Error ? err.message : "Could not load dashboard");
+      }
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken]);
+  }, [activeOrgId, getAccessToken]);
 
   useEffect(() => {
     void load();

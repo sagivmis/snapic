@@ -215,6 +215,38 @@
   overflow: hidden;
 }
 
+.studio-select--loading {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+
+  .studio-skeleton--eyebrow {
+    width: 5rem;
+    height: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .studio-skeleton--title {
+    width: 12rem;
+    height: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .studio-skeleton--line-medium {
+    width: 100%;
+    max-width: 28rem;
+    height: 0.875rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .studio-skeleton--select-card {
+    display: block;
+    width: 100%;
+    height: 4.25rem;
+    border-radius: $radius-xl;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .studio-skeleton {
     animation: none;

@@ -9,7 +9,7 @@ function defaultPathForRole(globalRole: string | undefined): string {
     return "/admin";
   }
   if (globalRole === "photographer") {
-    return "/studio";
+    return "/studio/select";
   }
   return "/";
 }
