@@ -38,7 +38,7 @@ export function EventManagePage() {
   const { slug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { getAccessToken, session, isSuperAdmin } = useAuth();
+  const { getAccessToken, session, isSuperAdmin, isPhotographer } = useAuth();
   const [event, setEvent] = useState<EventPublic | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [sections, setSections] = useState<string[]>(DEFAULT_SECTIONS);
@@ -66,7 +66,7 @@ export function EventManagePage() {
   const [coupleNames, setCoupleNames] = useState("");
   const [accentColor, setAccentColor] = useState("#c9a962");
   const [threshold, setThreshold] = useState(0.4);
-  const [autoArchiveDays, setAutoArchiveDays] = useState(90);
+  const [autoCloseDays, setAutoCloseDays] = useState(90);
   const [inviteEmail, setInviteEmail] = useState("");
   const albumGridRef = useRef<AlbumGridHandle>(null);
   const previewLoadGeneration = useRef(0);
@@ -139,7 +139,7 @@ export function EventManagePage() {
       setWeddingDate(ev.wedding_date ?? "");
       setStatus(ev.status);
       setThreshold(ev.default_threshold);
-      setAutoArchiveDays(ev.auto_archive_days ?? 90);
+      setAutoCloseDays(ev.auto_close_days ?? 90);
       const branding = ev.branding ?? {};
       setCoupleNames(typeof branding.couple_names === "string" ? branding.couple_names : "");
       setAccentColor(typeof branding.accent_color === "string" ? branding.accent_color : "#c9a962");
@@ -270,7 +270,7 @@ export function EventManagePage() {
           wedding_date: weddingDate || null,
           status,
           default_threshold: threshold,
-          auto_archive_days: autoArchiveDays,
+          auto_close_days: autoCloseDays,
           branding: {
             couple_names: coupleNames,
             accent_color: accentColor,
@@ -516,6 +516,7 @@ export function EventManagePage() {
 
   const needsSetup = !event.onboarding_completed_at && event.status === "draft";
   const fromSetup = new URLSearchParams(location.search).get("from") === "setup";
+  const allowAlbumUpload = !event.photographer_led || isSuperAdmin || isPhotographer;
 
   return (
     <div className="event-manage">
@@ -668,13 +669,18 @@ export function EventManagePage() {
             eventId={event.id}
             photos={photos}
             getToken={getAccessToken}
-            disabled={busy || galleryLoading}
+            disabled={busy || galleryLoading || !allowAlbumUpload}
             section={albumSection === "all" ? "general" : albumSection}
             onPhotosChange={setPhotos}
             onError={setError}
             onActiveChange={setUploadActive}
             onQueueIdle={handleUploadQueueIdle}
           />
+          {!allowAlbumUpload && (
+            <p className="event-manage__hint">
+              Your photographer manages album uploads. You can remove individual photos if needed.
+            </p>
+          )}
 
           {galleryLoading ? (
             <div className="event-manage__gallery-skeleton" aria-hidden="true">
@@ -735,7 +741,7 @@ export function EventManagePage() {
             >
               <option value="draft">Draft</option>
               <option value="active">Active</option>
-              <option value="archived">Archived</option>
+              <option value="closed">Closed</option>
             </select>
 
             <label htmlFor="accent">Accent color</label>
@@ -757,14 +763,14 @@ export function EventManagePage() {
               onChange={(e) => setThreshold(Number(e.target.value))}
             />
 
-            <label htmlFor="archive-days">Auto-archive after wedding (days)</label>
+            <label htmlFor="close-days">Auto-close after wedding (days)</label>
             <input
-              id="archive-days"
+              id="close-days"
               type="number"
               min={7}
               max={365}
-              value={autoArchiveDays}
-              onChange={(e) => setAutoArchiveDays(Number(e.target.value))}
+              value={autoCloseDays}
+              onChange={(e) => setAutoCloseDays(Number(e.target.value))}
             />
 
             <button type="submit" className="btn btn-primary" disabled={busy}>

@@ -38,7 +38,14 @@ import "../styles/AdminDashboard.scss";
 
 export function AdminDashboardPage() {
   const { getAccessToken, isSuperAdmin, session } = useAuth();
-  const [stats, setStats] = useState({ events_count: 0, pending_requests: 0, total_gallery_photos: 0, total_match_runs: 0 });
+  const [stats, setStats] = useState({
+    events_count: 0,
+    pending_requests: 0,
+    total_gallery_photos: 0,
+    total_match_runs: 0,
+    organizations_count: 0,
+    photographer_signups_pending: 0,
+  });
   const [attention, setAttention] = useState<AdminAttention | null>(null);
   const [events, setEvents] = useState<AdminEventSummary[]>([]);
   const [requests, setRequests] = useState<SignupRequest[]>([]);
@@ -93,7 +100,16 @@ export function AdminDashboardPage() {
       let failures = 0;
 
       const statsTask = fetchAdminStats(token)
-        .then((statsRow) => setStats(statsRow))
+        .then((statsRow) =>
+          setStats({
+            events_count: statsRow.events_count,
+            pending_requests: statsRow.pending_requests,
+            total_gallery_photos: statsRow.total_gallery_photos,
+            total_match_runs: statsRow.total_match_runs,
+            organizations_count: statsRow.organizations_count,
+            photographer_signups_pending: statsRow.photographer_signups_pending,
+          }),
+        )
         .catch(() => {
           failures += 1;
         })
@@ -416,6 +432,14 @@ export function AdminDashboardPage() {
           <div className="admin__stat">
             <span className="admin__stat-value">{stats.total_match_runs}</span>
             <span>Match runs</span>
+          </div>
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.organizations_count ?? 0}</span>
+            <span>Studios</span>
+          </div>
+          <div className="admin__stat">
+            <span className="admin__stat-value">{stats.photographer_signups_pending ?? 0}</span>
+            <span>Photographer signups</span>
           </div>
         </section>
       )}

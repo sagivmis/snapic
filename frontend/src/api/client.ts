@@ -20,6 +20,11 @@ import type {
   EventAlbumStatus,
   IndexScope,
   SlugCheckResult,
+  Organization,
+  StudioBilling,
+  StudioClient,
+  StudioStats,
+  AdminOrganization,
   AuditLogEntry,
   SentryTestResult,
 } from "../types";
@@ -778,4 +783,181 @@ export async function downloadEventGalleryZip(eventId: string, token: string, fi
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export async function fetchStudioMe(token: string): Promise<{ organization: Organization; member_role: string }> {
+  const response = await authFetch("/api/studio/me", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load studio");
+  }
+  return response.json() as Promise<{ organization: Organization; member_role: string }>;
+}
+
+export async function fetchStudioStats(token: string): Promise<StudioStats> {
+  const response = await authFetch("/api/studio/stats", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load studio stats");
+  }
+  return response.json() as Promise<StudioStats>;
+}
+
+export async function fetchStudioClients(token: string): Promise<StudioClient[]> {
+  const response = await authFetch("/api/studio/events", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load clients");
+  }
+  return response.json() as Promise<StudioClient[]>;
+}
+
+export async function createStudioClient(
+  body: {
+    couple_names: string;
+    wedding_date?: string | null;
+    slug?: string | null;
+    client_email?: string | null;
+    photographer_notes?: string | null;
+    title?: string | null;
+  },
+  token: string,
+): Promise<StudioClient> {
+  const response = await authFetch(
+    "/api/studio/events",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not create client");
+  }
+  return response.json() as Promise<StudioClient>;
+}
+
+export async function fetchStudioClient(eventId: string, token: string): Promise<StudioClient> {
+  const response = await authFetch(`/api/studio/events/${eventId}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load client");
+  }
+  return response.json() as Promise<StudioClient>;
+}
+
+export async function updateStudioClient(
+  eventId: string,
+  body: Record<string, unknown>,
+  token: string,
+): Promise<StudioClient> {
+  const response = await authFetch(
+    `/api/studio/events/${eventId}`,
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not update client");
+  }
+  return response.json() as Promise<StudioClient>;
+}
+
+export async function studioInviteCouple(eventId: string, email: string, token: string): Promise<void> {
+  const response = await authFetch(
+    `/api/studio/events/${eventId}/invite-couple`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not invite couple");
+  }
+}
+
+export async function studioGoLive(eventId: string, token: string): Promise<StudioClient> {
+  const response = await authFetch(`/api/studio/events/${eventId}/go-live`, { method: "POST" }, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not go live");
+  }
+  return response.json() as Promise<StudioClient>;
+}
+
+export async function studioSignup(name: string, slug: string, token: string): Promise<{ organization: Organization; member_role: string }> {
+  const response = await authFetch(
+    "/api/studio/signup",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, slug }) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not create studio");
+  }
+  return response.json() as Promise<{ organization: Organization; member_role: string }>;
+}
+
+export async function fetchStudioSettings(token: string): Promise<Organization> {
+  const response = await authFetch("/api/studio/settings", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load settings");
+  }
+  return response.json() as Promise<Organization>;
+}
+
+export async function updateStudioSettings(body: Record<string, unknown>, token: string): Promise<Organization> {
+  const response = await authFetch(
+    "/api/studio/settings",
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not save settings");
+  }
+  return response.json() as Promise<Organization>;
+}
+
+export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>> {
+  const response = await authFetch("/api/studio/team", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load team");
+  }
+  return response.json() as Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>>;
+}
+
+export async function inviteStudioTeamMember(email: string, role: string, token: string): Promise<void> {
+  const response = await authFetch(
+    "/api/studio/team/invite",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not invite team member");
+  }
+}
+
+export async function fetchStudioBilling(token: string): Promise<StudioBilling> {
+  const response = await authFetch("/api/studio/billing", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load billing");
+  }
+  return response.json() as Promise<StudioBilling>;
+}
+
+export async function createStripeCheckout(
+  body: {
+    plan: string;
+    paid_by?: string;
+    event_id?: string | null;
+    success_url: string;
+    cancel_url: string;
+  },
+  token: string,
+): Promise<{ checkout_url: string; session_id: string }> {
+  const response = await authFetch(
+    "/api/billing/checkout",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "Could not start checkout");
+  }
+  return response.json() as Promise<{ checkout_url: string; session_id: string }>;
+}
+
+export async function fetchAdminOrganizations(token: string): Promise<AdminOrganization[]> {
+  const response = await authFetch("/api/admin/organizations", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "Could not load organizations");
+  }
+  return response.json() as Promise<AdminOrganization[]>;
 }

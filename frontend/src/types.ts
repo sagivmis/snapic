@@ -54,7 +54,7 @@ export interface EventPublic {
   slug: string;
   title: string;
   wedding_date?: string | null;
-  status: "draft" | "active" | "archived";
+  status: "draft" | "active" | "closed";
   branding: Record<string, unknown>;
   default_threshold: number;
   gallery_photo_count?: number;
@@ -62,8 +62,13 @@ export interface EventPublic {
   gallery_search_ready?: boolean;
   unindexed_photo_count?: number;
   failed_photo_count?: number;
-  auto_archive_days?: number;
+  auto_close_days?: number;
   onboarding_completed_at?: string | null;
+  organization_id?: string | null;
+  organization?: OrganizationBranding | null;
+  handoff_status?: string | null;
+  photo_limit?: number | null;
+  photographer_led?: boolean;
 }
 
 /** True when guests can run face search. */
@@ -78,7 +83,7 @@ export interface EventCreateRequest {
   slug: string;
   title: string;
   wedding_date?: string | null;
-  status?: "draft" | "active" | "archived";
+  status?: "draft" | "active" | "closed";
   branding?: Record<string, unknown>;
   default_threshold?: number;
   admin_email?: string | null;
@@ -87,10 +92,10 @@ export interface EventCreateRequest {
 export interface EventUpdateRequest {
   title?: string;
   wedding_date?: string | null;
-  status?: "draft" | "active" | "archived";
+  status?: "draft" | "active" | "closed";
   branding?: Record<string, unknown>;
   default_threshold?: number;
-  auto_archive_days?: number;
+  auto_close_days?: number;
   complete_onboarding?: boolean;
 }
 
@@ -149,7 +154,7 @@ export interface UserEventSummary {
   id: string;
   slug: string;
   title: string;
-  status: "draft" | "active" | "archived";
+  status: "draft" | "active" | "closed";
   is_admin: boolean;
   last_search_at?: string | null;
   search_count: number;
@@ -174,6 +179,8 @@ export interface SignupRequest {
   reviewed_at?: string | null;
   created_event_id?: string | null;
   welcome_email_sent?: boolean | null;
+  request_type?: "couple" | "photographer";
+  organization_name?: string | null;
   rejection_email_sent?: boolean | null;
 }
 
@@ -200,6 +207,8 @@ export interface AdminStats {
   pending_requests: number;
   total_gallery_photos: number;
   total_match_runs: number;
+  organizations_count: number;
+  photographer_signups_pending: number;
 }
 
 export interface SentryTestResult {
@@ -213,10 +222,10 @@ export interface AdminEventSummary {
   slug: string;
   title: string;
   wedding_date?: string | null;
-  status: "draft" | "active" | "archived";
+  status: "draft" | "active" | "closed";
   branding: Record<string, unknown>;
   default_threshold: number;
-  auto_archive_days?: number;
+  auto_close_days?: number;
   created_at?: string | null;
   gallery_photo_count: number;
   match_run_count: number;
@@ -224,6 +233,10 @@ export interface AdminEventSummary {
   last_match_at?: string | null;
   unindexed_photo_count: number;
   archive_due: boolean;
+  organization_id?: string | null;
+  organization_name?: string | null;
+  paid_by?: string | null;
+  plan_tier?: string | null;
 }
 
 export interface AdminAttentionEventRef {
@@ -242,6 +255,78 @@ export interface AdminAttention {
   empty_albums: AdminAttentionEventRef[];
   unindexed: AdminAttentionEventRef[];
   archive_due: AdminAttentionEventRef[];
+}
+
+export interface OrganizationBranding {
+  id: string;
+  name: string;
+  logo_storage_path?: string | null;
+  website_url?: string | null;
+  accent_color?: string | null;
+  branding_tier?: "standard" | "pro" | "white_label";
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo_storage_path?: string | null;
+  website_url?: string | null;
+  accent_color?: string | null;
+  plan: string;
+  branding_tier: string;
+  settings: Record<string, unknown>;
+  events_included_per_period: number;
+  events_used_this_period: number;
+  photos_cap_per_event?: number | null;
+  member_role?: string | null;
+}
+
+export interface StudioStats {
+  active_clients: number;
+  draft_clients: number;
+  closed_clients: number;
+  total_photos: number;
+  total_searches: number;
+  pending_handoffs: number;
+  index_failures: number;
+}
+
+export interface StudioClient {
+  id: string;
+  slug: string;
+  title: string;
+  wedding_date?: string | null;
+  status: "draft" | "active" | "closed";
+  handoff_status: string;
+  client_email?: string | null;
+  gallery_photo_count: number;
+  match_run_count: number;
+  unique_guest_sessions: number;
+  unindexed_photo_count: number;
+  created_at?: string | null;
+  branding: Record<string, unknown>;
+}
+
+export interface StudioBilling {
+  plan: string;
+  branding_tier: string;
+  events_included_per_period: number;
+  events_used_this_period: number;
+  photos_cap_per_event?: number | null;
+  stripe_customer_id?: string | null;
+}
+
+export interface AdminOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  owner_email?: string | null;
+  events_count: number;
+  events_used_this_period: number;
+  events_included_per_period: number;
+  created_at?: string | null;
 }
 
 export type CoupleFilter = "all" | "1" | "2" | "both";

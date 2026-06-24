@@ -36,6 +36,7 @@ from snapic.db.repository import (
     count_failed_gallery_photos,
     count_pending_gallery_photos,
     count_unindexed_gallery_photos,
+    fetch_organization,
     gallery_search_ready,
     create_gallery_signed_url,
     delete_gallery_photo,
@@ -53,7 +54,7 @@ from snapic.db.repository import (
     list_event_admin_emails,
     list_user_events,
     list_user_match_runs,
-    maybe_auto_archive_event,
+    maybe_auto_close_event,
     set_event_gallery_indexing,
     update_event,
     update_gallery_photo_section,
@@ -82,9 +83,9 @@ def _assert_event_available_for_match(
     event_id: str,
     user: AuthUser | None,
 ) -> dict[str, Any]:
-    event_row = maybe_auto_archive_event(event_row)
+    event_row = maybe_auto_close_event(event_row)
     status = event_row["status"]
-    if status == "archived":
+    if status == "closed":
         raise HTTPException(status_code=403, detail="This event has ended")
     if status == "draft":
         if user is None or not is_event_admin(user.id, event_id):
@@ -161,13 +162,27 @@ def _ndjson_line(payload: dict[str, Any]) -> bytes:
 
 
 def _event_public(row: dict[str, Any]) -> EventPublicResponse:
-    row = maybe_auto_archive_event(row)
+    row = maybe_auto_close_event(row)
     branding = row.get("branding") or {}
     event_id = row["id"]
     photo_count = count_gallery_photos(event_id)
     pending = count_pending_gallery_photos(event_id)
     failed = count_failed_gallery_photos(event_id)
     indexing = is_event_gallery_indexing(row)
+    org_data = None
+    org_id = row.get("organization_id")
+    photographer_led = bool(org_id)
+    if org_id:
+        org_row = fetch_organization(org_id)
+        if org_row:
+            org_data = {
+                "id": org_row["id"],
+                "name": org_row["name"],
+                "logo_storage_path": org_row.get("logo_storage_path"),
+                "website_url": org_row.get("website_url"),
+                "accent_color": org_row.get("accent_color"),
+                "branding_tier": org_row.get("branding_tier") or "standard",
+            }
     return EventPublicResponse(
         id=event_id,
         slug=row["slug"],
@@ -181,8 +196,13 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         gallery_search_ready=gallery_search_ready(row, photo_count=photo_count, pending=pending),
         unindexed_photo_count=pending,
         failed_photo_count=failed,
-        auto_archive_days=int(row.get("auto_archive_days") or 90),
+        auto_close_days=int(row.get("auto_close_days") or 90),
         onboarding_completed_at=row.get("onboarding_completed_at"),
+        organization_id=org_id,
+        organization=org_data,
+        handoff_status=row.get("handoff_status"),
+        photo_limit=row.get("photo_limit"),
+        photographer_led=photographer_led,
     )
 
 
@@ -242,8 +262,8 @@ async def get_event_by_slug(
     if not row:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    row = maybe_auto_archive_event(row)
-    if row["status"] in ("active", "archived"):
+    row = maybe_auto_close_event(row)
+    if row["status"] in ("active", "closed"):
         return _event_public(row)
 
     if user is not None and is_event_admin(user.id, row["id"]):
@@ -512,6 +532,11 @@ async def upload_event_gallery_photo(
         raise HTTPException(status_code=503, detail="Event service not configured")
     if not is_event_admin(user.id, event_id):
         raise HTTPException(status_code=403, detail="Event admin access required")
+
+    event_row = fetch_event_by_id(event_id)
+    photo_limit = event_row.get("photo_limit") if event_row else None
+    if photo_limit is not None and count_gallery_photos(event_id) >= int(photo_limit):
+        raise HTTPException(status_code=402, detail="Photo limit reached for this event plan")
 
     data = await _read_upload_limited(file)
     content_hash = hashlib.sha256(data).hexdigest()

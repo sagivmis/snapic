@@ -4,8 +4,18 @@ import { useAuth } from "../auth/AuthProvider";
 import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/AuthPages.scss";
 
+function defaultPathForRole(globalRole: string | undefined): string {
+  if (globalRole === "super_admin") {
+    return "/admin";
+  }
+  if (globalRole === "photographer") {
+    return "/studio";
+  }
+  return "/";
+}
+
 export function LoginPage() {
-  const { signInWithGoogle, signInWithMagicLink, session, loading } = useAuth();
+  const { signInWithGoogle, signInWithMagicLink, session, loading, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const nextFromQuery = new URLSearchParams(location.search).get("next");
@@ -20,9 +30,11 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!loading && session) {
-      navigate(from, { replace: true });
+      const fallback = defaultPathForRole(profile?.global_role);
+      const destination = from === "/" ? fallback : from;
+      navigate(destination, { replace: true });
     }
-  }, [loading, session, navigate, from]);
+  }, [loading, session, navigate, from, profile?.global_role]);
 
   if (!isSupabaseConfigured) {
     return (

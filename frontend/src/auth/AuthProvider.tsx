@@ -17,6 +17,7 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   isSuperAdmin: boolean;
+  isPhotographer: boolean;
   isEventAdmin: boolean;
   signInWithGoogle: (redirectPath?: string) => Promise<void>;
   signInWithMagicLink: (email: string, redirectPath?: string) => Promise<void>;
@@ -146,7 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     loading,
     isSuperAdmin: profile?.global_role === "super_admin",
-    isEventAdmin: profile?.global_role === "event_admin" || profile?.global_role === "super_admin",
+    isPhotographer: profile?.global_role === "photographer",
+    isEventAdmin:
+      profile?.global_role === "event_admin" ||
+      profile?.global_role === "photographer" ||
+      profile?.global_role === "super_admin",
     signInWithGoogle,
     signInWithMagicLink,
     signOut,

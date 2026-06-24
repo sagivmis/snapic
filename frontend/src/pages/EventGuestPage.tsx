@@ -306,7 +306,7 @@ export function EventGuestPage() {
   const title = branding.coupleNames ?? event.title;
   const photoCount = event.gallery_photo_count ?? 0;
 
-  if (event.status === "archived") {
+  if (event.status === "closed") {
     return (
       <div
         className="event-guest event-guest--state"
@@ -384,6 +384,21 @@ export function EventGuestPage() {
   const showCompactHeader =
     step === "results" && !loading && result && result.matched.length === 0;
 
+  const org = event.organization;
+  const showSnapicFooter = !org || org.branding_tier === "standard";
+  const showMinSnapicFooter = org?.branding_tier === "pro";
+
+  const studioCoBrand = org ? (
+    <div className="event-guest__studio-brand">
+      <p className="event-guest__studio-name">{org.name}</p>
+      {org.website_url && (
+        <a href={org.website_url} target="_blank" rel="noreferrer" className="event-guest__studio-link">
+          Photos by {org.name}
+        </a>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div
       className={`event-guest${step === "results" ? " event-guest--results" : ""}`}
@@ -433,6 +448,7 @@ export function EventGuestPage() {
 
       {step === "portrait" && (
         <header className="event-guest__header">
+          {studioCoBrand}
           <p className="event-guest__eyebrow">{title}</p>
           <h1>Find your photos</h1>
           {event.wedding_date && (
@@ -444,6 +460,7 @@ export function EventGuestPage() {
 
       {step === "results" && (
         <header className="event-guest__header event-guest__header--compact">
+          {studioCoBrand}
           <p className="event-guest__eyebrow">{title}</p>
           <h1>{showCompactHeader ? "No matches yet" : "Your photos"}</h1>
         </header>
@@ -535,6 +552,15 @@ export function EventGuestPage() {
 
       {step === "portrait" && (
         <p className="event-guest__privacy">Your selfie is processed in memory and never stored.</p>
+      )}
+      {(showSnapicFooter || showMinSnapicFooter) && (
+        <footer className="event-guest__powered">
+          {showMinSnapicFooter ? (
+            <a href="https://snapic.app">Snapic</a>
+          ) : (
+            <span>Powered by Snapic</span>
+          )}
+        </footer>
       )}
     </div>
   );

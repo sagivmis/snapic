@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from snapic.api.schemas import (
     AdminAttentionResponse,
     AdminEventSummary,
+    AdminOrganizationSummary,
     AdminStatsResponse,
     AuditLogEntry,
     EventCreateRequest,
@@ -42,7 +43,11 @@ from snapic.db.repository import (
     get_event_stats,
     list_events,
     list_signup_requests,
-    maybe_auto_archive_event,
+    list_organizations,
+    list_org_members,
+    count_org_events,
+    fetch_organization,
+    maybe_auto_close_event,
     update_event,
     update_profile_role,
     update_signup_request,
@@ -94,6 +99,14 @@ async def admin_stats(_: Annotated[AuthUser, Depends(require_super_admin)]) -> A
     client = get_supabase()
     events = client.table("events").select("id", count="exact").execute()
     pending = client.table("signup_requests").select("id", count="exact").eq("status", "pending").execute()
+    photographer_pending = (
+        client.table("signup_requests")
+        .select("id", count="exact")
+        .eq("status", "pending")
+        .eq("request_type", "photographer")
+        .execute()
+    )
+    orgs = client.table("organizations").select("id", count="exact").execute()
     photos = client.table("gallery_photos").select("id", count="exact").execute()
     runs = client.table("match_runs").select("id", count="exact").execute()
     return AdminStatsResponse(
@@ -101,6 +114,8 @@ async def admin_stats(_: Annotated[AuthUser, Depends(require_super_admin)]) -> A
         pending_requests=pending.count or 0,
         total_gallery_photos=photos.count or 0,
         total_match_runs=runs.count or 0,
+        organizations_count=orgs.count or 0,
+        photographer_signups_pending=photographer_pending.count or 0,
     )
 
 
@@ -137,7 +152,7 @@ async def admin_sentry_test(
 
 
 def _event_public(row: dict[str, Any]) -> EventPublicResponse:
-    row = maybe_auto_archive_event(row)
+    row = maybe_auto_close_event(row)
     event_id = row["id"]
     photo_count = count_gallery_photos(event_id)
     pending = count_pending_gallery_photos(event_id)
@@ -156,16 +171,20 @@ def _event_public(row: dict[str, Any]) -> EventPublicResponse:
         gallery_search_ready=gallery_search_ready(row, photo_count=photo_count, pending=pending),
         unindexed_photo_count=pending,
         failed_photo_count=failed,
-        auto_archive_days=int(row.get("auto_archive_days") or 90),
+        auto_close_days=int(row.get("auto_close_days") or 90),
         onboarding_completed_at=row.get("onboarding_completed_at"),
     )
 
 
-def _admin_event_summary(row: dict[str, Any], *, apply_auto_archive: bool = True) -> AdminEventSummary:
-    if apply_auto_archive:
-        row = maybe_auto_archive_event(row)
+def _admin_event_summary(row: dict[str, Any], *, apply_auto_close: bool = True) -> AdminEventSummary:
+    if apply_auto_close:
+        row = maybe_auto_close_event(row)
     stats = get_event_stats(row["id"])
     unindexed = count_unindexed_gallery_photos(row["id"])
+    org_name = None
+    if row.get("organization_id"):
+        org = fetch_organization(row["organization_id"])
+        org_name = org.get("name") if org else None
     return AdminEventSummary(
         id=row["id"],
         slug=row["slug"],
@@ -174,7 +193,7 @@ def _admin_event_summary(row: dict[str, Any], *, apply_auto_archive: bool = True
         status=row["status"],
         branding=row.get("branding") or {},
         default_threshold=row.get("default_threshold", 0.4),
-        auto_archive_days=int(row.get("auto_archive_days") or 90),
+        auto_close_days=int(row.get("auto_close_days") or 90),
         created_at=row.get("created_at"),
         gallery_photo_count=stats["gallery_photo_count"],
         match_run_count=stats["match_run_count"],
@@ -182,7 +201,35 @@ def _admin_event_summary(row: dict[str, Any], *, apply_auto_archive: bool = True
         last_match_at=stats["last_match_at"],
         unindexed_photo_count=unindexed,
         archive_due=event_archive_due(row),
+        organization_id=row.get("organization_id"),
+        organization_name=org_name,
+        paid_by=row.get("paid_by"),
+        plan_tier=row.get("plan_tier"),
     )
+
+
+@router.get("/organizations", response_model=list[AdminOrganizationSummary])
+async def admin_list_organizations(
+    _: Annotated[AuthUser, Depends(require_super_admin)],
+) -> list[AdminOrganizationSummary]:
+    summaries: list[AdminOrganizationSummary] = []
+    for org in list_organizations():
+        members = list_org_members(org["id"])
+        owner_email = next((m.get("email") for m in members if m.get("role") == "owner"), None)
+        summaries.append(
+            AdminOrganizationSummary(
+                id=org["id"],
+                name=org["name"],
+                slug=org["slug"],
+                plan=org.get("plan") or "pay_per_event",
+                owner_email=owner_email,
+                events_count=count_org_events(org["id"]),
+                events_used_this_period=int(org.get("events_used_this_period") or 0),
+                events_included_per_period=int(org.get("events_included_per_period") or 0),
+                created_at=org.get("created_at"),
+            )
+        )
+    return summaries
 
 
 @router.get("/slug-check", response_model=SlugCheckResponse)
@@ -239,7 +286,7 @@ async def admin_attention(_: Annotated[AuthUser, Depends(require_super_admin)]) 
             )
 
         unindexed_count = count_unindexed_gallery_photos(row["id"])
-        if unindexed_count > 0 and row.get("status") != "archived":
+        if unindexed_count > 0 and row.get("status") != "closed":
             unindexed.append(
                 {
                     "id": row["id"],

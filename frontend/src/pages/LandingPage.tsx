@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/Landing.scss";
 
 export function LandingPage() {
-  const { session, isSuperAdmin, signOut } = useAuth();
+  const { session, isSuperAdmin, isPhotographer, signOut } = useAuth();
   const [searchParams] = useSearchParams();
   const legacyShare = searchParams.get("share");
   if (legacyShare) {
@@ -34,6 +34,16 @@ export function LandingPage() {
           {session && isSuperAdmin && (
             <Link className="btn btn-secondary" to="/admin">
               Admin dashboard
+            </Link>
+          )}
+          {session && isPhotographer && (
+            <Link className="btn btn-secondary" to="/studio">
+              Studio dashboard
+            </Link>
+          )}
+          {isSupabaseConfigured && (
+            <Link className="btn btn-secondary" to="/for-photographers">
+              For photographers
             </Link>
           )}
           {isSupabaseConfigured && (

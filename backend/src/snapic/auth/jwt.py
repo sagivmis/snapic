@@ -9,7 +9,7 @@ import jwt
 from fastapi import Depends, HTTPException, Header
 from jwt import PyJWKClient, PyJWTError
 
-GlobalRole = Literal["super_admin", "event_admin", "guest"]
+GlobalRole = Literal["super_admin", "photographer", "event_admin", "guest"]
 
 _ASYMMETRIC_ALGORITHMS = ("RS256", "ES256", "ES384", "EdDSA")
 
@@ -47,7 +47,7 @@ def _payload_to_user(payload: dict[str, Any]) -> AuthUser:
 
     app_meta = payload.get("app_metadata") or {}
     role = app_meta.get("role") or payload.get("role") or "guest"
-    if role not in ("super_admin", "event_admin", "guest"):
+    if role not in ("super_admin", "photographer", "event_admin", "guest"):
         role = "guest"
 
     return AuthUser(

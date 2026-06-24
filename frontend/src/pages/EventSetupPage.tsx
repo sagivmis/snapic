@@ -411,13 +411,15 @@ export function EventSetupPage() {
             <section className="event-setup__section">
               <h2>Welcome to your wedding gallery</h2>
               <p className="event-setup__lead">
-                We&apos;ll walk you through branding your guest page, inviting your partner, and
-                getting ready to share your album.
+                {event.photographer_led
+                  ? "Your photographer has prepared your gallery. Personalize branding and go live when you're ready."
+                  : "We'll walk you through branding your guest page, inviting your partner, and getting ready to share your album."}
               </p>
               <ul className="event-setup__bullets">
                 <li>Personalize how guests see your event</li>
                 <li>Optionally invite your partner as co-admin</li>
-                <li>Upload photos and go live when you&apos;re ready</li>
+                {!event.photographer_led && <li>Upload photos and go live when you&apos;re ready</li>}
+                {event.photographer_led && <li>Review your gallery and go live when you&apos;re ready</li>}
               </ul>
               <button type="button" className="btn btn-primary" onClick={() => goToStep("branding")}>
                 Get started

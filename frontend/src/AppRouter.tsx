@@ -1,15 +1,25 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth, RequireRole } from "./auth/RequireRole";
+import { RequireOrgMember, StudioLayout } from "./components/studio/StudioLayout";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { EventGuestPage } from "./pages/EventGuestPage";
 import { EventLivePage } from "./pages/EventLivePage";
 import { EventManagePage } from "./pages/EventManagePage";
 import { EventSetupPage } from "./pages/EventSetupPage";
+import { ForPhotographersPage } from "./pages/ForPhotographersPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LegacyDemoPage } from "./pages/LegacyDemoPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RequestAccessPage } from "./pages/RequestAccessPage";
 import { SharePage } from "./pages/SharePage";
+import { StudioBillingPage } from "./pages/studio/StudioBillingPage";
+import { StudioClientDetailPage } from "./pages/studio/StudioClientDetailPage";
+import { StudioClientNewPage } from "./pages/studio/StudioClientNewPage";
+import { StudioClientsPage } from "./pages/studio/StudioClientsPage";
+import { StudioDashboardPage } from "./pages/studio/StudioDashboardPage";
+import { StudioSettingsPage } from "./pages/studio/StudioSettingsPage";
+import { StudioSignupPage } from "./pages/studio/StudioSignupPage";
+import { StudioTeamPage } from "./pages/studio/StudioTeamPage";
 
 export function AppRouter() {
   return (
@@ -17,6 +27,7 @@ export function AppRouter() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/request-access" element={<RequestAccessPage />} />
+      <Route path="/for-photographers" element={<ForPhotographersPage />} />
       <Route path="/demo" element={<LegacyDemoPage />} />
       <Route path="/e/:slug" element={<EventGuestPage />} />
       <Route
@@ -51,6 +62,25 @@ export function AppRouter() {
           </RequireRole>
         }
       />
+      <Route path="/studio/signup" element={<StudioSignupPage />} />
+      <Route
+        path="/studio"
+        element={
+          <RequireAuth>
+            <RequireOrgMember>
+              <StudioLayout />
+            </RequireOrgMember>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<StudioDashboardPage />} />
+        <Route path="clients" element={<StudioClientsPage />} />
+        <Route path="clients/new" element={<StudioClientNewPage />} />
+        <Route path="clients/:eventId" element={<StudioClientDetailPage />} />
+        <Route path="settings" element={<StudioSettingsPage />} />
+        <Route path="billing" element={<StudioBillingPage />} />
+        <Route path="team" element={<StudioTeamPage />} />
+      </Route>
       <Route path="/share/:shareId" element={<SharePage />} />
       <Route path="/share" element={<SharePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

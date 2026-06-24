@@ -9,7 +9,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
   : null;
 
-export type GlobalRole = "super_admin" | "event_admin" | "guest";
+export type GlobalRole = "super_admin" | "photographer" | "event_admin" | "guest";
 
 export interface Profile {
   id: string;

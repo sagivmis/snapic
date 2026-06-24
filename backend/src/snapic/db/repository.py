@@ -348,7 +348,9 @@ def is_event_admin(user_id: str, event_id: str) -> bool:
         .eq("event_id", event_id)
         .eq("user_id", user_id)
     )
-    return member is not None
+    if member is not None:
+        return True
+    return is_org_event_access(user_id, event_id)
 
 
 def create_match_run(
@@ -629,10 +631,10 @@ def list_event_admin_emails(event_id: str) -> list[str]:
 
 
 def update_profile_role(user_id: str, global_role: str) -> bool:
-    """Update profile global_role. Skips downgrading super_admin to event_admin."""
+    """Update profile global_role. Skips downgrading super_admin or photographer to event_admin."""
     if global_role == "event_admin":
         current = fetch_profile_role(user_id)
-        if current == "super_admin":
+        if current in ("super_admin", "photographer"):
             return False
     client = get_supabase()
     client.table("profiles").update({"global_role": global_role}).eq("id", user_id).execute()
@@ -690,37 +692,37 @@ def count_unindexed_gallery_photos(event_id: str) -> int:
 
 
 def event_archive_due(event_row: dict[str, Any]) -> bool:
-    """True when an active event is past its auto-archive window (no DB update)."""
+    """True when an active event is past its auto-close window (no DB update)."""
     if event_row.get("status") != "active":
         return False
     wedding_date = event_row.get("wedding_date")
     if not wedding_date:
         return False
-    archive_days = int(event_row.get("auto_archive_days") or 90)
+    close_days = int(event_row.get("auto_close_days") or 90)
     if isinstance(wedding_date, str):
         wedding = date.fromisoformat(wedding_date[:10])
     else:
         wedding = wedding_date
-    return date.today() > wedding + timedelta(days=archive_days)
+    return date.today() > wedding + timedelta(days=close_days)
 
 
-def maybe_auto_archive_event(event_row: dict[str, Any]) -> dict[str, Any]:
-    if event_row.get("status") == "archived":
+def maybe_auto_close_event(event_row: dict[str, Any]) -> dict[str, Any]:
+    if event_row.get("status") == "closed":
         return event_row
     wedding_date = event_row.get("wedding_date")
     if not wedding_date:
         return event_row
-    archive_days = int(event_row.get("auto_archive_days") or 90)
+    close_days = int(event_row.get("auto_close_days") or 90)
     if isinstance(wedding_date, str):
         wedding = date.fromisoformat(wedding_date[:10])
     else:
         wedding = wedding_date
-    if date.today() <= wedding + timedelta(days=archive_days):
+    if date.today() <= wedding + timedelta(days=close_days):
         return event_row
     client = get_supabase()
-    result = client.table("events").update({"status": "archived"}).eq("id", event_row["id"]).execute()
+    result = client.table("events").update({"status": "closed"}).eq("id", event_row["id"]).execute()
     updated = (result.data or [event_row])[0]
-    return updated if isinstance(updated, dict) else {**event_row, "status": "archived"}
+    return updated if isinstance(updated, dict) else {**event_row, "status": "closed"}
 
 
 def count_gallery_photos(event_id: str) -> int:
@@ -803,7 +805,7 @@ def _event_needs_onboarding(event: dict[str, Any], is_admin: bool) -> bool:
 
 
 def list_user_events(user_id: str) -> list[dict[str, Any]]:
-    """Events the user administers or has searched, excluding archived."""
+    """Events the user administers or has searched, excluding closed."""
     client = get_supabase()
     runs = client.table("match_runs").select("event_id, created_at").eq("user_id", user_id).execute().data or []
     members = client.table("event_members").select("event_id, role").eq("user_id", user_id).execute().data or []
@@ -824,7 +826,7 @@ def list_user_events(user_id: str) -> list[dict[str, Any]]:
         all_events = (
             client.table("events")
             .select("*")
-            .neq("status", "archived")
+            .neq("status", "closed")
             .order("created_at", desc=True)
             .execute()
             .data
@@ -854,7 +856,7 @@ def list_user_events(user_id: str) -> list[dict[str, Any]]:
     events = client.table("events").select("*").in_("id", list(event_ids)).execute().data or []
     summaries = []
     for event in events:
-        if event.get("status") == "archived":
+        if event.get("status") == "closed":
             continue
         event_id = event["id"]
         stats = search_stats.get(event_id, {"count": 0, "last_at": None})
@@ -876,3 +878,184 @@ def list_user_events(user_id: str) -> list[dict[str, Any]]:
         reverse=True,
     )
     return summaries
+
+
+def fetch_organization(org_id: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    return _query_one(client.table("organizations").select("*").eq("id", org_id))
+
+
+def fetch_organization_by_slug(slug: str) -> dict[str, Any] | None:
+    client = get_supabase()
+    return _query_one(client.table("organizations").select("*").eq("slug", slug))
+
+
+def list_user_organizations(user_id: str) -> list[dict[str, Any]]:
+    client = get_supabase()
+    members = client.table("org_members").select("org_id, role").eq("user_id", user_id).execute().data or []
+    if not members:
+        return []
+    org_ids = [m["org_id"] for m in members]
+    orgs = client.table("organizations").select("*").in_("id", org_ids).execute().data or []
+    role_by_org = {m["org_id"]: m["role"] for m in members}
+    return [{**org, "member_role": role_by_org.get(org["id"], "associate")} for org in orgs]
+
+
+def get_primary_org_for_user(user_id: str) -> dict[str, Any] | None:
+    orgs = list_user_organizations(user_id)
+    if not orgs:
+        return None
+    owners = [o for o in orgs if o.get("member_role") == "owner"]
+    return owners[0] if owners else orgs[0]
+
+
+def is_org_member(user_id: str, org_id: str) -> bool:
+    if is_super_admin(user_id):
+        return True
+    client = get_supabase()
+    row = _query_one(
+        client.table("org_members")
+        .select("org_id")
+        .eq("org_id", org_id)
+        .eq("user_id", user_id)
+    )
+    return row is not None
+
+
+def is_org_owner(user_id: str, org_id: str) -> bool:
+    if is_super_admin(user_id):
+        return True
+    client = get_supabase()
+    row = _query_one(
+        client.table("org_members")
+        .select("role")
+        .eq("org_id", org_id)
+        .eq("user_id", user_id)
+    )
+    return row is not None and row.get("role") == "owner"
+
+
+def is_org_event_access(user_id: str, event_id: str) -> bool:
+    if is_super_admin(user_id):
+        return True
+    event = fetch_event_by_id(event_id)
+    if not event or not event.get("organization_id"):
+        return False
+    org_id = event["organization_id"]
+    client = get_supabase()
+    member = _query_one(
+        client.table("org_members")
+        .select("role")
+        .eq("org_id", org_id)
+        .eq("user_id", user_id)
+    )
+    if not member:
+        return False
+    if member.get("role") == "owner":
+        return True
+    org = fetch_organization(org_id)
+    settings = (org or {}).get("settings") or {}
+    if settings.get("associate_scope", "org") == "org":
+        return True
+    assigned = _query_one(
+        client.table("org_event_assignments")
+        .select("event_id")
+        .eq("event_id", event_id)
+        .eq("user_id", user_id)
+    )
+    return assigned is not None
+
+
+def list_org_events(org_id: str) -> list[dict[str, Any]]:
+    client = get_supabase()
+    return (
+        client.table("events")
+        .select("*")
+        .eq("organization_id", org_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+        or []
+    )
+
+
+def list_organizations() -> list[dict[str, Any]]:
+    client = get_supabase()
+    return client.table("organizations").select("*").order("created_at", desc=True).execute().data or []
+
+
+def create_organization(data: dict[str, Any]) -> dict[str, Any]:
+    client = get_supabase()
+    result = client.table("organizations").insert(data).execute()
+    return (result.data or [data])[0]
+
+
+def update_organization(org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    client = get_supabase()
+    data = {**data, "updated_at": datetime.now(UTC).isoformat()}
+    result = client.table("organizations").update(data).eq("id", org_id).execute()
+    return (result.data or [{}])[0]
+
+
+def add_org_member(org_id: str, user_id: str, role: str = "associate") -> None:
+    client = get_supabase()
+    client.table("org_members").upsert(
+        {"org_id": org_id, "user_id": user_id, "role": role}
+    ).execute()
+
+
+def list_org_members(org_id: str) -> list[dict[str, Any]]:
+    client = get_supabase()
+    members = client.table("org_members").select("*").eq("org_id", org_id).execute().data or []
+    enriched: list[dict[str, Any]] = []
+    for member in members:
+        profile = _query_one(
+            client.table("profiles").select("email, full_name").eq("id", member["user_id"])
+        )
+        enriched.append(
+            {
+                **member,
+                "email": profile.get("email") if profile else None,
+                "full_name": profile.get("full_name") if profile else None,
+            }
+        )
+    return enriched
+
+
+def allocate_org_slug(base_slug: str) -> str:
+    cleaned = (base_slug or "studio").strip("-")[:80] or "studio"
+    if fetch_organization_by_slug(cleaned) is None:
+        return cleaned
+    for suffix in range(2, 100):
+        candidate = f"{cleaned}-{suffix}"[:80].strip("-")
+        if fetch_organization_by_slug(candidate) is None:
+            return candidate
+    raise RuntimeError("Could not allocate a unique organization slug")
+
+
+def increment_org_events_used(org_id: str) -> None:
+    org = fetch_organization(org_id)
+    if not org:
+        return
+    used = int(org.get("events_used_this_period") or 0) + 1
+    update_organization(org_id, {"events_used_this_period": used})
+
+
+def org_can_create_event(org_id: str) -> tuple[bool, str | None]:
+    org = fetch_organization(org_id)
+    if not org:
+        return False, "Organization not found"
+    plan = org.get("plan") or "pay_per_event"
+    if plan in ("pay_per_event", "unlimited"):
+        return True, None
+    included = int(org.get("events_included_per_period") or 0)
+    used = int(org.get("events_used_this_period") or 0)
+    if used >= included:
+        return False, "Event quota exhausted for this billing period"
+    return True, None
+
+
+def count_org_events(org_id: str) -> int:
+    client = get_supabase()
+    result = client.table("events").select("id", count="exact").eq("organization_id", org_id).execute()
+    return result.count or 0

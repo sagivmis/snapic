@@ -5,7 +5,7 @@ import { buildEventGuestUrl } from "../api/client";
 import type { AdminEventSummary } from "../types";
 import "../styles/AdminEventsTable.scss";
 
-type StatusFilter = "all" | "draft" | "active" | "archived";
+type StatusFilter = "all" | "draft" | "active" | "closed";
 type SortKey = "created" | "title" | "wedding" | "photos" | "searches" | "activity";
 export type EventAttentionFilter = "empty_album" | "unindexed" | "archive_due" | null;
 
@@ -134,7 +134,7 @@ export function AdminEventsTable({
     if (attentionFilter === "empty_album") {
       rows = rows.filter((event) => event.status === "active" && event.gallery_photo_count === 0);
     } else if (attentionFilter === "unindexed") {
-      rows = rows.filter((event) => event.unindexed_photo_count > 0 && event.status !== "archived");
+      rows = rows.filter((event) => event.unindexed_photo_count > 0 && event.status !== "closed");
     } else if (attentionFilter === "archive_due") {
       rows = rows.filter((event) => event.archive_due);
     }
@@ -167,7 +167,7 @@ export function AdminEventsTable({
         acc[event.status] += 1;
         return acc;
       },
-      { draft: 0, active: 0, archived: 0 },
+      { draft: 0, active: 0, closed: 0 },
     );
   }, [events]);
 
@@ -237,7 +237,7 @@ export function AdminEventsTable({
               ["all", `All (${events.length})`],
               ["draft", `Draft (${statusCounts.draft})`],
               ["active", `Active (${statusCounts.active})`],
-              ["archived", `Archived (${statusCounts.archived})`],
+              ["closed", `Closed (${statusCounts.closed})`],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -274,6 +274,7 @@ export function AdminEventsTable({
         <table className="admin-events__table">
           <thead>
             <tr>
+              <th scope="col">Studio</th>
               <th scope="col">Event</th>
               <th scope="col">Status</th>
               <th scope="col">Wedding</th>
@@ -288,7 +289,7 @@ export function AdminEventsTable({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="admin-events__no-results">
+                <td colSpan={10} className="admin-events__no-results">
                   No events match your filters.
                 </td>
               </tr>
@@ -301,6 +302,7 @@ export function AdminEventsTable({
 
                 return (
                   <tr key={event.id}>
+                    <td>{event.organization_name ?? "—"}</td>
                     <td className="admin-events__event-cell">
                       <strong>{event.title}</strong>
                       {names && <span className="admin-events__couple">{names}</span>}
@@ -321,9 +323,9 @@ export function AdminEventsTable({
                       >
                         <option value="draft">Draft</option>
                         <option value="active">Active</option>
-                        <option value="archived">Archived</option>
+                        <option value="closed">Closed</option>
                       </select>
-                      {event.archive_due && event.status !== "archived" && (
+                      {event.archive_due && event.status !== "closed" && (
                         <span className="admin-events__archive-badge">Archive due</span>
                       )}
                     </td>

@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from snapic.api.admin_routes import router as admin_router
 from snapic.api.event_routes import router as event_router
 from snapic.api.routes import router
+from snapic.api.studio_routes import router as studio_router
+from snapic.api.stripe_routes import router as stripe_router
 from snapic.monitoring import init_sentry
 
 init_sentry()
@@ -50,3 +52,5 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 app.include_router(event_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(studio_router, prefix="/api")
+app.include_router(stripe_router, prefix="/api")

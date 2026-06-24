@@ -143,10 +143,12 @@ async def public_create_signup_request(body: SignupRequestCreate) -> SignupReque
     return SignupRequestResponse(
         id=row["id"],
         email=row["email"],
-        couple_names=row["couple_names"],
+        couple_names=row.get("couple_names") or "",
         wedding_date=row.get("wedding_date"),
         message=row.get("message"),
         status=row["status"],
+        request_type=row.get("request_type") or "couple",
+        organization_name=row.get("organization_name"),
         created_at=row.get("created_at"),
     )
 
