@@ -1,0 +1,439 @@
+@use "variables" as *;
+
+.photographers-page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.photographers-hero {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+  margin-bottom: 3rem;
+
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 3rem;
+  }
+
+  &__content {
+    text-align: center;
+
+    @media (min-width: $breakpoint-lg) {
+      text-align: left;
+    }
+  }
+
+  &__eyebrow {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $champagne-600;
+  }
+
+  h1 {
+    margin: 0 0 1rem;
+    font-family: $font-display;
+    font-size: clamp(2.125rem, 4.5vw, 3.25rem);
+    font-weight: 400;
+    line-height: 1.12;
+    color: $taupe-700;
+  }
+
+  &__lead {
+    margin: 0 auto 1.75rem;
+    max-width: 34rem;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: $taupe-500;
+
+    @media (min-width: $breakpoint-lg) {
+      margin-left: 0;
+      margin-right: 0;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+
+    @media (min-width: $breakpoint-lg) {
+      justify-content: flex-start;
+    }
+  }
+
+  &__highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+
+    @media (min-width: $breakpoint-lg) {
+      justify-content: flex-start;
+    }
+
+    li {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid rgba($champagne-400, 0.35);
+      background: rgba($champagne-400, 0.1);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: $champagne-600;
+    }
+  }
+
+  &__visual {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+.photographers-mock {
+  width: min(100%, 26rem);
+  border-radius: $radius-2xl;
+  border: 1px solid rgba($cream-300, 0.8);
+  background: rgba($white, 0.92);
+  box-shadow:
+    $shadow-soft,
+    0 24px 48px -24px rgba($champagne-500, 0.25);
+  overflow: hidden;
+  transform: rotate(-1.5deg);
+
+  &__chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid rgba($cream-300, 0.6);
+    background: rgba($cream-100, 0.8);
+  }
+
+  &__dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: $cream-400;
+
+    &:first-child {
+      background: rgba($blush-400, 0.75);
+    }
+
+    &:nth-child(2) {
+      background: rgba($champagne-400, 0.85);
+    }
+
+    &:nth-child(3) {
+      background: rgba($champagne-500, 0.55);
+    }
+  }
+
+  &__title {
+    margin-left: 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: $taupe-400;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 3.25rem 1fr;
+    min-height: 15rem;
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+    border-right: 1px solid rgba($cream-300, 0.5);
+    background: rgba($cream-100, 0.45);
+  }
+
+  &__nav-item {
+    height: 0.45rem;
+    border-radius: 999px;
+    background: rgba($cream-400, 0.55);
+
+    &--active {
+      background: rgba($champagne-500, 0.65);
+    }
+  }
+
+  &__main {
+    padding: 0.85rem;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: $radius-xl;
+    border: 1px solid rgba($champagne-400, 0.25);
+    background: linear-gradient(135deg, rgba($blush-100, 0.7), rgba($cream-100, 0.9));
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: linear-gradient(145deg, $blush-300, $champagne-400);
+    box-shadow: inset 0 0 0 2px rgba($white, 0.65);
+  }
+
+  &__search-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+
+    strong {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: $taupe-700;
+    }
+
+    span {
+      font-size: 0.625rem;
+      color: $taupe-400;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+  }
+
+  &__photo {
+    aspect-ratio: 1;
+    border-radius: $radius-lg;
+    background: linear-gradient(160deg, $cream-200, $cream-300);
+
+    &--match {
+      background: linear-gradient(160deg, rgba($blush-200, 0.95), rgba($champagne-400, 0.75));
+      box-shadow:
+        inset 0 0 0 2px rgba($champagne-500, 0.35),
+        0 4px 12px -4px rgba($champagne-500, 0.35);
+    }
+  }
+}
+
+.photographers-benefits {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 3.5rem;
+
+  @media (min-width: $breakpoint-md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  &__card {
+    h2 {
+      margin: 0 0 0.5rem;
+      font-family: $font-display;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: $taupe-700;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: $taupe-500;
+    }
+  }
+}
+
+.photographers-section-head {
+  margin-bottom: 1.75rem;
+  text-align: center;
+
+  &__eyebrow {
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $champagne-600;
+  }
+
+  h2 {
+    margin: 0;
+    font-family: $font-display;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 400;
+    color: $taupe-700;
+  }
+
+  &__lead {
+    margin: 0.75rem auto 0;
+    max-width: 36rem;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: $taupe-500;
+  }
+}
+
+.photographers-steps {
+  margin-bottom: 3.5rem;
+  padding: 2.5rem 0;
+  border-top: 1px solid rgba($cream-300, 0.65);
+  border-bottom: 1px solid rgba($cream-300, 0.65);
+
+  &__list {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @media (min-width: $breakpoint-md) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  &__item {
+    position: relative;
+    padding-top: 2.25rem;
+
+    h3 {
+      margin: 0 0 0.5rem;
+      font-family: $font-display;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: $taupe-700;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: $taupe-500;
+    }
+  }
+
+  &__number {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.5rem;
+    font-family: $font-display;
+    font-size: 2rem;
+    font-weight: 400;
+    line-height: 1;
+    color: rgba($champagne-500, 0.35);
+  }
+}
+
+.photographers-pricing {
+  margin-bottom: 3rem;
+
+  &__grid {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @media (min-width: $breakpoint-md) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+    }
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+
+    h3 {
+      margin: 0 0 0.35rem;
+      font-family: $font-display;
+      font-size: 1.375rem;
+      font-weight: 500;
+      color: $taupe-700;
+    }
+
+    &--featured {
+      border-color: rgba($champagne-400, 0.55);
+      background: linear-gradient(180deg, rgba($white, 0.95), rgba($blush-100, 0.45));
+      box-shadow:
+        $shadow-soft,
+        0 0 0 1px rgba($champagne-400, 0.15);
+    }
+  }
+
+  &__badge {
+    align-self: flex-start;
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba($champagne-500, 0.15);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $champagne-600;
+  }
+
+  &__price {
+    margin: 0 0 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $champagne-600;
+  }
+
+  &__detail {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: $taupe-500;
+  }
+}
+
+.photographers-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: flex-start;
+  padding: 2rem 1.75rem;
+  background: linear-gradient(135deg, rgba($white, 0.95), rgba($blush-100, 0.35));
+
+  @media (min-width: $breakpoint-md) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  h2 {
+    margin: 0 0 0.35rem;
+    font-family: $font-display;
+    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+    font-weight: 400;
+    color: $taupe-700;
+  }
+
+  p {
+    margin: 0;
+    max-width: 28rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: $taupe-500;
+  }
+
+  .btn-primary {
+    flex-shrink: 0;
+  }
+}
