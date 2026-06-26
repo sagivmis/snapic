@@ -1,0 +1,308 @@
+@use "variables" as *;
+
+$mobile-nav-breakpoint: 768px;
+$mobile-tab-bar-height: 3.5rem;
+
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.625rem 1.25rem;
+  padding-top: max(0.625rem, env(safe-area-inset-top));
+  border-bottom: 1px solid rgba($cream-300, 0.6);
+  background: rgba($cream-100, 0.72);
+  backdrop-filter: blur(8px);
+
+  @media (max-width: $mobile-nav-breakpoint) {
+    display: flex;
+  }
+
+  &__brand {
+    font-family: $font-display;
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-style: italic;
+    color: $taupe-700;
+    text-decoration: none;
+
+    &:hover {
+      color: $taupe-600;
+    }
+  }
+}
+
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  z-index: 40;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 0.25rem;
+  min-height: $mobile-tab-bar-height;
+  padding: 0.35rem 0.5rem;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba($cream-300, 0.75);
+  background: rgba($cream-100, 0.88);
+  backdrop-filter: blur(10px);
+
+  @media (max-width: $mobile-nav-breakpoint) {
+    display: flex;
+  }
+
+  &__item {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.25rem 0.35rem;
+    border: none;
+    border-radius: $radius-lg;
+    background: transparent;
+    font: inherit;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: $taupe-400;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s;
+
+    &:hover {
+      color: $taupe-500;
+      background: rgba($white, 0.45);
+    }
+
+    &--active {
+      color: $champagne-600;
+
+      .mobile-tab-bar__icon {
+        color: $champagne-600;
+      }
+    }
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: $taupe-400;
+    transition: color 0.2s;
+  }
+
+  &__label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.mobile-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba($taupe-700, 0.28);
+    cursor: pointer;
+  }
+
+  &__panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 28rem;
+    max-height: min(85vh, 32rem);
+    border-radius: $radius-xl $radius-xl 0 0;
+    background: rgba($cream-50, 0.98);
+    box-shadow: 0 -8px 32px rgba($taupe-700, 0.12);
+    animation: mobile-sheet-rise 0.28s ease-out;
+
+    &--compact {
+      max-height: min(70vh, 24rem);
+    }
+  }
+
+  &__handle {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 0.25rem;
+    margin: 0.625rem auto 0;
+    border-radius: 999px;
+    background: rgba($cream-300, 0.9);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem 0.5rem;
+
+    h2 {
+      margin: 0;
+      font-family: $font-display;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: $taupe-700;
+    }
+  }
+
+  &__close {
+    border: none;
+    background: transparent;
+    padding: 0.35rem 0.5rem;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $champagne-600;
+    cursor: pointer;
+
+    &:hover {
+      color: $champagne-500;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 1.25rem 1.25rem;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  &__section {
+    margin-bottom: 1.25rem;
+
+    h3 {
+      margin: 0 0 0.5rem;
+      padding: 0 0.25rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: $taupe-400;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    li + li {
+      margin-top: 0.15rem;
+    }
+
+    &--footer {
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba($cream-300, 0.65);
+    }
+  }
+
+  &__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border: none;
+    border-radius: $radius-lg;
+    background: transparent;
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: $taupe-600;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.65);
+      color: $taupe-700;
+    }
+  }
+
+  &__badge {
+    min-width: 1.25rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    background: rgba($champagne-400, 0.2);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: $champagne-600;
+    text-align: center;
+  }
+
+  &__email {
+    margin: 0.75rem 0 0.35rem;
+    word-break: break-all;
+    font-size: 0.8125rem;
+    color: $taupe-400;
+  }
+
+  &__sign-out {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding-inline: 0;
+  }
+
+  &__sign-in {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: $champagne-600;
+    text-decoration: none;
+
+    &:hover {
+      color: $champagne-500;
+    }
+  }
+
+  &__event-list {
+    margin: 0;
+    padding: 0 1.25rem 1.25rem;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    list-style: none;
+
+    li + li {
+      margin-top: 0.15rem;
+    }
+  }
+}
+
+@keyframes mobile-sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: $mobile-nav-breakpoint) {
+  .app-layout--mobile-chrome {
+    .app-layout__main {
+      padding-bottom: calc(#{$mobile-tab-bar-height} + max(0.35rem, env(safe-area-inset-bottom)));
+    }
+  }
+}

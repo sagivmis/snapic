@@ -264,20 +264,21 @@
   .app-layout {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
-    height: auto;
-    max-height: none;
+    height: 100vh;
+    max-height: 100vh;
     min-height: 100vh;
+    overflow: hidden;
 
-    &__sidebar {
-      border-right: none;
-      border-bottom: 1px solid rgba($cream-300, 0.6);
-      padding: 1rem 1.25rem;
-      max-height: 45vh;
-      overflow-y: auto;
+    &__sidebar--desktop {
+      display: none;
     }
 
     &__main {
-      overflow: visible;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
   }
 }

@@ -67,13 +67,24 @@
     "yourEvents": "Your events",
     "studio": "Studio",
     "switchStudio": "Switch studio",
-    "pendingInvites": "Pending invitations ({{count}})"
+    "pendingInvites": "Pending invitations ({{count}})",
+    "mobile": {
+      "barAria": "Main navigation",
+      "home": "Home",
+      "studio": "Studio",
+      "gallery": "Gallery",
+      "demo": "Demo",
+      "more": "More",
+      "moreTitle": "Menu",
+      "closeSheet": "Close menu",
+      "pickGallery": "Choose gallery"
+    }
   },
   "landing": {
     "eyebrow": "Snapic",
     "title": "Find yourself in every wedding photo",
     "lead": "Guests upload a selfie and instantly find every wedding photo they appear in — no scrolling through hundreds of shots.",
-    "hintSignedIn": "Pick a destination from the sidebar — studio, events, or admin.",
+    "hintSignedIn": "Use the tabs below to open your studio, gallery, or admin tools.",
     "hintSignedOut": "Try the demo, request a gallery, or explore Snapic Studio for photographers."
   },
   "forPhotographers": {

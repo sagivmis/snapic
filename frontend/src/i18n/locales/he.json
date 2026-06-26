@@ -67,13 +67,24 @@
     "yourEvents": "האירועים שלכם",
     "studio": "סטודיו",
     "switchStudio": "החלפת סטודיו",
-    "pendingInvites": "הזמנות ממתינות ({{count}})"
+    "pendingInvites": "הזמנות ממתינות ({{count}})",
+    "mobile": {
+      "barAria": "ניווט ראשי",
+      "home": "בית",
+      "studio": "סטודיו",
+      "gallery": "גלריה",
+      "demo": "דמו",
+      "more": "עוד",
+      "moreTitle": "תפריט",
+      "closeSheet": "סגירת תפריט",
+      "pickGallery": "בחירת גלריה"
+    }
   },
   "landing": {
     "eyebrow": "Snapic",
     "title": "מצאו את עצמכם בכל תמונות החתונה",
     "lead": "אורחים מעלים סלפי ומיד מוצאים כל תמונת חתונה שבה הם מופיעים — בלי לגלול בין מאות צילומים.",
-    "hintSignedIn": "בחרו יעד מהתפריט הצדדי — סטודיו, אירועים או ניהול.",
+    "hintSignedIn": "השתמשו בלשוניות למטה כדי לפתוח את הסטודיו, הגלריה או כלי הניהול.",
     "hintSignedOut": "נסו את הדמו, בקשו גלריה, או גלו את Snapic Studio לצלמים."
   },
   "forPhotographers": {

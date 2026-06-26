@@ -1,11 +1,14 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useStudioMembership } from "../../hooks/useStudioMembership";
+import { useMobileNav } from "../../hooks/useMobileNav";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { useTranslation } from "../../i18n";
 import { isSupabaseConfigured } from "../../lib/supabase";
 import { AppEventsNav } from "./AppEventsNav";
 import { AppStudioNav } from "./AppStudioNav";
+import { MobileHeader } from "./MobileHeader";
+import { MobileTabBar } from "./MobileTabBar";
 import "../../styles/AppLayout.scss";
 
 interface NavItem {
@@ -18,7 +21,9 @@ export function AppLayout() {
   const location = useLocation();
   const { session, profile, isSuperAdmin, isPhotographer, signOut } = useAuth();
   const { hasStudios, pendingInvites, loaded } = useStudioMembership();
-  const { t, tPath } = useTranslation("nav");
+  const { showChrome, tabs, isTabActive, sheetSections, events } = useMobileNav();
+  const { tPath } = useTranslation("nav");
+  const { t: tCommon } = useTranslation("common");
 
   const showStudioNav = isSuperAdmin || isPhotographer || hasStudios || pendingInvites.length > 0;
   const showForPhotographers = isSupabaseConfigured && loaded && !hasStudios;
@@ -44,10 +49,10 @@ export function AppLayout() {
   }
 
   return (
-    <div className="app-layout">
-      <aside className="app-layout__sidebar">
+    <div className={`app-layout${showChrome ? " app-layout--mobile-chrome" : ""}`}>
+      <aside className="app-layout__sidebar app-layout__sidebar--desktop">
         <div className="app-layout__brand">
-          <Link to="/">{t("brand")}</Link>
+          <Link to="/">{tCommon("brand")}</Link>
         </div>
 
         <div className="app-layout__sidebar-body">
@@ -73,19 +78,31 @@ export function AppLayout() {
             <>
               <p className="app-layout__user">{profile?.email ?? session.user.email}</p>
               <button type="button" className="btn btn-ghost" onClick={() => void signOut()}>
-                {t("signOut")}
+                {tCommon("signOut")}
               </button>
             </>
           ) : isSupabaseConfigured ? (
             <Link to="/login" className="app-layout__sign-in">
-              {t("signIn")}
+              {tCommon("signIn")}
             </Link>
           ) : null}
         </div>
       </aside>
+
+      {showChrome && <MobileHeader />}
+
       <main className="app-layout__main">
         <Outlet />
       </main>
+
+      {showChrome && (
+        <MobileTabBar
+          tabs={tabs}
+          isTabActive={isTabActive}
+          sheetSections={sheetSections}
+          events={events}
+        />
+      )}
     </div>
   );
 }
