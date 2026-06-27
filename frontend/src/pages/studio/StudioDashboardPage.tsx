@@ -28,6 +28,8 @@ import {
 
 } from "../../lib/studioCache";
 
+import { getStoredStudioOrgId } from "../../lib/studioOrg";
+
 import type { StudioClient, StudioStats } from "../../types";
 
 import "../../styles/StudioLayout.scss";
@@ -70,7 +72,7 @@ export function StudioDashboardPage() {
 
   const load = useCallback(async () => {
 
-    const orgId = activeOrgId;
+    const orgId = activeOrgId ?? getStoredStudioOrgId();
 
     if (!orgId) {
 
