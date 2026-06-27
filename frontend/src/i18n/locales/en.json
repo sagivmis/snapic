@@ -343,11 +343,24 @@
       "associateScopeLabel": "All studio events",
       "associateScopeOn": "Associates can access every client gallery in your studio.",
       "associateScopeOff": "Associates only see events they're assigned to.",
+      "associateScopeWarning": "Associates lose access to all galleries until you assign them on each client’s Details tab.",
+      "logoLabel": "Studio logo",
+      "logoUpload": "Upload logo",
+      "logoReplace": "Replace logo",
+      "logoRemove": "Remove logo",
+      "logoHint": "Shown on guest gallery pages. JPEG, PNG, or WebP up to 10 MB.",
+      "logoUploaded": "Logo updated.",
+      "logoUploadFailed": "Could not upload logo",
+      "logoRemoved": "Logo removed.",
+      "logoRemoveFailed": "Could not remove logo",
       "saved": "Settings saved.",
       "saveFailed": "Save failed"
     },
     "billing": {
       "title": "Billing",
+      "manageBilling": "Manage billing",
+      "portalUnavailable": "Manage billing becomes available after your first purchase.",
+      "portalFailed": "Could not open billing portal",
       "planUsage": "Plan: {{plan}} · Used {{used}} / {{included}} events",
       "planUsageUnlimited": "Plan: {{plan}} · Used {{used}} / ∞ events",
       "choose": "Choose",
@@ -448,6 +461,7 @@
       "tabs": {
         "album": "Album",
         "handoff": "Handoff",
+        "details": "Details",
         "analytics": "Analytics"
       },
       "stats": {
@@ -476,6 +490,32 @@
         "photoLimit": " · limit {{limit}}",
         "openManager": "Open album manager",
         "note": "Upload photos, organize sections, and index faces using the full album tools."
+      },
+      "details": {
+        "titleLabel": "Gallery title",
+        "coupleNamesLabel": "Couple names",
+        "weddingDateLabel": "Wedding date",
+        "clientEmailLabel": "Couple email",
+        "clientEmailPlaceholder": "couple@example.com",
+        "notesLabel": "Internal notes",
+        "notesPlaceholder": "Venue, package, shot list reminders…",
+        "saved": "Details saved.",
+        "saveFailed": "Could not save details",
+        "closeTitle": "Close gallery",
+        "closeHint": "Guests will no longer be able to search. You can still manage photos.",
+        "closeGallery": "Close gallery",
+        "closeConfirm": "Close \"{{title}}\" for guests? They will see an ended message.",
+        "closed": "Gallery closed.",
+        "closeFailed": "Could not close gallery"
+      },
+      "assignees": {
+        "title": "Team access",
+        "hint": "Choose which associates can work on this gallery.",
+        "noAssociates": "Invite associates from the Team page first.",
+        "save": "Save assignments",
+        "saved": "Assignments saved.",
+        "loadFailed": "Could not load assignments",
+        "saveFailed": "Could not save assignments"
       }
     }
   },

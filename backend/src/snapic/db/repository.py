@@ -991,8 +991,34 @@ def is_org_event_access(user_id: str, event_id: str) -> bool:
     return assigned is not None
 
 
-def list_org_events(org_id: str) -> list[dict[str, Any]]:
+def list_org_events(org_id: str, user_id: str | None = None) -> list[dict[str, Any]]:
     client = get_supabase()
+    if user_id and not is_org_owner(user_id, org_id):
+        org = fetch_organization(org_id)
+        settings = (org or {}).get("settings") or {}
+        if settings.get("associate_scope", "org") == "event":
+            rows = (
+                client.table("org_event_assignments")
+                .select("event_id")
+                .eq("org_id", org_id)
+                .eq("user_id", user_id)
+                .execute()
+                .data
+                or []
+            )
+            event_ids = [row["event_id"] for row in rows]
+            if not event_ids:
+                return []
+            return (
+                client.table("events")
+                .select("*")
+                .eq("organization_id", org_id)
+                .in_("id", event_ids)
+                .order("created_at", desc=True)
+                .execute()
+                .data
+                or []
+            )
     return (
         client.table("events")
         .select("*")
@@ -1002,6 +1028,96 @@ def list_org_events(org_id: str) -> list[dict[str, Any]]:
         .data
         or []
     )
+
+
+def _assert_org_associate(org_id: str, user_id: str) -> None:
+    client = get_supabase()
+    member = _query_one(
+        client.table("org_members")
+        .select("role")
+        .eq("org_id", org_id)
+        .eq("user_id", user_id)
+    )
+    if not member or member.get("role") != "associate":
+        raise ValueError("User is not an associate of this studio")
+
+
+def list_event_assignees(org_id: str, event_id: str) -> list[dict[str, Any]]:
+    client = get_supabase()
+    rows = (
+        client.table("org_event_assignments")
+        .select("user_id")
+        .eq("org_id", org_id)
+        .eq("event_id", event_id)
+        .execute()
+        .data
+        or []
+    )
+    assignees: list[dict[str, Any]] = []
+    for row in rows:
+        uid = row["user_id"]
+        profile = _query_one(
+            client.table("profiles").select("email, full_name").eq("id", uid)
+        )
+        assignees.append(
+            {
+                "user_id": uid,
+                "email": profile.get("email") if profile else None,
+                "full_name": profile.get("full_name") if profile else None,
+                "role": "associate",
+            }
+        )
+    return assignees
+
+
+def set_event_assignees(org_id: str, event_id: str, user_ids: list[str]) -> None:
+    client = get_supabase()
+    unique_ids = list(dict.fromkeys(user_ids))
+    for uid in unique_ids:
+        _assert_org_associate(org_id, uid)
+    client.table("org_event_assignments").delete().eq("org_id", org_id).eq("event_id", event_id).execute()
+    if unique_ids:
+        client.table("org_event_assignments").insert(
+            [{"org_id": org_id, "event_id": event_id, "user_id": uid} for uid in unique_ids]
+        ).execute()
+
+
+def add_event_assignee(org_id: str, event_id: str, user_id: str) -> None:
+    _assert_org_associate(org_id, user_id)
+    client = get_supabase()
+    client.table("org_event_assignments").upsert(
+        {"org_id": org_id, "event_id": event_id, "user_id": user_id}
+    ).execute()
+
+
+def org_logo_storage_path(org_id: str, mime: str) -> str:
+    ext = "jpg"
+    if "png" in mime:
+        ext = "png"
+    elif "webp" in mime:
+        ext = "webp"
+    return f"orgs/{org_id}/logo.{ext}"
+
+
+def upload_org_logo(org_id: str, data: bytes, mime: str) -> str:
+    client = get_supabase()
+    path = org_logo_storage_path(org_id, mime)
+    client.storage.from_("events").upload(
+        path,
+        data,
+        file_options={"content-type": mime, "upsert": "true"},
+    )
+    return path
+
+
+def delete_org_logo_storage(path: str | None) -> None:
+    if not path:
+        return
+    client = get_supabase()
+    try:
+        client.storage.from_("events").remove([path])
+    except Exception:
+        pass
 
 
 def list_organizations() -> list[dict[str, Any]]:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from snapic.api.schemas import (
     OrganizationPublic,
@@ -15,6 +15,8 @@ from snapic.api.schemas import (
     StudioClientBulkDeleteRequest,
     StudioClientBulkDeleteResponse,
     StudioClientUpdateRequest,
+    StudioEventAssigneesResponse,
+    StudioEventAssigneesUpdateRequest,
     StudioInviteCoupleRequest,
     StudioMeResponse,
     StudioOrganizationsResponse,
@@ -30,6 +32,7 @@ from snapic.auth.org import require_org_member, require_org_owner
 from snapic.db.invites import invite_event_admin
 from snapic.db.repository import (
     accept_org_invite,
+    add_event_assignee,
     add_org_member,
     allocate_event_slug,
     allocate_org_slug,
@@ -37,9 +40,11 @@ from snapic.db.repository import (
     count_org_events,
     count_unindexed_gallery_photos,
     create_event,
+    create_gallery_signed_url,
     create_org_invite,
     decline_org_invite,
     delete_event,
+    delete_org_logo_storage,
     fetch_event_by_id,
     fetch_organization,
     fetch_organization_by_slug,
@@ -54,18 +59,23 @@ from snapic.db.repository import (
     is_org_owner,
     list_org_events,
     list_org_members,
+    list_event_assignees,
     list_pending_org_invites_for_org,
     list_pending_org_invites_for_user,
     list_user_organizations,
     org_can_create_event,
+    set_event_assignees,
     update_event,
     update_organization,
+    upload_org_logo,
     update_profile_role,
 )
 
 router = APIRouter(prefix="/studio", tags=["studio"])
 
 MIN_ORG_SLUG_LENGTH = 2
+MAX_LOGO_BYTES = 10 * 1024 * 1024
+ALLOWED_LOGO_MIMES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def _slugify(value: str) -> str:
@@ -119,12 +129,20 @@ def _invite_to_org(org_id: str, email: str, role: str, invited_by: str) -> None:
         raise HTTPException(status_code=502, detail="Could not send invite email") from exc
 
 
+def _org_logo_url(org: dict[str, Any]) -> str | None:
+    path = org.get("logo_storage_path")
+    if not path:
+        return None
+    return create_gallery_signed_url(path)
+
+
 def _org_public(org: dict[str, Any], member_role: str | None = None) -> OrganizationPublic:
     return OrganizationPublic(
         id=org["id"],
         name=org["name"],
         slug=org["slug"],
         logo_storage_path=org.get("logo_storage_path"),
+        logo_url=_org_logo_url(org),
         website_url=org.get("website_url"),
         accent_color=org.get("accent_color"),
         plan=org.get("plan") or "pay_per_event",
@@ -148,6 +166,7 @@ def _client_summary(row: dict[str, Any]) -> StudioClientSummary:
         status=row["status"],
         handoff_status=row.get("handoff_status") or "draft",
         client_email=row.get("client_email"),
+        photographer_notes=row.get("photographer_notes"),
         gallery_photo_count=stats["gallery_photo_count"],
         match_run_count=stats["match_run_count"],
         unique_guest_sessions=stats["unique_guest_sessions"],
@@ -164,6 +183,23 @@ def _assert_client_access(user: AuthUser, event_id: str) -> dict[str, Any]:
     if not row:
         raise HTTPException(status_code=404, detail="Event not found")
     return row
+
+
+def _assert_event_in_org(event_id: str, org_id: str) -> dict[str, Any]:
+    row = fetch_event_by_id(event_id)
+    if not row or row.get("organization_id") != org_id:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return row
+
+
+async def _read_logo_upload(upload: UploadFile) -> tuple[bytes, str]:
+    data = await upload.read()
+    if len(data) > MAX_LOGO_BYTES:
+        raise HTTPException(status_code=400, detail="Logo image too large")
+    mime = (upload.content_type or "image/jpeg").lower()
+    if mime not in ALLOWED_LOGO_MIMES:
+        raise HTTPException(status_code=400, detail="Logo must be JPEG, PNG, or WebP")
+    return data, mime
 
 
 @router.get("/me", response_model=StudioMeResponse)
@@ -255,7 +291,7 @@ async def studio_stats(
     user: Annotated[AuthUser, Depends(get_required_user)],
     org: Annotated[dict[str, Any], Depends(require_org_member)],
 ) -> StudioStatsResponse:
-    events = list_org_events(org["id"])
+    events = list_org_events(org["id"], user.id)
     active = draft = closed = total_photos = total_searches = pending_handoffs = index_failures = 0
     for row in events:
         status = row.get("status")
@@ -285,10 +321,10 @@ async def studio_stats(
 
 @router.get("/events", response_model=list[StudioClientSummary])
 async def studio_list_events(
-    _: Annotated[AuthUser, Depends(get_required_user)],
+    user: Annotated[AuthUser, Depends(get_required_user)],
     org: Annotated[dict[str, Any], Depends(require_org_member)],
 ) -> list[StudioClientSummary]:
-    return [_client_summary(row) for row in list_org_events(org["id"])]
+    return [_client_summary(row) for row in list_org_events(org["id"], user.id)]
 
 
 @router.post("/events", response_model=StudioClientSummary)
@@ -322,6 +358,10 @@ async def studio_create_event(
     plan = org.get("plan") or "pay_per_event"
     if plan not in ("pay_per_event",):
         increment_org_events_used(org["id"])
+    settings = org.get("settings") or {}
+    member_role = org.get("member_role") or "associate"
+    if member_role == "associate" and settings.get("associate_scope") == "event":
+        add_event_assignee(org["id"], row["id"], user.id)
     return _client_summary(row)
 
 
@@ -370,6 +410,33 @@ async def studio_update_event(
     if patch:
         row = update_event(event_id, patch)
     return _client_summary(row)
+
+
+@router.get("/events/{event_id}/assignees", response_model=StudioEventAssigneesResponse)
+async def studio_get_event_assignees(
+    event_id: str,
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> StudioEventAssigneesResponse:
+    _assert_event_in_org(event_id, org["id"])
+    assignees = list_event_assignees(org["id"], event_id)
+    return StudioEventAssigneesResponse(event_id=event_id, assignees=assignees)
+
+
+@router.put("/events/{event_id}/assignees", response_model=StudioEventAssigneesResponse)
+async def studio_set_event_assignees(
+    event_id: str,
+    body: StudioEventAssigneesUpdateRequest,
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> StudioEventAssigneesResponse:
+    _assert_event_in_org(event_id, org["id"])
+    try:
+        set_event_assignees(org["id"], event_id, body.user_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    assignees = list_event_assignees(org["id"], event_id)
+    return StudioEventAssigneesResponse(event_id=event_id, assignees=assignees)
 
 
 @router.delete("/events/{event_id}")
@@ -451,6 +518,32 @@ async def studio_update_settings(
         current = org.get("settings") or {}
         patch["settings"] = {**current, **body.settings}
     updated = update_organization(org["id"], patch)
+    return _org_public(updated, "owner")
+
+
+@router.post("/settings/logo", response_model=OrganizationPublic)
+async def studio_upload_logo(
+    file: Annotated[UploadFile, File()],
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> OrganizationPublic:
+    data, mime = await _read_logo_upload(file)
+    old_path = org.get("logo_storage_path")
+    path = upload_org_logo(org["id"], data, mime)
+    if old_path and old_path != path:
+        delete_org_logo_storage(old_path)
+    updated = update_organization(org["id"], {"logo_storage_path": path})
+    return _org_public(updated, "owner")
+
+
+@router.delete("/settings/logo", response_model=OrganizationPublic)
+async def studio_delete_logo(
+    _: Annotated[AuthUser, Depends(get_required_user)],
+    org: Annotated[dict[str, Any], Depends(require_org_owner)],
+) -> OrganizationPublic:
+    old_path = org.get("logo_storage_path")
+    delete_org_logo_storage(old_path)
+    updated = update_organization(org["id"], {"logo_storage_path": None})
     return _org_public(updated, "owner")
 
 

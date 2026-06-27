@@ -262,6 +262,7 @@ export interface OrganizationBranding {
   id: string;
   name: string;
   logo_storage_path?: string | null;
+  logo_url?: string | null;
   website_url?: string | null;
   accent_color?: string | null;
   branding_tier?: "standard" | "pro" | "white_label";
@@ -272,6 +273,7 @@ export interface Organization {
   name: string;
   slug: string;
   logo_storage_path?: string | null;
+  logo_url?: string | null;
   website_url?: string | null;
   accent_color?: string | null;
   plan: string;
@@ -301,12 +303,20 @@ export interface StudioClient {
   status: "draft" | "active" | "closed";
   handoff_status: string;
   client_email?: string | null;
+  photographer_notes?: string | null;
   gallery_photo_count: number;
   match_run_count: number;
   unique_guest_sessions: number;
   unindexed_photo_count: number;
   created_at?: string | null;
   branding: Record<string, unknown>;
+}
+
+export interface StudioEventAssignee {
+  user_id: string;
+  email?: string | null;
+  full_name?: string | null;
+  role: string;
 }
 
 export interface StudioBilling {

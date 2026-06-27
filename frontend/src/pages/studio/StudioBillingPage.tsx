@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createStripeCheckout } from "../../api/client";
+import { createStripeCheckout, fetchStudioBilling, openBillingPortal } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
 import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import { useTranslation } from "../../i18n";
@@ -22,6 +22,8 @@ export function StudioBillingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
+  const [portalBusy, setPortalBusy] = useState(false);
 
   const plans = useMemo(
     () =>
@@ -32,6 +34,21 @@ export function StudioBillingPage() {
       })),
     [tPath],
   );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          return;
+        }
+        const billing = await fetchStudioBilling(token);
+        setStripeCustomerId(billing.stripe_customer_id ?? null);
+      } catch {
+        setStripeCustomerId(null);
+      }
+    })();
+  }, [getAccessToken]);
 
   useEffect(() => {
     if (searchParams.get("success") !== "1") {
@@ -68,9 +85,35 @@ export function StudioBillingPage() {
     }
   }
 
+  async function handleOpenPortal() {
+    setPortalBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error(t("notSignedIn"));
+      }
+      const { url } = await openBillingPortal(`${window.location.origin}/studio/billing`, token);
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tPath("portalFailed"));
+    } finally {
+      setPortalBusy(false);
+    }
+  }
+
   return (
     <div className="studio-page">
       <h1>{tPath("title")}</h1>
+      {stripeCustomerId ? (
+        <p>
+          <button type="button" className="btn btn-secondary" disabled={portalBusy} onClick={() => void handleOpenPortal()}>
+            {portalBusy ? t("redirecting") : tPath("manageBilling")}
+          </button>
+        </p>
+      ) : (
+        <p className="studio-form__hint">{tPath("portalUnavailable")}</p>
+      )}
       {organization && (
         <p>
           {organization.events_included_per_period

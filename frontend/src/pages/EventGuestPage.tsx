@@ -389,6 +389,9 @@ export function EventGuestPage() {
 
   const studioCoBrand = org ? (
     <div className="event-guest__studio-brand">
+      {org.logo_url && (
+        <img src={org.logo_url} alt="" className="event-guest__studio-logo" />
+      )}
       <p className="event-guest__studio-name">{org.name}</p>
       {org.website_url && (
         <a href={org.website_url} target="_blank" rel="noreferrer" className="event-guest__studio-link">

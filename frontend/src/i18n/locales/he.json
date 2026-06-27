@@ -343,11 +343,24 @@
       "associateScopeLabel": "כל אירועי הסטודיו",
       "associateScopeOn": "שותפים יכולים לגשת לכל גלריית לקוח בסטודיו.",
       "associateScopeOff": "שותפים רואים רק אירועים שהוקצו להם.",
+      "associateScopeWarning": "שותפים יאבדו גישה לכל הגלריות עד שתקצו אותם בלשונית פרטים של כל לקוח.",
+      "logoLabel": "לוגו הסטודיו",
+      "logoUpload": "העלאת לוגו",
+      "logoReplace": "החלפת לוגו",
+      "logoRemove": "הסרת לוגו",
+      "logoHint": "מוצג בדפי הגלריה לאורחים. JPEG, PNG או WebP עד 10 MB.",
+      "logoUploaded": "הלוגו עודכן.",
+      "logoUploadFailed": "לא ניתן להעלות לוגו",
+      "logoRemoved": "הלוגו הוסר.",
+      "logoRemoveFailed": "לא ניתן להסיר לוגו",
       "saved": "ההגדרות נשמרו.",
       "saveFailed": "השמירה נכשלה"
     },
     "billing": {
       "title": "חיוב",
+      "manageBilling": "ניהול חיוב",
+      "portalUnavailable": "ניהול החיוב יהיה זמין לאחר הרכישה הראשונה.",
+      "portalFailed": "לא ניתן לפתוח את פורטל החיוב",
       "planUsage": "חבילה: {{plan}} · נוצלו {{used}} / {{included}} אירועים",
       "planUsageUnlimited": "חבילה: {{plan}} · נוצלו {{used}} / ∞ אירועים",
       "choose": "בחירה",
@@ -448,6 +461,7 @@
       "tabs": {
         "album": "אלבום",
         "handoff": "העברה",
+        "details": "פרטים",
         "analytics": "אנליטיקה"
       },
       "stats": {
@@ -476,6 +490,32 @@
         "photoLimit": " · מגבלה {{limit}}",
         "openManager": "פתיחת מנהל האלבום",
         "note": "העלו תמונות, ארגנו מקטעים ואנדקסו פנים באמצעות כלי האלבום המלאים."
+      },
+      "details": {
+        "titleLabel": "שם הגלריה",
+        "coupleNamesLabel": "שמות הזוג",
+        "weddingDateLabel": "תאריך החתונה",
+        "clientEmailLabel": "אימייל הזוג",
+        "clientEmailPlaceholder": "couple@example.com",
+        "notesLabel": "הערות פנימיות",
+        "notesPlaceholder": "אולם, חבילה, תזכורות צילום…",
+        "saved": "הפרטים נשמרו.",
+        "saveFailed": "לא ניתן לשמור פרטים",
+        "closeTitle": "סגירת גלריה",
+        "closeHint": "אורחים לא יוכלו יותר לחפש. עדיין תוכלו לנהל תמונות.",
+        "closeGallery": "סגירת גלריה",
+        "closeConfirm": "לסגור את \"{{title}}\" לאורחים? הם יראו הודעה שהאירוע הסתיים.",
+        "closed": "הגלריה נסגרה.",
+        "closeFailed": "לא ניתן לסגור את הגלריה"
+      },
+      "assignees": {
+        "title": "גישת צוות",
+        "hint": "בחרו אילו שותפים יכולים לעבוד על גלריה זו.",
+        "noAssociates": "הזמינו שותפים מדף הצוות תחילה.",
+        "save": "שמירת הקצאות",
+        "saved": "ההקצאות נשמרו.",
+        "loadFailed": "לא ניתן לטעון הקצאות",
+        "saveFailed": "לא ניתן לשמור הקצאות"
       }
     }
   },

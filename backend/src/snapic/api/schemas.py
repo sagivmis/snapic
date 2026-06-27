@@ -186,6 +186,7 @@ class OrganizationPublic(BaseModel):
     name: str
     slug: str
     logo_storage_path: str | None = None
+    logo_url: str | None = None
     website_url: str | None = None
     accent_color: str | None = None
     plan: str = "pay_per_event"
@@ -229,6 +230,7 @@ class StudioClientSummary(BaseModel):
     status: Literal["draft", "active", "closed"]
     handoff_status: str
     client_email: str | None = None
+    photographer_notes: str | None = None
     gallery_photo_count: int = 0
     match_run_count: int = 0
     unique_guest_sessions: int = 0
@@ -262,6 +264,22 @@ class StudioSettingsUpdateRequest(BaseModel):
     website_url: str | None = None
     accent_color: str | None = None
     settings: dict | None = None
+
+
+class StudioEventAssignee(BaseModel):
+    user_id: str
+    email: str | None = None
+    full_name: str | None = None
+    role: str = "associate"
+
+
+class StudioEventAssigneesResponse(BaseModel):
+    event_id: str
+    assignees: list[StudioEventAssignee]
+
+
+class StudioEventAssigneesUpdateRequest(BaseModel):
+    user_ids: list[str] = Field(default_factory=list)
 
 
 class StudioInviteCoupleRequest(BaseModel):

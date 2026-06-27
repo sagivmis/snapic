@@ -179,6 +179,9 @@ def _event_public(row: dict[str, Any], user: AuthUser | None = None) -> EventPub
                 "id": org_row["id"],
                 "name": org_row["name"],
                 "logo_storage_path": org_row.get("logo_storage_path"),
+                "logo_url": create_gallery_signed_url(org_row["logo_storage_path"])
+                if org_row.get("logo_storage_path")
+                else None,
                 "website_url": org_row.get("website_url"),
                 "accent_color": org_row.get("accent_color"),
                 "branding_tier": org_row.get("branding_tier") or "standard",

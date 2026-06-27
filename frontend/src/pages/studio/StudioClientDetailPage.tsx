@@ -9,7 +9,10 @@ import {
   studioInviteCouple,
 } from "../../api/client";
 import { AlbumManager } from "../../components/shared/AlbumManager";
+import { ClientAssigneesPanel } from "../../components/studio/ClientAssigneesPanel";
+import { ClientDetailsPanel } from "../../components/studio/ClientDetailsPanel";
 import { ClientHandoffPanel } from "../../components/studio/ClientHandoffPanel";
+import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import { StudioClientDetailSkeleton } from "../../components/studio/StudioSkeletons";
 import { useAuth } from "../../auth/AuthProvider";
 import { useTranslation } from "../../i18n";
@@ -17,14 +20,15 @@ import { clearStudioDashboardCache } from "../../lib/studioCache";
 import type { EventPublic, StudioClient } from "../../types";
 import "../../styles/StudioLayout.scss";
 
-type ClientTab = "album" | "handoff" | "analytics";
+type ClientTab = "album" | "handoff" | "details" | "analytics";
 
-const TAB_KEYS: ClientTab[] = ["album", "handoff", "analytics"];
+const TAB_KEYS: ClientTab[] = ["album", "handoff", "details", "analytics"];
 
 export function StudioClientDetailPage() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isSuperAdmin } = useAuth();
+  const { organization, memberRole } = useStudioOrg();
   const { t, tPath } = useTranslation("studio.clientDetail");
   const [client, setClient] = useState<StudioClient | null>(null);
   const [event, setEvent] = useState<EventPublic | null>(null);
@@ -32,6 +36,9 @@ export function StudioClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const associateScope = organization?.settings?.associate_scope === "event" ? "event" : "org";
+  const showAssignees = (isSuperAdmin || memberRole === "owner") && associateScope === "event";
 
   const load = useCallback(async () => {
     const token = await getAccessToken();
@@ -180,6 +187,27 @@ export function StudioClientDetailPage() {
       {tab === "album" && event && <AlbumManager event={event} manageFrom="studio" />}
       {tab === "handoff" && (
         <ClientHandoffPanel client={client} onInvite={handleInvite} onGoLive={handleGoLive} busy={busy} />
+      )}
+      {tab === "details" && (
+        <>
+          <ClientDetailsPanel
+            client={client}
+            onUpdated={(updated) => {
+              setClient(updated);
+              if (event) {
+                setEvent({
+                  ...event,
+                  title: updated.title,
+                  wedding_date: updated.wedding_date,
+                  status: updated.status,
+                  branding: updated.branding ?? {},
+                });
+              }
+            }}
+            onError={setError}
+          />
+          {showAssignees && <ClientAssigneesPanel eventId={client.id} />}
+        </>
       )}
       {tab === "analytics" && (
         <section>

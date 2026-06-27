@@ -27,6 +27,7 @@ import type {
   Organization,
   StudioBilling,
   StudioClient,
+  StudioEventAssignee,
   StudioStats,
   AdminOrganization,
   AuditLogEntry,
@@ -985,7 +986,14 @@ export async function fetchStudioClient(eventId: string, token: string): Promise
 
 export async function updateStudioClient(
   eventId: string,
-  body: Record<string, unknown>,
+  body: {
+    title?: string | null;
+    wedding_date?: string | null;
+    client_email?: string | null;
+    photographer_notes?: string | null;
+    status?: "draft" | "active" | "closed";
+    branding?: Record<string, unknown> | null;
+  },
   token: string,
 ): Promise<StudioClient> {
   const response = await authFetch(
@@ -1117,6 +1125,68 @@ export async function updateStudioSettings(body: Record<string, unknown>, token:
     await parseError(response, "saveSettings");
   }
   return response.json() as Promise<Organization>;
+}
+
+export async function uploadStudioLogo(file: File, token: string): Promise<Organization> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await authFetch(
+    "/api/studio/settings/logo",
+    { method: "POST", body: formData },
+    studioAuth(token),
+  );
+  if (!response.ok) {
+    await parseError(response, "uploadLogo");
+  }
+  return response.json() as Promise<Organization>;
+}
+
+export async function deleteStudioLogo(token: string): Promise<Organization> {
+  const response = await authFetch("/api/studio/settings/logo", { method: "DELETE" }, studioAuth(token));
+  if (!response.ok) {
+    await parseError(response, "deleteLogo");
+  }
+  return response.json() as Promise<Organization>;
+}
+
+export async function fetchEventAssignees(
+  eventId: string,
+  token: string,
+): Promise<{ event_id: string; assignees: StudioEventAssignee[] }> {
+  const response = await authFetch(`/api/studio/events/${eventId}/assignees`, {}, studioAuth(token));
+  if (!response.ok) {
+    await parseError(response, "loadAssignees");
+  }
+  return response.json() as Promise<{ event_id: string; assignees: StudioEventAssignee[] }>;
+}
+
+export async function updateEventAssignees(
+  eventId: string,
+  userIds: string[],
+  token: string,
+): Promise<{ event_id: string; assignees: StudioEventAssignee[] }> {
+  const response = await authFetch(
+    `/api/studio/events/${eventId}/assignees`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_ids: userIds }),
+    },
+    studioAuth(token),
+  );
+  if (!response.ok) {
+    await parseError(response, "saveAssignees");
+  }
+  return response.json() as Promise<{ event_id: string; assignees: StudioEventAssignee[] }>;
+}
+
+export async function openBillingPortal(returnUrl: string, token: string): Promise<{ url: string }> {
+  const params = new URLSearchParams({ return_url: returnUrl });
+  const response = await authFetch(`/api/billing/portal?${params}`, {}, studioAuth(token));
+  if (!response.ok) {
+    await parseError(response, "openBillingPortal");
+  }
+  return response.json() as Promise<{ url: string }>;
 }
 
 export async function fetchStudioTeam(token: string): Promise<Array<{ user_id: string; role: string; email?: string; full_name?: string }>> {

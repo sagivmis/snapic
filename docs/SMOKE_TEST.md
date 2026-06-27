@@ -2,7 +2,7 @@
 
 Use this checklist before a real wedding. Run against **production** (Vercel + Render + Supabase) with a fresh test event.
 
-**Prerequisites for studio / photographer flows:** Supabase migrations `010`–`014` applied (`closed` status, `organizations`, `photographer` role, billing fields, `org_invites`). Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) is optional — skip billing steps until configured.
+**Prerequisites for studio / photographer flows:** Supabase migrations `010`–`013` applied (`closed` status, `organizations`, `photographer` role, billing fields). Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) is optional — skip billing steps until configured.
 
 ---
 
@@ -29,9 +29,9 @@ Run with a **fresh test Google account** (not super admin, not an existing coupl
 
 ### 2A. Studio enrollment
 
-- [ ] Open `/for-photographers` — page loads; **Start your studio** links to `/studio/signup`
-- [ ] `/studio/signup` (signed out) shows **Continue with Google**
-- [ ] Sign in with Google → returns to `/studio/signup`
+- [x] Open `/for-photographers` — page loads; **Start your studio** links to `/studio/signup`
+- [x] `/studio/signup` (signed out) shows **Continue with Google**
+- [x] Sign in with Google → returns to `/studio/signup`
 - [ ] Submit **Studio name** (+ optional slug) → lands on `/studio` dashboard
 - [ ] `profiles.global_role` is `photographer` (Supabase) or login redirects to `/studio`
 - [ ] Studio sidebar shows: Dashboard, Clients, Settings, Billing, Team
@@ -76,20 +76,19 @@ Run with a **fresh test Google account** (not super admin, not an existing coupl
 ### 2F. Studio settings & billing *(optional)*
 
 - [ ] **Settings** — update studio name, website, accent; **Require couple go-live** toggle saves
-- [ ] **Associate access** toggle (org-wide vs assigned events) saves
+- [ ] **Studio logo** — upload in Settings → logo appears on guest page co-branding
+- [ ] **Associate access** toggle (org-wide vs assigned events) saves; warning shown for event-scoped mode
 - [ ] **Billing** — plan usage displays *(skip checkout if Stripe not configured)*
 - [ ] With Stripe: choose plan → Checkout → webhook updates plan on return
+- [ ] **Manage billing** portal button works when `stripe_customer_id` exists
 
-### 2G. Team invite *(optional)*
+### 2G. Team invite & assignments *(optional)*
 
-- [ ] **Team** — invite associate email (existing Snapic user)
-- [ ] **Pending invitations** list shows the invite on Team page (owner)
-- [ ] Associate receives **Snapic email** (Resend) with link to `/studio/select`
-- [ ] Associate signs in → **Pending invitations** on `/studio/select` → **Accept**
-- [ ] Associate lands in studio; appears in owner **Team** member grid
-- [ ] User in **2+ studios** → `/studio/select` or sidebar **Studio** dropdown to switch
-- [ ] New user invite still receives Supabase email; must accept from `/studio/select` after signup
+- [ ] **Team** — invite associate email
+- [ ] Associate receives invite; after sign-in can access `/studio` and client list
 - [ ] Associate can upload/index on org events (when **org-wide** scope)
+- [ ] **Event-scoped access:** owner assigns associates on client **Details** tab → associate sees only assigned clients
+- [ ] **Client Details** — edit couple info, notes; **Close gallery** sets status closed
 
 ---
 
