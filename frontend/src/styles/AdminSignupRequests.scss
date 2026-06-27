@@ -18,7 +18,7 @@
   flex-direction: row;
   align-items: flex-end;
   gap: 3.5rem;
-  justify-content: Fspace-between;
+  justify-content: space-between;
 }
 
 .admin-signups__view-toggle {
@@ -159,10 +159,11 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
+  gap: 0.5rem;
   border-bottom: 1px solid $cream-200;
-
+  margin-block-start: 2.25rem;
+  padding-block-start: 1rem;
+  
   &:last-child {
     border-bottom: none;
   }
@@ -402,6 +403,7 @@
   line-height: 1.25;
   color: $taupe-500;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

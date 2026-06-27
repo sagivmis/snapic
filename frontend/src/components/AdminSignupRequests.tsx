@@ -289,7 +289,7 @@ export function AdminSignupRequests({
 
     return (
       <>
-        <div className="admin-signups__main">
+        <div className="admin-signups__main admin-signups__item-body">
           <strong>{req.couple_names}</strong>
           <span className="admin-signups__email">{req.email}</span>
           {req.wedding_date && (
@@ -315,7 +315,7 @@ export function AdminSignupRequests({
 
         {tab === "pending" && (
           <>
-            <div className="admin-signups__approve-plan">
+            <div className="admin-signups__approve-plan admin-signups__item-body">
               <label htmlFor={`approve-event-${req.id}`}>{tPath("onApprove")}</label>
               <select
                 id={`approve-event-${req.id}`}
@@ -350,7 +350,7 @@ export function AdminSignupRequests({
             </div>
 
             {plan === CREATE_NEW_EVENT && (
-              <div className="admin-signups__preview">
+              <div className="admin-signups__preview admin-signups__item-body">
                 <label htmlFor={`approve-title-${req.id}`}>{tPath("eventTitleLabel")}</label>
                 <input
                   id={`approve-title-${req.id}`}
@@ -413,7 +413,7 @@ export function AdminSignupRequests({
               </div>
             )}
 
-            <div className="admin-signups__actions">
+            <div className="admin-signups__actions admin-signups__item-body">
               <button
                 type="button"
                 className="btn btn-primary"
