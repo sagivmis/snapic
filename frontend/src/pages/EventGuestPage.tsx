@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream, ApiError } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
+import { GuestPageHero } from "../components/GuestPageHero";
 import { GuestSearchHistory } from "../components/GuestSearchHistory";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
@@ -17,11 +18,22 @@ import {
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import { useTranslation } from "../i18n";
 import { isGallerySearchReady } from "../types";
+import {
+  guestDisplayTitle,
+  guestPageRootClassName,
+  guestPageRootStyle,
+  parseGuestBranding,
+} from "../utils/guestBranding";
 import "../styles/EventGuest.scss";
 
 type GuestStep = "portrait" | "results";
 
-export function EventGuestPage() {
+interface EventGuestPageProps {
+  /** When true, renders inside the preview iframe without app chrome (route: /e/:slug/preview). */
+  embed?: boolean;
+}
+
+export function EventGuestPage({ embed = false }: EventGuestPageProps) {
   const { t, tPath } = useTranslation("events.guest");
   const { tPath: tCommon } = useTranslation("events.common");
   const { slug = "" } = useParams();
@@ -50,13 +62,17 @@ export function EventGuestPage() {
   const loginNext = slug ? `/e/${slug}` : "/";
   const loginHref = `/login?next=${encodeURIComponent(loginNext)}`;
 
-  const branding = useMemo(() => {
-    const b = event?.branding ?? {};
-    return {
-      coupleNames: typeof b.couple_names === "string" ? b.couple_names : null,
-      accent: typeof b.accent_color === "string" ? b.accent_color : null,
-    };
-  }, [event]);
+  const loadEventRow = useCallback(
+    async (slugValue: string) => {
+      const useAuth = embed || Boolean(session);
+      const token = useAuth ? await getAccessToken() : null;
+      return fetchEventBySlug(slugValue, token);
+    },
+    [embed, session, getAccessToken],
+  );
+
+  const branding = useMemo(() => parseGuestBranding(event?.branding), [event?.branding]);
+  const pageStyle = guestPageRootStyle(branding.accent);
 
   const hasPortrait = coupleMode
     ? Boolean(selfie) && Boolean(partnerSelfie)
@@ -87,7 +103,7 @@ export function EventGuestPage() {
       return;
     }
     setLoadingEvent(true);
-    fetchEventBySlug(slug)
+    void loadEventRow(slug)
       .then((row) => {
         setEvent(row);
         setError(null);
@@ -96,7 +112,7 @@ export function EventGuestPage() {
         setError(err instanceof Error ? err.message : tPath("eventNotFound"));
       })
       .finally(() => setLoadingEvent(false));
-  }, [slug]);
+  }, [slug, loadEventRow, tPath]);
 
   useEffect(() => {
     if (!slug || !event) {
@@ -107,12 +123,12 @@ export function EventGuestPage() {
       return;
     }
     const interval = window.setInterval(() => {
-      void fetchEventBySlug(slug)
+      void loadEventRow(slug)
         .then((row) => setEvent(row))
         .catch(() => {});
     }, 15_000);
     return () => window.clearInterval(interval);
-  }, [slug, event?.gallery_search_ready, event?.gallery_indexing_in_progress, event?.unindexed_photo_count, event?.gallery_photo_count]);
+  }, [slug, event?.gallery_search_ready, event?.gallery_indexing_in_progress, event?.unindexed_photo_count, event?.gallery_photo_count, loadEventRow]);
 
   const lastSearchGalleryCount = useMemo(() => {
     if (!event) {
@@ -143,12 +159,12 @@ export function EventGuestPage() {
       return;
     }
     const interval = window.setInterval(() => {
-      void fetchEventBySlug(slug)
+      void loadEventRow(slug)
         .then((row) => setEvent(row))
         .catch(() => {});
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, [slug, event?.id, event?.gallery_search_ready, lastSearchGalleryCount, pastRuns.length]);
+  }, [slug, event?.id, event?.gallery_search_ready, lastSearchGalleryCount, pastRuns.length, loadEventRow]);
 
   useEffect(() => {
     if (!event) {
@@ -196,7 +212,7 @@ export function EventGuestPage() {
     }
     setRefreshingEvent(true);
     try {
-      const row = await fetchEventBySlug(slug);
+      const row = await loadEventRow(slug);
       setEvent(row);
       setError(null);
     } catch (err) {
@@ -300,18 +316,39 @@ export function EventGuestPage() {
     );
   }
 
-  const title = branding.coupleNames ?? event.title;
+  const title = guestDisplayTitle(branding, event.title, tCommon("defaultGalleryTitle"));
   const photoCount = event.gallery_photo_count ?? 0;
+  const org = event.organization;
+
+  const studioCoBrand = org ? (
+    <div className="event-guest__studio-brand">
+      {org.logo_url && (
+        <img src={org.logo_url} alt="" className="event-guest__studio-logo" />
+      )}
+      <p className="event-guest__studio-name">{org.name}</p>
+      {org.website_url && (
+        <a href={org.website_url} target="_blank" rel="noreferrer" className="event-guest__studio-link">
+          {tCommon("photosBy", { name: org.name })}
+        </a>
+      )}
+    </div>
+  ) : null;
+
+  const rootClass = (extra?: string) =>
+    guestPageRootClassName(branding.decorationTheme, Boolean(branding.accent), extra);
 
   if (event.status === "closed") {
     return (
-      <div
-        className="event-guest event-guest--state"
-        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
-      >
+      <div className={rootClass("event-guest--state")} style={pageStyle}>
+        <GuestPageHero
+          displayName={title}
+          weddingDate={event.wedding_date}
+          welcomeMessage={branding.welcomeMessage}
+          headline={tPath("closedLead")}
+          decorationTheme={branding.decorationTheme}
+          studioBrand={studioCoBrand}
+        />
         <div className="event-guest__state-card">
-          <h1>{title}</h1>
-          <p className="event-guest__state-lead">{tPath("closedLead")}</p>
           <p>{tPath("closedDetail")}</p>
         </div>
       </div>
@@ -320,17 +357,18 @@ export function EventGuestPage() {
 
   if (photoCount === 0) {
     return (
-      <div
-        className="event-guest event-guest--state"
-        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
-      >
+      <div className={rootClass("event-guest--state")} style={pageStyle}>
+        <GuestPageHero
+          displayName={title}
+          weddingDate={event.wedding_date}
+          welcomeMessage={branding.welcomeMessage}
+          headline={tPath("photosComingSoon")}
+          description={tPath("photosComingSoonDetail")}
+          decorationTheme={branding.decorationTheme}
+          studioBrand={studioCoBrand}
+        />
         <div className="event-guest__state-card">
-          <div className="event-guest__state-icon" aria-hidden="true">
-            📷
-          </div>
-          <h1>{title}</h1>
-          <p className="event-guest__state-lead">{tPath("photosComingSoon")}</p>
-          <p>{tPath("photosComingSoonDetail")}</p>
+          <div className="event-guest__state-icon" aria-hidden="true">📷</div>
           <button
             type="button"
             className="btn btn-primary"
@@ -347,26 +385,28 @@ export function EventGuestPage() {
   if (!isGallerySearchReady(event)) {
     const unindexed = event.unindexed_photo_count ?? 0;
     const indexing = event.gallery_indexing_in_progress === true;
+    const preparingDetail =
+      unindexed > 0
+        ? tPath(unindexed === 1 ? "preparingPhotos_one" : "preparingPhotos_other", {
+            count: unindexed,
+          })
+        : indexing
+          ? tPath("indexingAlbum")
+          : tPath("preparingAlbum");
+
     return (
-      <div
-        className="event-guest event-guest--state"
-        style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
-      >
+      <div className={rootClass("event-guest--state")} style={pageStyle}>
+        <GuestPageHero
+          displayName={title}
+          weddingDate={event.wedding_date}
+          welcomeMessage={branding.welcomeMessage}
+          headline={tPath("galleryAlmostReady")}
+          description={preparingDetail}
+          decorationTheme={branding.decorationTheme}
+          studioBrand={studioCoBrand}
+        />
         <div className="event-guest__state-card">
-          <div className="event-guest__state-icon" aria-hidden="true">
-            ⏳
-          </div>
-          <h1>{title}</h1>
-          <p className="event-guest__state-lead">{tPath("galleryAlmostReady")}</p>
-          <p>
-            {unindexed > 0
-              ? tPath(unindexed === 1 ? "preparingPhotos_one" : "preparingPhotos_other", {
-                  count: unindexed,
-                })
-              : indexing
-                ? tPath("indexingAlbum")
-                : tPath("preparingAlbum")}
-          </p>
+          <div className="event-guest__state-icon" aria-hidden="true">⏳</div>
           <button
             type="button"
             className="btn btn-primary"
@@ -383,31 +423,16 @@ export function EventGuestPage() {
   const showCompactHeader =
     step === "results" && !loading && result && result.matched.length === 0;
 
-  const org = event.organization;
   const showSnapicFooter = !org || org.branding_tier === "standard";
   const showMinSnapicFooter = org?.branding_tier === "pro";
 
-  const studioCoBrand = org ? (
-    <div className="event-guest__studio-brand">
-      {org.logo_url && (
-        <img src={org.logo_url} alt="" className="event-guest__studio-logo" />
-      )}
-      <p className="event-guest__studio-name">{org.name}</p>
-      {org.website_url && (
-        <a href={org.website_url} target="_blank" rel="noreferrer" className="event-guest__studio-link">
-          {tCommon("photosBy", { name: org.name })}
-        </a>
-      )}
-    </div>
-  ) : null;
-
   return (
     <div
-      className={`event-guest${step === "results" ? " event-guest--results" : ""}`}
-      style={branding.accent ? ({ "--event-accent": branding.accent } as CSSProperties) : undefined}
+      className={rootClass(step === "results" ? "event-guest--results" : undefined)}
+      style={pageStyle}
     >
-      <InstallPrompt />
-      <GuestSearchHistory runs={pastRuns} />
+      {!embed && <InstallPrompt />}
+      {!embed && <GuestSearchHistory runs={pastRuns} />}
 
       {!network.online && (
         <div className="event-guest__network-banner event-guest__network-banner--offline" role="status">
@@ -450,23 +475,27 @@ export function EventGuestPage() {
       )}
 
       {step === "portrait" && (
-        <header className="event-guest__header">
-          {studioCoBrand}
-          <p className="event-guest__eyebrow">{title}</p>
-          <h1>{tPath("findYourPhotos")}</h1>
-          {event.wedding_date && (
-            <p className="event-guest__date">{new Date(event.wedding_date).toLocaleDateString()}</p>
-          )}
-          <p className="event-guest__desc">{tPath("uploadSelfieDesc", { count: photoCount })}</p>
-        </header>
+        <GuestPageHero
+          displayName={title}
+          weddingDate={event.wedding_date}
+          welcomeMessage={branding.welcomeMessage}
+          headline={tPath("findYourPhotos")}
+          description={tPath("uploadSelfieDesc", { count: photoCount })}
+          decorationTheme={branding.decorationTheme}
+          studioBrand={studioCoBrand}
+        />
       )}
 
       {step === "results" && (
-        <header className="event-guest__header event-guest__header--compact">
-          {studioCoBrand}
-          <p className="event-guest__eyebrow">{title}</p>
-          <h1>{showCompactHeader ? tPath("noMatchesYet") : tPath("yourPhotos")}</h1>
-        </header>
+        <GuestPageHero
+          displayName={title}
+          weddingDate={event.wedding_date}
+          welcomeMessage={branding.welcomeMessage}
+          headline={showCompactHeader ? tPath("noMatchesYet") : tPath("yourPhotos")}
+          compact
+          decorationTheme={branding.decorationTheme}
+          studioBrand={studioCoBrand}
+        />
       )}
 
       <div className="event-guest__content">

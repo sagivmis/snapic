@@ -1,0 +1,108 @@
+@use "variables" as *;
+
+.decoration-theme-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin-top: 0.35rem;
+
+  @media (min-width: 520px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.decoration-theme-picker__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem;
+  border-radius: $radius-lg;
+  border: 1px solid rgba($cream-300, 0.9);
+  background: rgba($white, 0.85);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &:hover {
+    border-color: rgba($champagne-400, 0.65);
+  }
+
+  &--selected {
+    border-color: var(--picker-accent, #{$champagne-500});
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--picker-accent, #{$champagne-500}) 25%, transparent);
+  }
+}
+
+.decoration-theme-picker__preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: $radius-lg;
+  background: $cream-50;
+  border: 1px solid rgba($cream-300, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+.decoration-theme-picker__preview-inner {
+  position: absolute;
+  inset: 0.35rem;
+  border-radius: calc(#{$radius-lg} - 2px);
+  background: rgba($white, 0.92);
+}
+
+.decoration-theme-picker__option--classic .decoration-theme-picker__preview-inner {
+  border: 1px solid rgba($cream-400, 0.8);
+
+  &::before,
+  &::after {
+    content: "✦";
+    position: absolute;
+    font-size: 0.625rem;
+    color: var(--picker-accent, #{$champagne-500});
+    opacity: 0.85;
+  }
+
+  &::before {
+    top: 0.2rem;
+    left: 0.35rem;
+  }
+
+  &::after {
+    bottom: 0.2rem;
+    right: 0.35rem;
+  }
+}
+
+.decoration-theme-picker__option--floral .decoration-theme-picker__preview {
+  background:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--picker-accent, #{$champagne-400}) 22%, transparent), transparent 42%),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--picker-accent, #{$blush-300}) 18%, transparent), transparent 40%),
+    $cream-50;
+}
+
+.decoration-theme-picker__option--hearts .decoration-theme-picker__preview {
+  background-color: $cream-50;
+  background-image: radial-gradient(color-mix(in srgb, var(--picker-accent, #{$blush-400}) 35%, transparent) 18%, transparent 19%);
+  background-size: 1.1rem 1.1rem;
+  background-position: 0 0;
+}
+
+.decoration-theme-picker__option--elegant .decoration-theme-picker__preview-inner {
+  border: 1px solid rgba($cream-400, 0.9);
+  box-shadow: inset 0 0 0 3px rgba($white, 0.95), inset 0 0 0 4px rgba($cream-300, 0.75);
+}
+
+.decoration-theme-picker__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $taupe-600;
+  text-align: center;
+  line-height: 1.25;
+}

@@ -19,6 +19,7 @@ import {
 import { AlbumGrid, type AlbumGridHandle } from "../components/AlbumGrid";
 import { AlbumStatusBanner } from "../components/AlbumStatusBanner";
 import { AlbumUpload } from "../components/AlbumUpload";
+import { DecorationThemePicker } from "../components/DecorationThemePicker";
 import { EventManageSkeleton } from "../components/EventManageSkeleton";
 import { GuestQrCode } from "../components/GuestQrCode";
 import { useAuth } from "../auth/AuthProvider";
@@ -27,6 +28,7 @@ import type { IndexStreamEvent } from "../api/client";
 import { useTranslation } from "../i18n";
 import { formatIndexResult } from "../utils/galleryFaceIndex";
 import { canManageEvent } from "../utils/eventAccess";
+import { type DecorationTheme, parseGuestBranding } from "../utils/guestBranding";
 import "../styles/EventManage.scss";
 
 type ManageTab = "album" | "settings";
@@ -41,6 +43,7 @@ export function EventManagePage() {
   const { tPath: tStats } = useTranslation("events.common.stats");
   const { tPath: tSections } = useTranslation("events.common.sections");
   const { tPath: tStatus } = useTranslation("events.common.status");
+  const { tPath: tBranding } = useTranslation("events.common.branding");
   const { slug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,6 +74,8 @@ export function EventManagePage() {
   const [status, setStatus] = useState<EventPublic["status"]>("draft");
   const [coupleNames, setCoupleNames] = useState("");
   const [accentColor, setAccentColor] = useState("#c9a962");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [decorationTheme, setDecorationTheme] = useState<DecorationTheme>("classic");
   const [threshold, setThreshold] = useState(0.4);
   const [autoCloseDays, setAutoCloseDays] = useState(90);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -146,9 +151,11 @@ export function EventManagePage() {
       setStatus(ev.status);
       setThreshold(ev.default_threshold);
       setAutoCloseDays(ev.auto_close_days ?? 90);
-      const branding = ev.branding ?? {};
-      setCoupleNames(typeof branding.couple_names === "string" ? branding.couple_names : "");
-      setAccentColor(typeof branding.accent_color === "string" ? branding.accent_color : "#c9a962");
+      const branding = parseGuestBranding(ev.branding);
+      setCoupleNames(branding.coupleNames ?? "");
+      setAccentColor(branding.accent ?? "#c9a962");
+      setWelcomeMessage(branding.welcomeMessage ?? "");
+      setDecorationTheme(branding.decorationTheme);
 
       const hasMembership = await canManageEvent(ev, token, isSuperAdmin);
       setIsAdmin(hasMembership);
@@ -269,8 +276,11 @@ export function EventManagePage() {
           default_threshold: threshold,
           auto_close_days: autoCloseDays,
           branding: {
+            ...(event.branding ?? {}),
             couple_names: coupleNames,
             accent_color: accentColor,
+            welcome_message: welcomeMessage,
+            decoration_theme: decorationTheme,
           },
         },
         token,
@@ -764,6 +774,25 @@ export function EventManagePage() {
               type="color"
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
+            />
+
+            <label htmlFor="welcome">{tBranding("welcomeMessageLabel")}</label>
+            <textarea
+              id="welcome"
+              className="event-manage__textarea"
+              rows={3}
+              value={welcomeMessage}
+              onChange={(e) => setWelcomeMessage(e.target.value)}
+              placeholder={tBranding("welcomeMessagePlaceholder")}
+            />
+            <p className="event-manage__hint">{tBranding("welcomeMessageHint")}</p>
+
+            <label>{tBranding("decorationLabel")}</label>
+            <DecorationThemePicker
+              value={decorationTheme}
+              onChange={setDecorationTheme}
+              accentColor={accentColor}
+              name="manage-decoration"
             />
 
             <label htmlFor="threshold">{tPath("thresholdLabel", { value: threshold.toFixed(2) })}</label>

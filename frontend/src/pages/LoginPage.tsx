@@ -2,23 +2,14 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useAuth } from "../auth/AuthProvider";
+import { usePostLoginRoute } from "../hooks/usePostLoginRoute";
 import { useTranslation } from "../i18n";
 import { isSupabaseConfigured } from "../lib/supabase";
 import "../styles/AuthPages.scss";
 
-function defaultPathForRole(globalRole: string | undefined): string {
-  if (globalRole === "super_admin") {
-    return "/admin";
-  }
-  if (globalRole === "photographer") {
-    return "/studio/select";
-  }
-  return "/";
-}
-
 export function LoginPage() {
   const { t, tPath } = useTranslation("auth");
-  const { signInWithGoogle, signInWithMagicLink, session, loading, profile } = useAuth();
+  const { signInWithGoogle, signInWithMagicLink, session, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const nextFromQuery = new URLSearchParams(location.search).get("next");
@@ -30,14 +21,22 @@ export function LoginPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const destination = usePostLoginRoute();
 
   useEffect(() => {
-    if (!loading && session) {
-      const fallback = defaultPathForRole(profile?.global_role);
-      const destination = from === "/" ? fallback : from;
-      navigate(destination, { replace: true });
+    if (loading || !session) {
+      return;
     }
-  }, [loading, session, navigate, from, profile?.global_role]);
+    // Honor explicit ?next= or location state first; fall back to the smart router
+    // once memberships have loaded so we can route couples/photographers correctly.
+    if (from !== "/") {
+      navigate(from, { replace: true });
+      return;
+    }
+    if (destination.loaded) {
+      navigate(destination.path, { replace: true });
+    }
+  }, [loading, session, navigate, from, destination.loaded, destination.path]);
 
   if (!isSupabaseConfigured) {
     return (

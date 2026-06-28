@@ -1,0 +1,172 @@
+@use "variables" as *;
+
+.help-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.help-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(45, 33, 22, 0.5);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.help-drawer__panel {
+  position: relative;
+  width: 100%;
+  max-width: 24rem;
+  height: 100dvh;
+  background: $white;
+  box-shadow: -12px 0 32px rgba(45, 33, 22, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: help-drawer-slide 0.25s ease-out;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@keyframes help-drawer-slide {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.help-drawer__head {
+  position: sticky;
+  top: 0;
+  background: $cream-50;
+  border-bottom: 1px solid $cream-200;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+  z-index: 1;
+
+  h2 {
+    margin: 0;
+    font-family: $font-display;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: $taupe-700;
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    color: $taupe-400;
+    line-height: 1.4;
+  }
+}
+
+.help-drawer__close {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $cream-300;
+  background: $white;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: $taupe-600;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $cream-100;
+  }
+}
+
+.help-drawer__topics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.help-drawer__topic {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid $cream-200;
+
+  h3 {
+    margin: 0 0 0.4rem;
+    font-family: $font-display;
+    font-size: 1rem;
+    font-weight: 500;
+    color: $taupe-700;
+    line-height: 1.3;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: $taupe-500;
+  }
+}
+
+.help-drawer__topic-action {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0;
+  background: none;
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $champagne-600;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.help-drawer__footer {
+  margin-top: auto;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid $cream-200;
+  background: $cream-50;
+  font-size: 0.8125rem;
+  color: $taupe-500;
+}
+
+/* Help "?" pill button (consumer-side; can live on any page) */
+.help-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid $cream-300;
+  background: $white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $taupe-600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: $cream-50;
+    border-color: $champagne-600;
+    color: $champagne-600;
+  }
+
+  &::before {
+    content: "?";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: $champagne-600;
+    color: $white;
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+}

@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { submitSignupRequest } from "../api/client";
 import { useTranslation } from "../i18n";
+import { track } from "../lib/analytics";
 import "../styles/RequestAccess.scss";
 
 const BENEFIT_KEYS = ["private", "instant", "setup"] as const;
@@ -29,6 +30,7 @@ export function RequestAccessPage() {
         message: message.trim() || null,
       });
       setSubmitted(true);
+      track("request_access_submitted", { hasDate: Boolean(weddingDate) });
     } catch (err) {
       setError(err instanceof Error ? err.message : tPath("submitFailed"));
     } finally {
@@ -41,6 +43,11 @@ export function RequestAccessPage() {
     const namePart = trimmedNames
       ? tPath("successLeadNamePart", { name: trimmedNames })
       : "";
+    const submittedEmail = email.trim();
+    const emailDomain = submittedEmail.split("@")[1] ?? "";
+    const webmailHref = emailDomain
+      ? `https://${emailDomain}`
+      : "mailto:";
 
     return (
       <div className="request-page">
@@ -51,14 +58,33 @@ export function RequestAccessPage() {
           <p className="request-page__eyebrow">{tPath("successEyebrow")}</p>
           <h1>{tPath("successTitle")}</h1>
           <p className="request-page__success-lead">
-            {tPath("successLead", { namePart, email: email.trim() })}
+            {tPath("successLead", { namePart, email: submittedEmail })}
           </p>
+          <p className="request-page__success-promise">{tPath("successFastPromise")}</p>
           <ul className="request-page__next-steps">
             {NEXT_STEP_KEYS.map((key) => (
               <li key={key}>{tPath(`nextSteps.${key}`)}</li>
             ))}
           </ul>
-          <Link to="/" className="btn btn-secondary">
+          <div className="request-page__success-actions">
+            <a href={webmailHref} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              {tPath("openMail")}
+            </a>
+            <Link to={`/login?next=/`} className="btn btn-secondary">
+              {tPath("alreadyApproved")}
+            </Link>
+          </div>
+          <button
+            type="button"
+            className="request-page__resubmit"
+            onClick={() => {
+              setSubmitted(false);
+              setEmail("");
+            }}
+          >
+            {tPath("wrongEmail")}
+          </button>
+          <Link to="/" className="request-page__success-back">
             {t("backHome")}
           </Link>
         </div>

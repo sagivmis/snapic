@@ -10,6 +10,8 @@ import {
   NavIconGallery,
   NavIconHome,
   NavIconMore,
+  NavIconPhotographer,
+  NavIconRequest,
   NavIconStudio,
 } from "./MobileNavIcons";
 import "../../styles/MobileNav.scss";
@@ -31,6 +33,10 @@ function TabIcon({ id, className }: { id: MobileTab["id"]; className?: string })
       return <NavIconGallery className={className} />;
     case "demo":
       return <NavIconDemo className={className} />;
+    case "request":
+      return <NavIconRequest className={className} />;
+    case "photographers":
+      return <NavIconPhotographer className={className} />;
     case "more":
       return <NavIconMore className={className} />;
   }

@@ -5,7 +5,14 @@ import { useStudioMembership } from "./useStudioMembership";
 import { eventManagePath, useUserEvents } from "./useUserEvents";
 import { isSupabaseConfigured } from "../lib/supabase";
 
-export type MobileTabId = "home" | "studio" | "gallery" | "demo" | "more";
+export type MobileTabId =
+  | "home"
+  | "studio"
+  | "gallery"
+  | "demo"
+  | "more"
+  | "request"
+  | "photographers";
 
 export interface MobileTab {
   id: MobileTabId;
@@ -71,7 +78,12 @@ export function useMobileNav() {
     if (session) {
       items.push({ id: "more", labelKey: "more", opensMore: true });
     } else {
-      items.push({ id: "demo", labelKey: "demo", to: "/demo" });
+      // Surface the bride and photographer entry points as primary mobile tabs
+      // instead of hiding them inside the "More" sheet.
+      if (isSupabaseConfigured) {
+        items.push({ id: "request", labelKey: "request", to: "/request-access" });
+      }
+      items.push({ id: "photographers", labelKey: "photographers", to: "/for-photographers" });
       items.push({ id: "more", labelKey: "more", opensMore: true });
     }
 
@@ -89,6 +101,10 @@ export function useMobileNav() {
         return events.some((event) => path.startsWith(`/e/${event.slug}`));
       case "demo":
         return path === "/demo" || path.startsWith("/demo/");
+      case "request":
+        return path === "/request-access" || path.startsWith("/request-access/");
+      case "photographers":
+        return path === "/for-photographers";
       default:
         return false;
     }
@@ -123,15 +139,17 @@ export function useMobileNav() {
     }
 
     const secondary: MobileSheetLink[] = [];
-    if (isSupabaseConfigured) {
+    // For signed-out users these are now primary bottom tabs, so only add them
+    // to the More sheet when the user is signed in.
+    if (session && isSupabaseConfigured) {
       secondary.push({ to: "/request-access", labelKey: "requestGallery" });
     }
-    if (showForPhotographers) {
+    if (session && showForPhotographers) {
       secondary.push({ to: "/for-photographers", labelKey: "forPhotographers" });
     }
-    if (session) {
-      secondary.push({ to: "/demo", labelKey: "tryDemo", end: true });
-    }
+    // Try demo always lives in More (signed-out users have a dedicated landing
+    // chooser that surfaces it inline).
+    secondary.push({ to: "/demo", labelKey: "tryDemo", end: true });
     if (secondary.length > 0) {
       sections.push({ links: secondary });
     }

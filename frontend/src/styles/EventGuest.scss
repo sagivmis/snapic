@@ -6,6 +6,32 @@
   padding: 1.25rem 1rem 2.5rem;
   min-height: 100dvh;
 
+  &--themed {
+    background-color: $cream-50;
+    background-image:
+      radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--event-accent, #{$champagne-400}) 14%, transparent), transparent 52%),
+      radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--event-accent, #{$blush-300}) 12%, transparent), transparent 48%),
+      radial-gradient(ellipse at 50% 0%, rgba($blush-100, 0.4) 0%, transparent 55%);
+
+    .btn-primary {
+      background: var(--event-accent, #{$champagne-500});
+
+      &:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--event-accent, #{$champagne-500}) 82%, #{$taupe-700});
+      }
+    }
+  }
+
+  &--decoration-hearts.event-guest--themed {
+    background-image:
+      radial-gradient(color-mix(in srgb, var(--event-accent, #{$blush-400}) 22%, transparent) 18%, transparent 19%),
+      radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--event-accent, #{$champagne-400}) 12%, transparent), transparent 52%),
+      radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--event-accent, #{$blush-300}) 10%, transparent), transparent 48%),
+      $cream-50;
+    background-size: 1.5rem 1.5rem, auto, auto, auto;
+    background-position: center, 0 0, 100% 100%, 0 0;
+  }
+
   &--loading {
     display: flex;
     align-items: center;
@@ -15,9 +41,11 @@
 
   &--state {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     min-height: 100dvh;
+    padding-top: 0.75rem;
   }
 
   &__language {
@@ -293,4 +321,21 @@
 .event-guest__studio-link {
   font-size: 0.8125rem;
   color: var(--event-accent, #{$champagne-600});
+}
+
+.event-guest__powered {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: $taupe-400;
+
+  a {
+    color: $taupe-500;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--event-accent, #{$champagne-600});
+    }
+  }
 }

@@ -1,0 +1,174 @@
+@use "variables" as *;
+
+.guest-page-hero {
+  position: relative;
+  margin-bottom: 1.75rem;
+  padding: 1.5rem 1rem 1.25rem;
+  text-align: center;
+
+  &__frame {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+  }
+
+  &__corner {
+    position: absolute;
+    width: 2.25rem;
+    height: 2.25rem;
+    opacity: 0.75;
+    color: var(--event-accent, #{$champagne-500});
+
+    &--tl {
+      top: 0.25rem;
+      left: 0.25rem;
+      border-top: 2px solid currentColor;
+      border-left: 2px solid currentColor;
+    }
+
+    &--tr {
+      top: 0.25rem;
+      right: 0.25rem;
+      border-top: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+    }
+
+    &--bl {
+      bottom: 0.25rem;
+      left: 0.25rem;
+      border-bottom: 2px solid currentColor;
+      border-left: 2px solid currentColor;
+    }
+
+    &--br {
+      bottom: 0.25rem;
+      right: 0.25rem;
+      border-bottom: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+    }
+  }
+
+  &--decoration-classic &__corner::after {
+    content: "✦";
+    position: absolute;
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  &--decoration-classic &__corner--tl::after {
+    top: -0.15rem;
+    left: -0.15rem;
+  }
+
+  &--decoration-classic &__corner--tr::after {
+    top: -0.15rem;
+    right: -0.15rem;
+  }
+
+  &--decoration-classic &__corner--bl::after {
+    bottom: -0.15rem;
+    left: -0.15rem;
+  }
+
+  &--decoration-classic &__corner--br::after {
+    bottom: -0.15rem;
+    right: -0.15rem;
+  }
+
+  &--decoration-floral &__frame {
+    background:
+      radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--event-accent, #{$champagne-400}) 16%, transparent), transparent 38%),
+      radial-gradient(circle at 92% 88%, color-mix(in srgb, var(--event-accent, #{$blush-300}) 14%, transparent), transparent 36%);
+    border-radius: $radius-xl;
+  }
+
+  &--decoration-hearts &__frame {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--event-accent, #{$blush-400}) 28%, transparent) 22%,
+      transparent 23%
+    );
+    background-size: 1.35rem 1.35rem;
+    background-position: center;
+    opacity: 0.35;
+    border-radius: $radius-xl;
+  }
+
+  &--decoration-elegant {
+    border: 1px solid rgba($cream-400, 0.85);
+    border-radius: $radius-xl;
+    box-shadow: inset 0 0 0 4px rgba($white, 0.65);
+    background: rgba($white, 0.45);
+  }
+
+  &__content {
+    position: relative;
+    z-index: 1;
+  }
+
+  &__names-wrap {
+    margin-top: 0.25rem;
+  }
+
+  &__names {
+    margin: 0;
+    font-family: $font-display;
+    font-size: clamp(1.75rem, 7vw, 2.5rem);
+    font-weight: 600;
+    font-style: italic;
+    line-height: 1.15;
+    color: $taupe-700;
+  }
+
+  &__date {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--event-accent, #{$champagne-600});
+  }
+
+  &__welcome {
+    margin: 1rem auto 0;
+    max-width: 22rem;
+    font-family: $font-display;
+    font-size: 1.0625rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: $taupe-500;
+  }
+
+  &__headline {
+    margin: 1rem 0 0;
+    font-family: $font-sans;
+    font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+    font-weight: 600;
+    color: $taupe-700;
+  }
+
+  &__desc {
+    margin: 0.5rem auto 0;
+    max-width: 24rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: $taupe-500;
+  }
+
+  &--compact {
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.5rem 0.5rem;
+
+    .guest-page-hero__names {
+      font-size: clamp(1.25rem, 5vw, 1.625rem);
+    }
+
+    .guest-page-hero__headline {
+      margin-top: 0.5rem;
+      font-size: 1.0625rem;
+    }
+
+    .guest-page-hero__frame {
+      opacity: 0.65;
+    }
+  }
+}

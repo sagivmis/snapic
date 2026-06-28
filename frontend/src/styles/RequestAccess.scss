@@ -16,6 +16,18 @@
     }
   }
 
+  /* On mobile, surface the form first so brides see the call-to-action
+     immediately and don't have to scroll past the marketing intro. */
+  @media (max-width: ($breakpoint-lg - 1)) {
+    &__intro {
+      order: 2;
+    }
+
+    &__panel {
+      order: 1;
+    }
+  }
+
   &__eyebrow {
     margin: 0 0 0.65rem;
     font-size: 0.75rem;
@@ -284,6 +296,58 @@
     strong {
       font-weight: 600;
       color: $taupe-700;
+    }
+  }
+
+  &__success-promise {
+    margin: -0.5rem 0 1.25rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba($champagne-400, 0.12);
+    border-radius: 999px;
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $champagne-600;
+  }
+
+  &__success-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+
+    .btn {
+      width: 100%;
+      padding: 0.85rem 1rem;
+    }
+  }
+
+  &__resubmit {
+    background: none;
+    border: none;
+    color: $taupe-500;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    text-decoration: underline;
+    display: block;
+    margin: 0 auto;
+
+    &:hover {
+      color: $champagne-600;
+    }
+  }
+
+  &__success-back {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    color: $taupe-400;
+    text-decoration: none;
+
+    &:hover {
+      color: $champagne-600;
+      text-decoration: underline;
     }
   }
 

@@ -77,7 +77,9 @@
       "more": "More",
       "moreTitle": "Menu",
       "closeSheet": "Close menu",
-      "pickGallery": "Choose gallery"
+      "pickGallery": "Choose gallery",
+      "request": "Get gallery",
+      "photographers": "Photographers"
     }
   },
   "landing": {
@@ -85,7 +87,37 @@
     "title": "Find yourself in every wedding photo",
     "lead": "Guests upload a selfie and instantly find every wedding photo they appear in — no scrolling through hundreds of shots.",
     "hintSignedIn": "Use the tabs below to open your studio, gallery, or admin tools.",
-    "hintSignedOut": "Try the demo, request a gallery, or explore Snapic Studio for photographers."
+    "hintSignedOut": "Try the demo, request a gallery, or explore Snapic Studio for photographers.",
+    "chooser": {
+      "title": "What brings you here?",
+      "guest": {
+        "title": "I'm a wedding guest",
+        "lead": "Open the link the couple shared, scan the QR, or paste your event code below.",
+        "cta": "Find my photos",
+        "placeholder": "snapic.com/e/your-event",
+        "openLink": "Open my event",
+        "tryDemo": "No link? Try a demo"
+      },
+      "couple": {
+        "title": "I'm getting married",
+        "lead": "Request your private gallery. Guests find their photos with a selfie — no scrolling.",
+        "cta": "Request my gallery"
+      },
+      "photographer": {
+        "title": "I'm a photographer",
+        "lead": "Run client galleries, manage uploads and indexing, and hand off to couples in minutes.",
+        "cta": "Open Snapic Studio"
+      }
+    },
+    "signedIn": {
+      "greeting": "Welcome back",
+      "continueAdmin": "Open admin dashboard",
+      "continueCoupleOnboarding": "Finish setting up my gallery",
+      "continueCoupleHome": "Open my gallery",
+      "continueStudio": "Open my studio",
+      "continueStudioSelect": "Choose a studio",
+      "secondaryHint": "Switch roles any time from the menu."
+    }
   },
   "forPhotographers": {
     "eyebrow": "For wedding photographers",
@@ -194,7 +226,11 @@
       "review": "We review your request within a couple of business days.",
       "email": "You'll get an email when your private gallery is ready.",
       "share": "Share the guest link so friends and family can find their photos."
-    }
+    },
+    "successFastPromise": "Most requests are approved within a few hours.",
+    "alreadyApproved": "Already received an email? Sign in",
+    "openMail": "Open my email app",
+    "wrongEmail": "Used the wrong email? Send another request"
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -311,6 +347,8 @@
       "newClient": "New client",
       "loadFailed": "Could not load clients",
       "noClients": "No clients yet.",
+      "noClientsLead": "Create your first gallery to start matching guests to their photos.",
+      "emptyCta": "Create your first client",
       "delete": "Delete",
       "deleteSelected": "Delete selected",
       "selectAllClients": "Select all clients",
@@ -544,7 +582,20 @@
       },
       "guestLinkCopied": "Guest link copied.",
       "poweredBy": "Powered by Snapic",
-      "photosBy": "Photos by {{name}}"
+      "photosBy": "Photos by {{name}}",
+      "branding": {
+        "welcomeMessageLabel": "Welcome message for guests",
+        "welcomeMessagePlaceholder": "We loved celebrating with you! Find your photos below.",
+        "welcomeMessageHint": "Shown on your guest page below your names",
+        "decorationLabel": "Page style",
+        "decorations": {
+          "none": "Clean",
+          "classic": "Ornate corners",
+          "floral": "Floral",
+          "hearts": "Hearts",
+          "elegant": "Elegant frame"
+        }
+      }
     },
     "guest": {
       "notFoundTitle": "Event not found",
@@ -714,6 +765,88 @@
       "readyHintComplete": "Your gallery is ready for guests. Finish setup to hide this wizard.",
       "readyHintProgress": "Return here after each step — the next action will update automatically.",
       "skipToDashboard": "Skip to dashboard",
+      "coupleHome": {
+        "eyebrow": "Your wedding gallery",
+        "untitled": "Your wedding",
+        "nextStepLabel": "Next step",
+        "nextStepReady": "Your gallery is live",
+        "nextStepReadyLead": "Guests can now find their photos. Share your link below.",
+        "progress": {
+          "branding": "Personalize",
+          "photos": "Photos",
+          "live": "Go live",
+          "share": "Share"
+        },
+        "brandingSummary": "Personalize your gallery",
+        "brandingSavedTap": "Saved — tap to edit",
+        "brandingEdit": "Edit details",
+        "brandingCancel": "Cancel",
+        "coadminTitle": "Invite a co-admin",
+        "coadminLead": "Let your partner upload photos and manage settings too.",
+        "previewAsGuest": "Preview as guest",
+        "shareTitle": "Share with your guests",
+        "shareLead": "Send this link or QR to your guests so they can find their photos.",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "openShare": "Share",
+        "shareText": "Find your photos from our wedding: {{url}}",
+        "viewFullDashboard": "Open full dashboard",
+        "needHelp": "Need help?"
+      },
+      "preview": {
+        "title": "Guest preview",
+        "subtitle": "This is exactly what your wedding guests will see.",
+        "close": "Close preview",
+        "openInTab": "Open in new tab",
+        "loading": "Loading preview…"
+      },
+      "share": {
+        "title": "Share your gallery",
+        "subtitle": "Send this link to your wedding guests.",
+        "linkLabel": "Guest link",
+        "copy": "Copy",
+        "copied": "Copied",
+        "native": "Share…",
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "emailSubject": "Find your photos from our wedding",
+        "close": "Done"
+      },
+      "help": {
+        "trigger": "Help",
+        "title": "How Snapic works",
+        "subtitle": "Quick answers for the bride & groom.",
+        "close": "Close",
+        "topics": {
+          "guestFlow": {
+            "title": "How will guests use this?",
+            "body": "Send guests your link or QR. They take a quick selfie and instantly see every photo they appear in — no scrolling through hundreds of shots."
+          },
+          "upload": {
+            "title": "How do I add photos?",
+            "body": "Tap 'Upload your wedding photos' on the next-step card. You can drag-and-drop or pick files from your phone. After upload, we index faces automatically.",
+            "action": "Go to album"
+          },
+          "partner": {
+            "title": "Can my partner help manage this?",
+            "body": "Yes — invite them in the 'Invite a co-admin' section. They'll receive an email and can upload photos and manage settings too.",
+            "action": "Invite co-admin"
+          },
+          "indexing": {
+            "title": "Why aren't guests finding photos?",
+            "body": "After every upload, Snapic needs a moment to scan faces. The next-step card will show you when indexing is finished and your gallery is ready to share."
+          },
+          "preview": {
+            "title": "What will guests actually see?",
+            "body": "Tap 'Preview as guest' at the top of this page to open a live preview of your guest page — the same experience your friends and family will get.",
+            "action": "Open preview"
+          },
+          "support": {
+            "title": "Still stuck?",
+            "body": "Reply to your approval email or reach out to your photographer — we're here to help on your big day."
+          }
+        }
+      },
       "indexReadyNotice": "{{result}} Your album is ready to go live.",
       "indexNoPhotos": "No photos were indexed. Some images may be corrupted or missing faces — try re-uploading them.",
       "indexPartialNotice": "{{result}} {{remaining}} still need attention.",

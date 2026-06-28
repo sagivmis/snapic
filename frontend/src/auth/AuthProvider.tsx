@@ -138,7 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (session) {
+    // Skip in iframe embeds (guest preview) — avoids duplicate RPCs and parent auth churn.
+    if (session && window.self === window.top) {
       void claimAnonymousSessions();
     }
   }, [session, claimAnonymousSessions]);
