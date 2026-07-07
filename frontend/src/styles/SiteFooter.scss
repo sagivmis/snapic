@@ -1,0 +1,76 @@
+@use "variables" as *;
+
+.site-footer {
+  margin-top: 1.5rem;
+
+  &--inline {
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba($taupe-700, 0.08);
+  }
+
+  &--page {
+    text-align: center;
+    padding-bottom: 1rem;
+  }
+
+  &__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.5rem;
+
+    a {
+      font-size: 0.75rem;
+      color: $taupe-400;
+      text-decoration: none;
+
+      &:hover {
+        color: $champagne-600;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &--page &__links {
+    justify-content: center;
+  }
+
+  &__copy {
+    font-size: 0.7rem;
+    color: $taupe-400;
+    margin: 0;
+  }
+}
+
+.app-layout__footer .site-footer {
+  margin-top: 0.75rem;
+
+  &__links {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
+
+.mobile-sheet__section--footer .site-footer {
+  margin-top: 0.75rem;
+  width: 100%;
+
+  &__links {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.auth-page .site-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+
+  &__links {
+    justify-content: center;
+  }
+}
+
+.event-guest__legal-footer {
+  margin-top: 0.5rem;
+  text-align: center;
+}

@@ -12,6 +12,10 @@ from snapic.api.schemas import (
     AdminEventSummary,
     AdminOrganizationSummary,
     AdminStatsResponse,
+    AffiliateCreate,
+    AffiliatePayoutMarkPaidRequest,
+    AffiliatePayoutResponse,
+    AffiliateResponse,
     AuditLogEntry,
     EventCreateRequest,
     EventPublicResponse,
@@ -22,6 +26,16 @@ from snapic.api.schemas import (
     SlugCheckResponse,
 )
 from snapic.auth.jwt import AuthUser, require_super_admin
+from snapic.db.affiliates import (
+    affiliate_stats,
+    create_affiliate,
+    is_valid_affiliate_code,
+    list_affiliate_payouts,
+    list_affiliates,
+    mark_affiliate_payouts_paid,
+    maybe_accrue_affiliate_payout,
+    normalize_affiliate_code,
+)
 from snapic.db.approval_email import send_gallery_approval_email, send_signup_rejection_email
 from snapic.db.audit_log import list_audit_log, record_audit_log
 from snapic.db.invites import invite_event_admin
@@ -412,6 +426,7 @@ async def admin_list_signup_requests(
             wedding_date=r.get("wedding_date"),
             message=r.get("message"),
             status=r["status"],
+            referral_code=r.get("referral_code"),
             created_at=r.get("created_at"),
             reviewed_at=r.get("reviewed_at"),
             created_event_id=r.get("created_event_id"),
@@ -492,6 +507,7 @@ async def admin_review_signup(
                 "created_event_id": event["id"],
             },
         )
+        maybe_accrue_affiliate_payout(row)
         _audit(
             user,
             "signup.approve",
@@ -516,9 +532,106 @@ async def admin_review_signup(
         created_at=row.get("created_at"),
         reviewed_at=row.get("reviewed_at"),
         created_event_id=row.get("created_event_id"),
+        referral_code=row.get("referral_code"),
         welcome_email_sent=welcome_email_sent,
         rejection_email_sent=rejection_email_sent,
     )
+
+
+@router.get("/affiliates", response_model=list[AffiliateResponse])
+async def admin_list_affiliates(
+    user: Annotated[AuthUser, Depends(require_super_admin)],
+) -> list[AffiliateResponse]:
+    del user
+    rows = list_affiliates()
+    result: list[AffiliateResponse] = []
+    for row in rows:
+        stats = affiliate_stats(row["code"])
+        result.append(
+            AffiliateResponse(
+                id=row["id"],
+                code=row["code"],
+                display_name=row["display_name"],
+                email=row["email"],
+                phone=row.get("phone"),
+                status=row["status"],
+                created_at=row.get("created_at"),
+                submissions=stats["submissions"],
+                approved=stats["approved"],
+                accrued_nis=stats["accrued_nis"],
+                paid_nis=stats["paid_nis"],
+            )
+        )
+    return result
+
+
+@router.post("/affiliates", response_model=AffiliateResponse)
+async def admin_create_affiliate(
+    body: AffiliateCreate,
+    user: Annotated[AuthUser, Depends(require_super_admin)],
+) -> AffiliateResponse:
+    code = normalize_affiliate_code(body.code)
+    if not is_valid_affiliate_code(code):
+        raise HTTPException(status_code=400, detail="Invalid affiliate code format")
+    row = create_affiliate(
+        {
+            "code": code,
+            "display_name": body.display_name.strip(),
+            "email": body.email.strip().lower(),
+            "phone": body.phone.strip() if body.phone else None,
+            "status": "active",
+        }
+    )
+    _audit(user, "affiliate.create", "affiliate", entity_id=row["id"], metadata={"code": code})
+    stats = affiliate_stats(code)
+    return AffiliateResponse(
+        id=row["id"],
+        code=row["code"],
+        display_name=row["display_name"],
+        email=row["email"],
+        phone=row.get("phone"),
+        status=row["status"],
+        created_at=row.get("created_at"),
+        submissions=stats["submissions"],
+        approved=stats["approved"],
+        accrued_nis=stats["accrued_nis"],
+        paid_nis=stats["paid_nis"],
+    )
+
+
+@router.get("/affiliate-payouts", response_model=list[AffiliatePayoutResponse])
+async def admin_list_affiliate_payouts(
+    user: Annotated[AuthUser, Depends(require_super_admin)],
+    status: str | None = None,
+) -> list[AffiliatePayoutResponse]:
+    del user
+    rows = list_affiliate_payouts(status)
+    return [
+        AffiliatePayoutResponse(
+            id=row["id"],
+            affiliate_id=row["affiliate_id"],
+            signup_request_id=row["signup_request_id"],
+            amount_nis=row["amount_nis"],
+            status=row["status"],
+            created_at=row.get("created_at"),
+            paid_at=row.get("paid_at"),
+            affiliate_code=(row.get("affiliates") or {}).get("code"),
+            affiliate_name=(row.get("affiliates") or {}).get("display_name"),
+            couple_email=(row.get("signup_requests") or {}).get("email"),
+            couple_names=(row.get("signup_requests") or {}).get("couple_names"),
+        )
+        for row in rows
+    ]
+
+
+@router.post("/affiliate-payouts/mark-paid")
+async def admin_mark_affiliate_payouts_paid(
+    body: AffiliatePayoutMarkPaidRequest,
+    user: Annotated[AuthUser, Depends(require_super_admin)],
+) -> dict[str, int]:
+    count = mark_affiliate_payouts_paid(body.payout_ids)
+    _audit(user, "affiliate.payouts_paid", "affiliate_payout", metadata={"count": count})
+    return {"marked_paid": count}
 
 
 @router.post("/events/{event_id}/members")

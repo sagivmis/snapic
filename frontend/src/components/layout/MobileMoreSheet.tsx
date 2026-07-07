@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { LanguageSwitcher } from "../LanguageSwitcher";
+import { SiteFooter } from "../layout/SiteFooter";
 import { useTranslation } from "../../i18n";
 import type { MobileSheetSection } from "../../hooks/useMobileNav";
 import "../../styles/MobileNav.scss";
@@ -101,6 +102,7 @@ export function MobileMoreSheet({ open, onClose, sections }: MobileMoreSheetProp
                 {tCommon("signIn")}
               </Link>
             )}
+            <SiteFooter variant="inline" />
           </section>
         </div>
       </div>

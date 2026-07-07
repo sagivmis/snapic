@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { deleteStudioLogo, updateStudioSettings, uploadStudioLogo } from "../../api/client";
+import { deleteStudioLogo, deleteMyAccount, updateStudioSettings, uploadStudioLogo } from "../../api/client";
 import { useAuth } from "../../auth/AuthProvider";
 import { useStudioOrg } from "../../components/studio/StudioOrgContext";
 import { useTranslation } from "../../i18n";
@@ -20,7 +20,7 @@ function applyOrgToForm(org: Organization) {
 
 export function StudioSettingsPage() {
   const { organization, setOrganization } = useStudioOrg();
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, signOut } = useAuth();
   const { t, tPath } = useTranslation("studio.settings");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -117,6 +117,23 @@ export function StudioSettingsPage() {
       setError(err instanceof Error ? err.message : tPath("logoRemoveFailed"));
     } finally {
       setLogoBusy(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm(tPath("deleteAccountConfirm"))) {
+      return;
+    }
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error(t("notSignedIn"));
+      }
+      await deleteMyAccount(token);
+      await signOut();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tPath("deleteAccountFailed"));
     }
   }
 
@@ -223,6 +240,14 @@ export function StudioSettingsPage() {
       </form>
       {success && <p className="success-banner">{success}</p>}
       {error && <p className="error-banner">{error}</p>}
+
+      <section className="studio-form studio-form--danger">
+        <h2>{tPath("accountTitle")}</h2>
+        <p className="studio-form__hint">{tPath("deleteAccountHint")}</p>
+        <button type="button" className="btn btn-ghost" onClick={() => void handleDeleteAccount()}>
+          {tPath("deleteAccountBtn")}
+        </button>
+      </section>
     </div>
   );
 }

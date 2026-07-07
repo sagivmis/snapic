@@ -117,6 +117,33 @@
       "continueStudio": "Open my studio",
       "continueStudioSelect": "Choose a studio",
       "secondaryHint": "Switch roles any time from the menu."
+    },
+    "metaTitle": "Find yourself in every wedding photo",
+    "metaDescription": "Guests upload a selfie and instantly find every wedding photo they appear in. Couples request a gallery; photographers run branded studios.",
+    "campaign": {
+      "title": "Give every guest their photos — automatically",
+      "lead": "Upload once from Snapic Studio. Your clients' guests find themselves with a selfie — no endless scrolling.",
+      "primaryCta": "Start your studio",
+      "secondaryCta": "See launch offer"
+    },
+    "socialProof": {
+      "title": "Trusted by wedding photographers",
+      "lead": "Studios across Israel use Snapic to delight guests after the big day.",
+      "one": {
+        "quote": "Guests stopped asking 'where are my photos?' — they just scan and find themselves.",
+        "name": "Maya R.",
+        "studio": "Tel Aviv wedding studio"
+      },
+      "two": {
+        "quote": "We upload the album once and the couple shares a link. It feels premium without extra work.",
+        "name": "Oren K.",
+        "studio": "Independent photographer"
+      },
+      "three": {
+        "quote": "The branded guest page matches our studio — clients notice the polish.",
+        "name": "Shira & Dan L.",
+        "studio": "Jerusalem photo duo"
+      }
     }
   },
   "forPhotographers": {
@@ -182,7 +209,81 @@
         "price": "Subscription",
         "detail": "For high-volume studios running guest matching across dozens of events every year."
       }
-    }
+    },
+    "metaTitle": "Snapic Studio for wedding photographers",
+    "metaDescription": "Delight every guest with AI photo matching. Upload once, share a branded link, and let guests find themselves in every wedding photo.",
+    "socialEyebrow": "Social proof",
+    "socialTitle": "Photographers love the guest experience",
+    "socialLead": "Early studios report fewer 'where are my photos?' messages and happier couples.",
+    "social": {
+      "one": {
+        "quote": "My couples share the guest link in their WhatsApp group and I'm done — no manual sorting.",
+        "name": "Noa S.",
+        "role": "Wedding photographer, Herzliya"
+      },
+      "two": {
+        "quote": "Indexing runs in the background while I deliver the rest of the album. Guests see matches in real time.",
+        "name": "Yonatan M.",
+        "role": "Studio owner, Be'er Sheva"
+      },
+      "three": {
+        "quote": "We added Snapic to our premium package. Clients feel we went the extra mile.",
+        "name": "Lior & Avigail T.",
+        "role": "Photography duo, Haifa"
+      }
+    },
+    "faqEyebrow": "FAQ",
+    "faqTitle": "Common questions",
+    "faq": {
+      "pricing": {
+        "question": "How does pricing work?",
+        "answer": "Start pay-per-event or choose an annual bundle for a busy season. Upgrade anytime from studio billing — launch promo codes apply at signup when billing goes live."
+      },
+      "privacy": {
+        "question": "What about guest privacy and selfies?",
+        "answer": "Guests consent before uploading a selfie. Selfies are used only for matching and are not stored in the gallery. See our Privacy Policy for full details."
+      },
+      "setup": {
+        "question": "How long does setup take?",
+        "answer": "Most studios create their first client gallery in under ten minutes. Face indexing runs in the background after you upload the wedding album."
+      },
+      "branding": {
+        "question": "Can I use my studio logo and colors?",
+        "answer": "Yes — each client gallery can reflect your studio branding so the guest experience feels like yours."
+      }
+    },
+    "planCta": "Get started",
+    "stickyCta": "Start your studio"
+  },
+  "launch": {
+    "metaTitle": "Launch offer — 30% off Snapic Studio",
+    "metaDescription": "Limited-time launch discount for Israeli wedding photographers. Set up your studio and run your first guest-matching gallery.",
+    "eyebrow": "Launch offer",
+    "title": "30% off your first season with Snapic Studio",
+    "lead": "Join founding photographers delivering selfie-powered guest galleries — upload once, share a link, delight every guest.",
+    "discountBadge": "{{percent}}% off",
+    "countdown": "{{days}}d {{hours}}h {{minutes}}m left",
+    "promoLabel": "Promo code",
+    "expired": "This launch offer has ended — you can still start your studio at standard pricing.",
+    "ctaActive": "Claim launch discount",
+    "ctaExpired": "Start your studio",
+    "seeFeatures": "See all features",
+    "featuresTitle": "What's included",
+    "features": {
+      "guests": {
+        "title": "Guest matching",
+        "description": "Branded link + QR. Guests upload a selfie and find every photo they're in."
+      },
+      "studio": {
+        "title": "Studio dashboard",
+        "description": "Client galleries, uploads, indexing, and handoff to couples in one place."
+      },
+      "season": {
+        "title": "Season-ready pricing",
+        "description": "Pay per event or bundle weddings for the season — upgrade when you're ready."
+      }
+    },
+    "footnote": "Promo applies at checkout when billing is enabled. Draft legal terms apply; offer may change before public launch."
   },
   "requestAccess": {
     "eyebrow": "For couples",
@@ -392,7 +493,13 @@
       "logoRemoved": "Logo removed.",
       "logoRemoveFailed": "Could not remove logo",
       "saved": "Settings saved.",
-      "saveFailed": "Save failed"
+      "saveFailed": "Save failed",
+      "accountTitle": "Account",
+      "deleteAccountLabel": "Delete account",
+      "deleteAccountHint": "Permanently delete your Snapic account and profile. Your studio data may remain until manually removed.",
+      "deleteAccountConfirm": "Delete your account permanently? This cannot be undone.",
+      "deleteAccountBtn": "Delete my account",
+      "deleteAccountFailed": "Could not delete account"
     },
     "billing": {
       "title": "Billing",
@@ -616,6 +723,7 @@
       "albumNotReady": "The wedding album is still being prepared for search. Please check back in a few minutes.",
       "albumNotReadyRetry": "The wedding album is still being prepared for search. Please wait a few minutes and try again.",
       "rateLimited": "You've reached the search limit for this hour. Please wait about an hour before trying again.",
+      "clearHistoryFailed": "Could not clear search history",
       "findYourPhotos": "Find your photos",
       "yourPhotos": "Your photos",
       "noMatchesYet": "No matches yet",
@@ -635,7 +743,7 @@
       "tip3": "Try a different selfie if this one was blurry or far away",
       "saveResults": "Save these results to your account",
       "signInToSave": "Sign in to save",
-      "privacy": "Your selfie is processed in memory and never stored."
+      "privacy": "Your selfie is processed in memory and never stored. Gallery photos may contain face data used only for matching. See our Privacy Policy."
     },
     "manage": {
       "title": "Manage event",
@@ -868,6 +976,12 @@
         "selfieSearch": "Guests upload a selfie and get every photo they appear in",
         "uploadMore": "You can upload more photos anytime from your dashboard"
       },
+      "guestNotice": {
+        "title": "Tell your guests about photo matching",
+        "body": "Israeli privacy law requires guests to know that AI face matching is used. Share this message in your wedding WhatsApp group or on signage at the venue.",
+        "whatsappTemplate": "Hi everyone! Find every photo you're in at our wedding — upload a selfie here (your selfie is not stored): {{url}}",
+        "copyTemplate": "Copy message"
+      },
       "previewGuestPage": "Preview guest page",
       "openDashboard": "Open dashboard",
       "statusNote": "Your event is still in {{status}} status. Set it to Active in Settings so guests can search."
@@ -1059,6 +1173,25 @@
         "actor": "Actor",
         "details": "Details"
       }
+    },
+    "affiliates": {
+      "title": "Affiliate partners",
+      "lead": "Couple referrals via /r/CODE or ?ref=CODE. Payouts accrue after 5 approved referrals (from #6 onward).",
+      "codePlaceholder": "partner-code",
+      "namePlaceholder": "Display name",
+      "emailPlaceholder": "partner@email.com",
+      "createBtn": "Create partner",
+      "colPartner": "Partner",
+      "colLink": "Link",
+      "colSubmissions": "Submissions",
+      "colApproved": "Approved",
+      "colAccrued": "Accrued",
+      "payoutsTitle": "Accrued payouts ({{count}})",
+      "markAllPaid": "Mark all as paid",
+      "loadFailed": "Could not load affiliates",
+      "createFailed": "Could not create affiliate",
+      "markPaidFailed": "Could not mark payouts paid",
+      "notSignedIn": "Not signed in"
     }
   },
   "components": {
@@ -1089,7 +1222,9 @@
     "selfieUpload": {
       "intro": "Share a clear photo of your face so we can find every picture of you from the celebration.",
       "coupleModeSuffix": " In couple mode, we search for either partner.",
-      "privacy": "Your portraits are used only for this search and are not stored on our servers. Shared result links expire after 7 days.",
+      "privacy": "Your portraits are used only for this search and are not stored on our servers. Gallery photos use stored face embeddings for matching. Shared result links expire after 7 days.",
+      "biometricConsent": "I consent to temporary face analysis of my selfie to find matching wedding photos, as described in the Privacy Policy.",
+      "privacyLink": "Privacy Policy",
       "coupleModeTitle": "Couple mode",
       "coupleModeDesc": "Find photos with either person",
       "person1": "Person 1",
@@ -1275,7 +1410,10 @@
       "photo_one": "{{count}} photo",
       "photo_other": "{{count}} photos",
       "showAll": "Show all {{count}} searches",
-      "showFewer": "Show fewer"
+      "showFewer": "Show fewer",
+      "clearHistory": "Clear my search history",
+      "clearConfirm": "Delete all your past searches for this event?",
+      "clearFailed": "Could not clear search history"
     },
     "slugInput": {
       "checkingTitle": "Checking slug availability",
@@ -1366,6 +1504,173 @@
       "readImage": "Could not read image",
       "downloadPhoto": "Could not download photo"
     }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "draftNotice": "Draft — pending review by legal counsel. Business registration details will be added before launch.",
+    "questionsPrefix": "Questions?",
+    "contactLink": "Contact us",
+    "footer": {
+      "aria": "Legal links",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "cookies": "Cookies",
+      "accessibility": "Accessibility",
+      "contact": "Contact",
+      "copyright": "© Snapic. All rights reserved."
+    },
+    "consent": {
+      "prefix": "I agree to the",
+      "terms": "Terms of Service",
+      "and": "and",
+      "privacy": "Privacy Policy"
+    },
+    "cookieBanner": {
+      "aria": "Cookie consent",
+      "message": "We use local storage for language, session, and essential app features.",
+      "learnMore": "Learn more",
+      "accept": "Accept",
+      "decline": "Essential only"
+    },
+    "contact": {
+      "title": "Contact",
+      "lead": "We're here to help — especially on your wedding day.",
+      "generalHeading": "General support",
+      "generalBody": "For setup help, studio questions, or wedding-day issues:",
+      "generalEmail": "hello@snapic.me",
+      "privacyHeading": "Privacy requests",
+      "privacyBody": "To access, correct, or delete your data, or ask about how we process information:",
+      "privacyEmail": "privacy@snapic.me",
+      "weddingDayHeading": "Wedding day urgent help",
+      "weddingDayBody": "If guests cannot search photos during a live event, email us with your event link — we prioritize live weddings.",
+      "legalPrefix": "See also:"
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: July 2026 (draft)",
+      "sections": [
+        {
+          "heading": "Who we are",
+          "body": "Snapic provides AI-powered wedding photo matching for guests, couples, and photographers in Israel.\n\nThis draft policy describes what we collect and why. Final version will include our registered business name and contact details."
+        },
+        {
+          "heading": "What we collect",
+          "body": "Guest selfies: processed in memory to find matches — not stored after the search completes.\n\nGallery photos: uploaded by couples or photographers; we store images and derived face embeddings to power matching.\n\nMatch metadata: search timestamps, match counts, optional share links (expire after 7 days), and anonymous session IDs for rate limiting and search history.\n\nAccount data: email and profile for signed-in users (couples, photographers, admins).\n\nSignup requests: email, couple names, wedding date, optional message."
+        },
+        {
+          "heading": "How we use data",
+          "body": "To match guests with wedding photos, operate galleries, manage studio accounts, prevent abuse, and improve reliability.\n\nWe do not sell personal data. We do not use guest selfies for training third-party models."
+        },
+        {
+          "heading": "Legal basis (Israel)",
+          "body": "Processing is based on consent (guest selfie matching), contract performance (studio and couple services), and legitimate interests (security, fraud prevention).\n\nBiometric-related processing (face embeddings) requires explicit guest consent before each search."
+        },
+        {
+          "heading": "Third-party processors",
+          "body": "Data may be processed by: Supabase (database, auth, storage), Render and Vercel (hosting), Sentry (error monitoring), Google Fonts (typography), and Stripe (billing, when enabled).\n\nSome processors may store data outside Israel. We use providers with appropriate safeguards."
+        },
+        {
+          "heading": "Retention",
+          "body": "Share links expire after 7 days. Events auto-close guest access ~90 days after the wedding date; photos and embeddings remain until deleted by the event owner or Snapic.\n\nMatch run history for anonymous guests can be cleared from the guest page."
+        },
+        {
+          "heading": "Your rights",
+          "body": "You may request access, correction, or deletion of your personal data by emailing privacy@snapic.me.\n\nSigned-in users can delete their account from studio settings. Guests can clear search history on the event page."
+        },
+        {
+          "heading": "Contact",
+          "body": "Privacy inquiries: privacy@snapic.me\n\nWe will update this policy when our business registration is finalized and after legal review."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "lastUpdated": "Last updated: July 2026 (draft)",
+      "sections": [
+        {
+          "heading": "Agreement",
+          "body": "By using Snapic you agree to these terms. If you do not agree, do not use the service.\n\nPhotographers and couples using paid features enter a separate commercial relationship governed by pricing and refund terms shown at purchase."
+        },
+        {
+          "heading": "Service description",
+          "body": "Snapic helps wedding guests find photos they appear in by uploading a selfie. Couples and photographers manage galleries, branding, and guest access.\n\nMatching is automated and may not find every photo. Results depend on photo quality, lighting, and face visibility."
+        },
+        {
+          "heading": "Account responsibilities",
+          "body": "You must provide accurate information. You are responsible for activity under your account.\n\nPhotographers and couples must have the right to upload wedding photos and must inform guests that AI face matching is used at the event."
+        },
+        {
+          "heading": "Acceptable use",
+          "body": "Do not upload unlawful, abusive, or non-wedding content. Do not attempt to bypass rate limits, scrape the service, or misuse guest data.\n\nWe may suspend accounts that violate these terms."
+        },
+        {
+          "heading": "Intellectual property",
+          "body": "Photographers and couples retain ownership of uploaded photos. Snapic receives a limited license to host, process, and display photos solely to provide the service.\n\nSnapic branding, software, and UI remain our property."
+        },
+        {
+          "heading": "Limitation of liability",
+          "body": "The service is provided as-is. To the extent permitted by Israeli law, Snapic is not liable for indirect damages, lost photos due to user error, or matching inaccuracies.\n\nOur total liability is limited to fees paid in the 12 months before the claim."
+        },
+        {
+          "heading": "Changes and contact",
+          "body": "We may update these terms. Continued use after changes constitutes acceptance.\n\nQuestions: hello@snapic.me"
+        }
+      ]
+    },
+    "cookies": {
+      "title": "Cookie & Local Storage Policy",
+      "lastUpdated": "Last updated: July 2026 (draft)",
+      "sections": [
+        {
+          "heading": "Overview",
+          "body": "Snapic uses browser local storage and similar technologies — not traditional third-party advertising cookies."
+        },
+        {
+          "heading": "Essential storage",
+          "body": "Locale preference (snapic_locale), authentication session (via Supabase), anonymous guest session ID for search history and rate limiting, and cookie consent choice (snapic_cookie_consent)."
+        },
+        {
+          "heading": "Functional storage",
+          "body": "Studio organization selection, PWA install prompt dismissal, sidebar preferences, and marketing attribution (ref/UTM, session-only) when you arrive via a referral link."
+        },
+        {
+          "heading": "Third parties",
+          "body": "Supabase auth may set cookies. Sentry may use storage for error diagnostics. Google Fonts are loaded from Google servers when you use the app."
+        },
+        {
+          "heading": "Your choices",
+          "body": "You can decline non-essential storage via the cookie banner. Clearing browser storage will reset preferences and sign you out.\n\nSee our Privacy Policy for data rights."
+        }
+      ]
+    },
+    "accessibility": {
+      "title": "Accessibility Statement",
+      "lastUpdated": "Last updated: July 2026 (draft)",
+      "sections": [
+        {
+          "heading": "Commitment",
+          "body": "Snapic aims to conform with Israeli Standard 5568 (WCAG 2.0 Level AA) for our public website and guest experience.\n\nWe support Hebrew RTL and English, keyboard navigation on key flows, and screen reader labels on primary actions."
+        },
+        {
+          "heading": "Known limitations",
+          "body": "Some modals and camera capture flows may have incomplete keyboard traps. We are actively improving focus management.\n\nThird-party camera APIs depend on device and browser support."
+        },
+        {
+          "heading": "Feedback",
+          "body": "If you encounter an accessibility barrier, contact hello@snapic.me with the page URL and description. We will respond within 5 business days."
+        },
+        {
+          "heading": "Updates",
+          "body": "This statement will be updated as we complete a formal accessibility audit before general launch."
+        }
+      ]
+    }
+  },
+  "notFound": {
+    "eyebrow": "404",
+    "title": "Page not found",
+    "lead": "The page you're looking for doesn't exist or was moved.",
+    "backHome": "Back to home"
   },
   "a11y": {
     "navMain": "Main",

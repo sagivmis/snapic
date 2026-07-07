@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { buildEventGuestUrl, fetchEventBySlug } from "../api/client";
+import { GuestNoticePanel } from "../components/GuestNoticePanel";
 import { GuestQrCode } from "../components/GuestQrCode";
 import { useAuth } from "../auth/AuthProvider";
 import { useTranslation } from "../i18n";
@@ -132,6 +133,8 @@ export function EventLivePage() {
             <li>{tPath("tips.selfieSearch")}</li>
             <li>{tPath("tips.uploadMore")}</li>
           </ul>
+
+          <GuestNoticePanel guestUrl={guestUrl} />
 
           <div className="event-live__actions">
             <Link className="btn btn-primary" to={`/e/${slug}`} target="_blank" rel="noreferrer">

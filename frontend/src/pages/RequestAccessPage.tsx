@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { submitSignupRequest } from "../api/client";
+import { TermsConsentCheckbox } from "../components/TermsConsentCheckbox";
+import { getReferralCode } from "../lib/attribution";
 import { useTranslation } from "../i18n";
 import { track } from "../lib/analytics";
 import "../styles/RequestAccess.scss";
@@ -17,9 +19,13 @@ export function RequestAccessPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!termsAccepted) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -28,6 +34,7 @@ export function RequestAccessPage() {
         couple_names: coupleNames.trim(),
         wedding_date: weddingDate || null,
         message: message.trim() || null,
+        referral_code: getReferralCode(),
       });
       setSubmitted(true);
       track("request_access_submitted", { hasDate: Boolean(weddingDate) });
@@ -188,7 +195,13 @@ export function RequestAccessPage() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary request-page__submit" disabled={busy}>
+            <TermsConsentCheckbox checked={termsAccepted} onChange={setTermsAccepted} />
+
+            <button
+              type="submit"
+              className="btn btn-primary request-page__submit"
+              disabled={busy || !termsAccepted}
+            >
               {busy ? t("submitting") : tPath("submitBtn")}
             </button>
           </form>

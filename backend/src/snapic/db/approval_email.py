@@ -11,7 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def _from_address() -> str:
-    return os.getenv("SNAPIC_FROM_EMAIL", "Snapic <onboarding@resend.dev>").strip()
+    return os.getenv("SNAPIC_FROM_EMAIL", "Snapic <hello@snapic.me>").strip()
+
+
+def _reply_to_address() -> str | None:
+    value = os.getenv("SNAPIC_REPLY_TO_EMAIL", "hello@snapic.me").strip()
+    return value or None
 
 
 def _send_html_email(to: list[str], subject: str, html: str) -> bool:
@@ -36,6 +41,7 @@ def _send_html_email(to: list[str], subject: str, html: str) -> bool:
                 "to": cleaned,
                 "subject": subject,
                 "html": html,
+                **({"reply_to": _reply_to_address()} if _reply_to_address() else {}),
             },
             timeout=15.0,
         )

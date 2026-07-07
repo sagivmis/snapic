@@ -7,6 +7,7 @@ import {
   SlugAvailabilityInput,
   type SlugCheckStatus,
 } from "../../components/SlugAvailabilityInput";
+import { TermsConsentCheckbox } from "../../components/TermsConsentCheckbox";
 import { useTranslation } from "../../i18n";
 import "../../styles/AuthPages.scss";
 import "../../styles/SlugAvailabilityInput.scss";
@@ -20,6 +21,7 @@ export function StudioSignupPage() {
   const [slugStatus, setSlugStatus] = useState<SlugCheckStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleCheckSlug = useCallback(
     async (value: string) => {
@@ -38,7 +40,7 @@ export function StudioSignupPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (slugBlocksSubmit) {
+    if (!termsAccepted || slugBlocksSubmit) {
       return;
     }
     setBusy(true);
@@ -103,7 +105,8 @@ export function StudioSignupPage() {
           disabled={busy}
           placeholder={tPath("slugPlaceholder")}
         />
-        <button type="submit" className="btn btn-primary" disabled={busy || slugBlocksSubmit}>
+        <TermsConsentCheckbox checked={termsAccepted} onChange={setTermsAccepted} />
+        <button type="submit" className="btn btn-primary" disabled={busy || slugBlocksSubmit || !termsAccepted}>
           {busy ? tPath("creating") : tPath("createBtn")}
         </button>
       </form>

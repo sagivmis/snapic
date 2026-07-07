@@ -6,8 +6,15 @@
  * when ready.
  */
 export type AnalyticsEvent =
+  | "landing_page_viewed"
   | "landing_chooser_clicked"
   | "landing_continue_clicked"
+  | "landing_campaign_cta_clicked"
+  | "for_photographers_page_viewed"
+  | "for_photographers_cta_clicked"
+  | "for_photographers_plan_clicked"
+  | "launch_page_viewed"
+  | "launch_cta_clicked"
   | "couple_home_next_step_clicked"
   | "couple_home_preview_opened"
   | "couple_home_share_opened"

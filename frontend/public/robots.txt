@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /studio/
+Disallow: /e/*/manage
+Disallow: /e/*/setup
+Disallow: /e/*/live
+Disallow: /share/
+
+Sitemap: https://snapic.me/sitemap.xml

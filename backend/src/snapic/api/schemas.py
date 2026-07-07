@@ -179,6 +179,7 @@ class SignupRequestCreate(BaseModel):
     message: str | None = None
     request_type: Literal["couple", "photographer"] = "couple"
     organization_name: str | None = None
+    referral_code: str | None = None
 
 
 class OrganizationPublic(BaseModel):
@@ -367,6 +368,7 @@ class SignupRequestResponse(BaseModel):
     status: Literal["pending", "approved", "rejected"]
     request_type: Literal["couple", "photographer"] = "couple"
     organization_name: str | None = None
+    referral_code: str | None = None
     created_at: str | None = None
     reviewed_at: str | None = None
     created_event_id: str | None = None
@@ -456,3 +458,43 @@ class AdminAttentionResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+    checks: dict[str, str] = Field(default_factory=dict)
+
+
+class AffiliateCreate(BaseModel):
+    code: str
+    display_name: str
+    email: str
+    phone: str | None = None
+
+
+class AffiliateResponse(BaseModel):
+    id: str
+    code: str
+    display_name: str
+    email: str
+    phone: str | None = None
+    status: str
+    created_at: str | None = None
+    submissions: int = 0
+    approved: int = 0
+    accrued_nis: int = 0
+    paid_nis: int = 0
+
+
+class AffiliatePayoutResponse(BaseModel):
+    id: str
+    affiliate_id: str
+    signup_request_id: str
+    amount_nis: int
+    status: str
+    created_at: str | None = None
+    paid_at: str | None = None
+    affiliate_code: str | None = None
+    affiliate_name: str | None = None
+    couple_email: str | None = None
+    couple_names: str | None = None
+
+
+class AffiliatePayoutMarkPaidRequest(BaseModel):
+    payout_ids: list[str]

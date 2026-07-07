@@ -31,7 +31,11 @@ class _SlidingWindowLimiter:
             self._hits[key] = hits
 
 
+_SIGNUP_LIMIT = int(os.getenv("SNAPIC_SIGNUP_RATE_LIMIT_PER_HOUR", "5"))
+_SIGNUP_WINDOW_SECONDS = 3600
+
 _match_limiter = _SlidingWindowLimiter(_MATCH_LIMIT, _MATCH_WINDOW_SECONDS)
+_signup_limiter = _SlidingWindowLimiter(_SIGNUP_LIMIT, _SIGNUP_WINDOW_SECONDS)
 
 
 def _client_ip(request: Request) -> str:
@@ -53,3 +57,10 @@ def enforce_match_rate_limit(
     ip = _client_ip(request)
     key = f"{event_id}:session:{anonymous_session_id}" if anonymous_session_id else f"{event_id}:ip:{ip}"
     _match_limiter.check(key)
+
+
+def enforce_signup_rate_limit(request: Request) -> None:
+    if _SIGNUP_LIMIT <= 0:
+        return
+    ip = _client_ip(request)
+    _signup_limiter.check(f"signup:ip:{ip}")

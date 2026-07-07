@@ -1,0 +1,59 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.cookie-consent {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1000;
+  padding: 1rem;
+  pointer-events: none;
+
+  @include md {
+    padding: 1.25rem 1.5rem;
+  }
+
+  &__panel {
+    pointer-events: auto;
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 1rem 1.25rem;
+    border-radius: $radius-lg;
+    background: $cream-50;
+    border: 1px solid rgba($champagne-500, 0.35);
+    box-shadow: 0 8px 32px rgba($taupe-700, 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+
+    @include md {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 48rem;
+    }
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: $taupe-700;
+
+    a {
+      color: $champagne-600;
+      text-decoration: underline;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+}
+
+// Lift mobile tab bar when cookie banner is visible
+.app-layout--mobile-chrome:has(.cookie-consent) .mobile-tab-bar {
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}

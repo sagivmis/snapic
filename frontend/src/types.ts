@@ -167,6 +167,7 @@ export interface SignupRequestCreate {
   couple_names: string;
   wedding_date?: string | null;
   message?: string | null;
+  referral_code?: string | null;
 }
 
 export interface SignupRequest {

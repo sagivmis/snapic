@@ -1,17 +1,30 @@
+import { useEffect } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { PageMeta } from "../components/PageMeta";
+import { PhotographerFaq } from "../components/marketing/PhotographerFaq";
+import { StickyMobileCta } from "../components/marketing/StickyMobileCta";
 import { useStudioMembership } from "../hooks/useStudioMembership";
 import { useTranslation } from "../i18n";
+import { buildStudioSignupUrl } from "../lib/attribution";
+import { track } from "../lib/analytics";
 import "../styles/ForPhotographers.scss";
+import "../styles/Marketing.scss";
 
 const BENEFIT_KEYS = ["uploadOnce", "realTime", "branded"] as const;
 const STEP_KEYS = ["create", "upload", "share"] as const;
 const STEP_NUMBERS = ["01", "02", "03"] as const;
 const PLAN_KEYS = ["perEvent", "annual", "unlimited"] as const;
+const SOCIAL_KEYS = ["one", "two", "three"] as const;
 const FEATURED_PLAN = "annual";
 
 export function ForPhotographersPage() {
   const { tPath } = useTranslation("forPhotographers");
   const { hasStudios, loaded } = useStudioMembership();
+  const signupUrl = buildStudioSignupUrl();
+
+  useEffect(() => {
+    track("for_photographers_page_viewed");
+  }, []);
 
   if (loaded && hasStudios) {
     return <Navigate to="/studio/select" replace />;
@@ -19,13 +32,23 @@ export function ForPhotographersPage() {
 
   return (
     <div className="photographers-page">
+      <PageMeta
+        title={tPath("metaTitle")}
+        description={tPath("metaDescription")}
+        path="/for-photographers"
+      />
+
       <header className="photographers-hero">
         <div className="photographers-hero__content">
           <p className="photographers-hero__eyebrow">{tPath("eyebrow")}</p>
           <h1>{tPath("title")}</h1>
           <p className="photographers-hero__lead">{tPath("lead")}</p>
           <div className="photographers-hero__actions">
-            <Link to="/studio/signup" className="btn btn-primary">
+            <Link
+              to={signupUrl}
+              className="btn btn-primary"
+              onClick={() => track("for_photographers_cta_clicked", { placement: "hero" })}
+            >
               {tPath("startStudio")}
             </Link>
             <Link to="/demo" className="btn btn-secondary">
@@ -75,6 +98,25 @@ export function ForPhotographersPage() {
         </div>
       </header>
 
+      <section className="photographers-social">
+        <div className="photographers-section-head">
+          <p className="photographers-section-head__eyebrow">{tPath("socialEyebrow")}</p>
+          <h2>{tPath("socialTitle")}</h2>
+          <p className="photographers-section-head__lead">{tPath("socialLead")}</p>
+        </div>
+        <div className="photographers-social__grid">
+          {SOCIAL_KEYS.map((key) => (
+            <figure key={key} className="photographers-social__card card-wedding">
+              <blockquote>{tPath(`social.${key}.quote`)}</blockquote>
+              <figcaption>
+                {tPath(`social.${key}.name`)}
+                <cite>{tPath(`social.${key}.role`)}</cite>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
       <section className="photographers-benefits">
         {BENEFIT_KEYS.map((key) => (
           <article key={key} className="photographers-benefits__card card-wedding">
@@ -109,6 +151,7 @@ export function ForPhotographersPage() {
         <ul className="photographers-pricing__grid">
           {PLAN_KEYS.map((key) => {
             const featured = key === FEATURED_PLAN;
+            const planUrl = buildStudioSignupUrl({ plan: key });
             return (
               <li
                 key={key}
@@ -118,21 +161,41 @@ export function ForPhotographersPage() {
                 <h3>{tPath(`plans.${key}.name`)}</h3>
                 <p className="photographers-pricing__price">{tPath(`plans.${key}.price`)}</p>
                 <p className="photographers-pricing__detail">{tPath(`plans.${key}.detail`)}</p>
+                <Link
+                  to={planUrl}
+                  className="btn btn-secondary photographers-pricing__cta"
+                  onClick={() => track("for_photographers_plan_clicked", { plan: key })}
+                >
+                  {tPath("planCta")}
+                </Link>
               </li>
             );
           })}
         </ul>
       </section>
 
+      <PhotographerFaq />
+
       <section className="photographers-cta card-wedding">
         <div>
           <h2>{tPath("ctaTitle")}</h2>
           <p>{tPath("ctaLead")}</p>
         </div>
-        <Link to="/studio/signup" className="btn btn-primary">
+        <Link
+          to={signupUrl}
+          className="btn btn-primary"
+          onClick={() => track("for_photographers_cta_clicked", { placement: "footer" })}
+        >
           {tPath("startStudio")}
         </Link>
       </section>
+
+      <div className="landing__sticky-spacer" aria-hidden="true" />
+      <StickyMobileCta
+        label={tPath("stickyCta")}
+        href={signupUrl}
+        onClick={() => track("for_photographers_cta_clicked", { placement: "sticky_mobile" })}
+      />
     </div>
   );
 }

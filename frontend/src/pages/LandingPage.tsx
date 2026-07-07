@@ -1,12 +1,21 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { PageMeta } from "../components/PageMeta";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { useAuth } from "../auth/AuthProvider";
 import { usePostLoginRoute, type PostLoginDestinationKind } from "../hooks/usePostLoginRoute";
 import { useTranslation } from "../i18n";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { track } from "../lib/analytics";
+import {
+  buildStudioSignupUrl,
+  getAttribution,
+  isMarketingTraffic,
+} from "../lib/attribution";
 import "../styles/Landing.scss";
+import "../styles/Marketing.scss";
+
+const SOCIAL_KEYS = ["one", "two", "three"] as const;
 
 function extractEventSlug(value: string): string {
   const trimmed = value.trim();
@@ -53,11 +62,19 @@ export function LandingPage() {
   const [eventInput, setEventInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
   const destination = usePostLoginRoute();
+  const campaignTraffic = isMarketingTraffic();
 
   const legacyShare = searchParams.get("share");
   if (legacyShare) {
     return <Navigate to={`/share/${legacyShare}`} replace />;
   }
+
+  useEffect(() => {
+    track("landing_page_viewed", {
+      campaign: campaignTraffic,
+      ...getAttribution(),
+    });
+  }, [campaignTraffic]);
 
   function handleGuestSubmit(event: FormEvent) {
     event.preventDefault();
@@ -75,6 +92,11 @@ export function LandingPage() {
     const ctaKey = continueLabelKey(destination.kind);
     return (
       <div className="landing">
+        <PageMeta
+          title={tPath("metaTitle")}
+          description={tPath("metaDescription")}
+          path="/"
+        />
         <InstallPrompt />
         <header className="landing__hero">
           <p className="landing__eyebrow">{tPath("eyebrow")}</p>
@@ -102,11 +124,42 @@ export function LandingPage() {
 
   return (
     <div className="landing">
+      <PageMeta
+        title={tPath("metaTitle")}
+        description={tPath("metaDescription")}
+        path="/"
+      />
       <InstallPrompt />
+
+      {campaignTraffic && (
+        <section className="landing__campaign" aria-labelledby="landing-campaign-title">
+          <h2 id="landing-campaign-title">{tPath("campaign.title")}</h2>
+          <p>{tPath("campaign.lead")}</p>
+          <div className="landing__actions">
+            <Link
+              to={buildStudioSignupUrl()}
+              className="btn btn-primary"
+              onClick={() => track("landing_campaign_cta_clicked", { target: "studio_signup" })}
+            >
+              {tPath("campaign.primaryCta")}
+            </Link>
+            <Link
+              to="/launch"
+              className="btn btn-secondary"
+              onClick={() => track("landing_campaign_cta_clicked", { target: "launch" })}
+            >
+              {tPath("campaign.secondaryCta")}
+            </Link>
+          </div>
+        </section>
+      )}
+
       <header className="landing__hero">
         <p className="landing__eyebrow">{tPath("eyebrow")}</p>
-        <h1>{tPath("title")}</h1>
-        <p className="landing__lead">{tPath("lead")}</p>
+        <h1>{campaignTraffic ? tPath("campaign.title") : tPath("title")}</h1>
+        <p className="landing__lead">
+          {campaignTraffic ? tPath("campaign.lead") : tPath("lead")}
+        </p>
       </header>
 
       <section
@@ -211,6 +264,22 @@ export function LandingPage() {
             </Link>
           </p>
         )}
+      </section>
+
+      <section className="landing__social" aria-labelledby="landing-social-title">
+        <h2 id="landing-social-title">{tPath("socialProof.title")}</h2>
+        <p>{tPath("socialProof.lead")}</p>
+        <div className="landing__social-grid">
+          {SOCIAL_KEYS.map((key) => (
+            <figure key={key} className="landing__social-card">
+              <blockquote>{tPath(`socialProof.${key}.quote`)}</blockquote>
+              <figcaption>
+                <cite>{tPath(`socialProof.${key}.name`)}</cite>
+                <span> · {tPath(`socialProof.${key}.studio`)}</span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
       </section>
     </div>
   );

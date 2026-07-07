@@ -5,7 +5,7 @@ from typing import Annotated, Any
 
 import httpx
 import numpy as np
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from snapic.api.schemas import (
@@ -24,7 +24,8 @@ from snapic.face.pipeline import (
     NoFaceInSelfieError,
     extract_reference_embedding,
 )
-from snapic.face.portrait_quality import analyze_portrait
+from snapic.api.rate_limit import enforce_signup_rate_limit
+from snapic.auth.jwt import AuthUser, get_required_user
 
 router = APIRouter()
 
@@ -220,17 +221,47 @@ def _finalize_legacy_match(
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse(status="ok")
+    checks: dict[str, str] = {"api": "ok"}
+    status = "ok"
+    try:
+        from snapic.db import is_supabase_configured, get_supabase
+
+        if is_supabase_configured():
+            client = get_supabase()
+            client.table("events").select("id", count="exact").limit(1).execute()
+            checks["database"] = "ok"
+        else:
+            checks["database"] = "not_configured"
+    except Exception as exc:
+        checks["database"] = f"error:{exc.__class__.__name__}"
+        status = "degraded"
+    return HealthResponse(status=status, checks=checks)
 
 
 @router.post("/signup-requests", response_model=SignupRequestResponse)
-async def public_create_signup_request(body: SignupRequestCreate) -> SignupRequestResponse:
+async def public_create_signup_request(
+    request: Request,
+    body: SignupRequestCreate,
+) -> SignupRequestResponse:
     from snapic.db import is_supabase_configured
+    from snapic.db.affiliates import get_active_affiliate_by_code, normalize_affiliate_code
     from snapic.db.repository import create_signup_request
+
+    enforce_signup_rate_limit(request)
 
     if not is_supabase_configured():
         raise HTTPException(status_code=503, detail="Signup not configured")
-    row = create_signup_request(body.model_dump())
+
+    payload = body.model_dump()
+    referral_code = payload.get("referral_code")
+    if referral_code:
+        normalized = normalize_affiliate_code(referral_code)
+        if not get_active_affiliate_by_code(normalized):
+            payload["referral_code"] = None
+        else:
+            payload["referral_code"] = normalized
+
+    row = create_signup_request(payload)
     return SignupRequestResponse(
         id=row["id"],
         email=row["email"],
@@ -240,8 +271,22 @@ async def public_create_signup_request(body: SignupRequestCreate) -> SignupReque
         status=row["status"],
         request_type=row.get("request_type") or "couple",
         organization_name=row.get("organization_name"),
+        referral_code=row.get("referral_code"),
         created_at=row.get("created_at"),
     )
+
+
+@router.delete("/me")
+async def delete_my_account(user: Annotated[AuthUser, Depends(get_required_user)]) -> dict[str, str]:
+    from snapic.db.repository import delete_user_account
+
+    try:
+        delete_user_account(user.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Could not delete account") from exc
+    return {"status": "deleted"}
 
 
 @router.post("/validate-portrait", response_model=PortraitQualityResponse)

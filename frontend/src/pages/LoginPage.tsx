@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { SiteFooter } from "../components/layout/SiteFooter";
 import { useAuth } from "../auth/AuthProvider";
 import { usePostLoginRoute } from "../hooks/usePostLoginRoute";
 import { useTranslation } from "../i18n";
@@ -113,6 +114,7 @@ export function LoginPage() {
       <Link className="auth-page__back" to="/">
         {t("backHome")}
       </Link>
+      <SiteFooter variant="inline" />
     </div>
   );
 }

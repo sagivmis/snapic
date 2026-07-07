@@ -15,6 +15,7 @@ import {
   updateAdminEvent,
 } from "../api/client";
 import { AdminAttentionStrip, type AttentionFocus } from "../components/AdminAttentionStrip";
+import { AdminAffiliates } from "../components/AdminAffiliates";
 import { AdminAuditLog } from "../components/AdminAuditLog";
 import {
   AdminAttentionSkeleton,
@@ -550,6 +551,8 @@ export function AdminDashboardPage() {
       </section>
 
       {indexingEventId && <IndexFacesProgress progress={indexProgress} />}
+
+      <AdminAffiliates />
 
       <AdminAuditLog entries={auditLog} loading={auditLoading} />
     </div>

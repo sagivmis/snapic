@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { createTranslator } from "../i18n";
-import { useTranslation } from "../i18n";
+import { SITE_DISPLAY_DOMAIN } from "../lib/site";
+import { createTranslator, useTranslation } from "../i18n";
 import "../styles/GuestQrCode.scss";
 
 interface GuestQrCodeProps {
@@ -74,7 +74,7 @@ async function drawPrintableCard(url: string, heading: string): Promise<string> 
 
   ctx.font = "16px 'DM Sans', system-ui, sans-serif";
   ctx.fillStyle = "#8a7b6c";
-  ctx.fillText("snapic.app", width / 2, height - 72);
+  ctx.fillText(SITE_DISPLAY_DOMAIN, width / 2, height - 72);
 
   return canvas.toDataURL("image/png");
 }

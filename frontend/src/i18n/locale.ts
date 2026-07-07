@@ -16,13 +16,13 @@ export const LOCALES: Record<LocaleId, LocaleConfig> = {
     id: "en",
     label: "English",
     dir: "ltr",
-    catalog: en as TranslationNode,
+    catalog: en as unknown as TranslationNode,
   },
   he: {
     id: "he",
     label: "עברית",
     dir: "rtl",
-    catalog: he as TranslationNode,
+    catalog: he as unknown as TranslationNode,
   },
 };
 

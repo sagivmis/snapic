@@ -1,0 +1,205 @@
+@use "variables" as *;
+
+.sticky-mobile-cta {
+  display: block;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba($cream-100, 0), rgba($cream-100, 0.95) 30%);
+  pointer-events: none;
+
+  @media (min-width: $breakpoint-md) {
+    display: none;
+  }
+
+  &__btn {
+    width: 100%;
+    max-width: 24rem;
+    margin: 0 auto;
+    pointer-events: auto;
+    box-shadow: 0 8px 24px rgba(45, 33, 22, 0.12);
+  }
+}
+
+.photographers-social {
+  margin-bottom: 3rem;
+
+  &__grid {
+    display: grid;
+    gap: 1rem;
+
+    @media (min-width: $breakpoint-md) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  &__card {
+    padding: 1.5rem 1.25rem;
+    text-align: left;
+
+    blockquote {
+      margin: 0 0 1rem;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: $taupe-600;
+      font-style: italic;
+    }
+
+    figcaption {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: $taupe-700;
+    }
+
+    cite {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 0.75rem;
+      font-weight: 400;
+      font-style: normal;
+      color: $taupe-400;
+    }
+  }
+}
+
+.photographers-faq {
+  margin-bottom: 3rem;
+
+  &__list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  &__item {
+    padding: 0;
+    overflow: hidden;
+
+    summary {
+      padding: 1rem 1.25rem;
+      font-weight: 600;
+      color: $taupe-700;
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::after {
+        content: "+";
+        float: inline-end;
+        color: $champagne-600;
+        font-weight: 700;
+      }
+    }
+
+    &[open] summary::after {
+      content: "−";
+    }
+
+    p {
+      margin: 0;
+      padding: 0 1.25rem 1rem;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: $taupe-500;
+    }
+  }
+}
+
+.photographers-pricing__cta {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.landing__campaign {
+  max-width: 42rem;
+  margin: 0 auto 2.5rem;
+  padding: 1.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba($white, 0.98), rgba($blush-100, 0.45));
+  border: 1px solid rgba($champagne-400, 0.35);
+  border-radius: $radius-xl;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(45, 33, 22, 0.06);
+
+  h2 {
+    margin: 0 0 0.5rem;
+    font-family: $font-display;
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: $taupe-700;
+  }
+
+  p {
+    margin: 0 0 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: $taupe-500;
+  }
+
+  .landing__actions {
+    margin-top: 0;
+  }
+}
+
+.landing__social {
+  margin-top: 3rem;
+  text-align: center;
+
+  h2 {
+    margin: 0 0 0.35rem;
+    font-family: $font-display;
+    font-size: 1.375rem;
+    font-weight: 400;
+    color: $taupe-700;
+  }
+
+  > p {
+    margin: 0 0 1.25rem;
+    font-size: 0.9375rem;
+    color: $taupe-500;
+  }
+}
+
+.landing__social-grid {
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landing__social-card {
+  padding: 1.25rem;
+  background: $white;
+  border: 1px solid $cream-300;
+  border-radius: $radius-lg;
+
+  blockquote {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: $taupe-600;
+    font-style: italic;
+  }
+
+  cite {
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 600;
+    color: $taupe-700;
+  }
+}
+
+.landing__sticky-spacer {
+  height: 4.5rem;
+
+  @media (min-width: $breakpoint-md) {
+    display: none;
+  }
+}

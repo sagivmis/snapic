@@ -178,6 +178,8 @@ First request after idle may be slow (free tier spin-up + model load).
 
 Leave `VITE_API_BASE_URL` **unset** for local dev — the Vite proxy handles `/api`.
 
+Custom domain and email: see [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md).
+
 If you already have a Vercel project linked locally, open **Project Settings → Git** and connect the same GitHub repo instead of creating a new project.
 
 ### 4. Verify

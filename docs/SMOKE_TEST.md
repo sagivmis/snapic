@@ -184,7 +184,9 @@ Run with a **fresh test Google account** (not super admin, not an existing coupl
 Resend cannot send from Gmail. Before go-live, verify a domain in [Resend](https://resend.com/domains) and set on Render:
 
 - `RESEND_API_KEY`
-- `SNAPIC_FROM_EMAIL` — e.g. `Snapic <hello@yourdomain.com>`
+- `SNAPIC_FROM_EMAIL` — e.g. `Snapic <hello@snapic.me>`
+
+See [EMAIL_SETUP.md](./EMAIL_SETUP.md) for Resend domain verification and Cloudflare routing.
 
 Then re-run:
 

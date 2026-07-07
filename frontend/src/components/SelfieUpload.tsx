@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { validatePortrait } from "../api/client";
 import { useTranslation } from "../i18n";
 import type { PortraitQualityResponse } from "../types";
 import "../styles/SelfieUpload.scss";
+import "../styles/LegalPages.scss";
 
 interface PortraitSlotProps {
   label: string;
@@ -194,6 +196,8 @@ interface SelfieUploadProps {
   onCoupleModeChange: (enabled: boolean) => void;
   onContinue: () => void;
   hasGallery: boolean;
+  requireBiometricConsent?: boolean;
+  onBiometricConsentChange?: (consented: boolean) => void;
 }
 
 export function SelfieUpload({
@@ -207,9 +211,23 @@ export function SelfieUpload({
   onCoupleModeChange,
   onContinue,
   hasGallery,
+  requireBiometricConsent = false,
+  onBiometricConsentChange,
 }: SelfieUploadProps) {
   const { tPath } = useTranslation("components.selfieUpload");
+  const [biometricConsent, setBiometricConsent] = useState(false);
   const portraitReady = Boolean(file) && (!coupleMode || Boolean(partnerFile));
+  const consentOk = !requireBiometricConsent || biometricConsent;
+
+  useEffect(() => {
+    onBiometricConsentChange?.(biometricConsent);
+  }, [biometricConsent, onBiometricConsentChange]);
+
+  useEffect(() => {
+    if (!requireBiometricConsent) {
+      onBiometricConsentChange?.(true);
+    }
+  }, [requireBiometricConsent, onBiometricConsentChange]);
 
   return (
     <div className="selfie-upload">
@@ -251,7 +269,24 @@ export function SelfieUpload({
           )}
         </div>
 
-        {portraitReady && (
+        {portraitReady && requireBiometricConsent && (
+          <label className="selfie-upload__biometric-consent">
+            <input
+              type="checkbox"
+              checked={biometricConsent}
+              onChange={(event) => setBiometricConsent(event.target.checked)}
+              className="selfie-upload__biometric-consent__checkbox"
+            />
+            <span className="selfie-upload__biometric-consent__label">
+              {tPath("biometricConsent")}{" "}
+              <Link to="/privacy" target="_blank" rel="noopener noreferrer">
+                {tPath("privacyLink")}
+              </Link>
+            </span>
+          </label>
+        )}
+
+        {portraitReady && consentOk && (
           <div className="selfie-upload__continue">
             <button type="button" className="btn-primary" onClick={onContinue}>
               {hasGallery ? tPath("reviewGallery") : tPath("addGallery")}

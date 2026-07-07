@@ -54,6 +54,7 @@ from snapic.db.repository import (
     list_event_admin_emails,
     list_user_events,
     list_user_match_runs,
+    delete_user_match_runs,
     maybe_auto_close_event,
     set_event_gallery_indexing,
     update_event,
@@ -523,6 +524,18 @@ async def my_event_match_runs(
         return []
     rows = list_user_match_runs(event_id, user.id if user else None, anonymous_session_id)
     return [MatchRunSummary(**row) for row in rows]
+
+
+@router.delete("/{event_id}/my-runs")
+async def clear_my_event_match_runs(
+    event_id: str,
+    user: Annotated[AuthUser | None, Depends(get_optional_user)] = None,
+    anonymous_session_id: Annotated[str | None, Depends(get_anonymous_session_id)] = None,
+) -> dict[str, int]:
+    if user is None and not anonymous_session_id:
+        raise HTTPException(status_code=400, detail="No session to clear")
+    deleted = delete_user_match_runs(event_id, user.id if user else None, anonymous_session_id)
+    return {"deleted": deleted}
 
 
 @router.post("/{event_id}/gallery", response_model=GalleryPhotoResponse)

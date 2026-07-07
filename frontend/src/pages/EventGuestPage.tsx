@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream, ApiError } from "../api/client";
+import { fetchEventBySlug, fetchMyEventRuns, matchEventPhotosStream, clearMyEventRuns, ApiError } from "../api/client";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { EventGuestSkeleton } from "../components/EventGuestSkeleton";
 import { GuestPageHero } from "../components/GuestPageHero";
 import { GuestSearchHistory } from "../components/GuestSearchHistory";
+import { SiteFooter } from "../components/layout/SiteFooter";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SelfieUpload } from "../components/SelfieUpload";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
@@ -17,6 +18,7 @@ import {
 } from "../utils/guestSearchBaseline";
 import type { EventPublic, MatchResponse, MatchRunSummary } from "../types";
 import { useTranslation } from "../i18n";
+import { SITE_ORIGIN } from "../lib/site";
 import { isGallerySearchReady } from "../types";
 import {
   guestDisplayTitle,
@@ -56,6 +58,8 @@ export function EventGuestPage({ embed = false }: EventGuestPageProps) {
   const [refreshingEvent, setRefreshingEvent] = useState(false);
   const [searchStale, setSearchStale] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
+  const [biometricConsent, setBiometricConsent] = useState(false);
+  const [clearHistoryBusy, setClearHistoryBusy] = useState(false);
   const lastProgressAtRef = useRef(Date.now());
   const network = useNetworkStatus();
 
@@ -219,6 +223,22 @@ export function EventGuestPage({ embed = false }: EventGuestPageProps) {
       setError(err instanceof Error ? err.message : tPath("refreshFailed"));
     } finally {
       setRefreshingEvent(false);
+    }
+  }
+
+  async function handleClearHistory() {
+    if (!event) {
+      return;
+    }
+    setClearHistoryBusy(true);
+    try {
+      const token = await getAccessToken();
+      await clearMyEventRuns(event.id, { token, anonymousSessionId });
+      setPastRuns([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tPath("clearHistoryFailed"));
+    } finally {
+      setClearHistoryBusy(false);
     }
   }
 
@@ -432,7 +452,13 @@ export function EventGuestPage({ embed = false }: EventGuestPageProps) {
       style={pageStyle}
     >
       {!embed && <InstallPrompt />}
-      {!embed && <GuestSearchHistory runs={pastRuns} />}
+      {!embed && (
+        <GuestSearchHistory
+          runs={pastRuns}
+          onClearHistory={() => void handleClearHistory()}
+          clearBusy={clearHistoryBusy}
+        />
+      )}
 
       {!network.online && (
         <div className="event-guest__network-banner event-guest__network-banner--offline" role="status">
@@ -512,11 +538,13 @@ export function EventGuestPage({ embed = false }: EventGuestPageProps) {
               onCoupleModeChange={setCoupleMode}
               onContinue={handleMatch}
               hasGallery
+              requireBiometricConsent
+              onBiometricConsentChange={setBiometricConsent}
             />
             <button
               type="button"
               className="btn btn-primary event-guest__match"
-              disabled={!hasPortrait || loading || !network.online}
+              disabled={!hasPortrait || !biometricConsent || loading || !network.online}
               onClick={() => void handleMatch()}
             >
               {!network.online ? t("offline") : loading ? tPath("searching") : tPath("findMyPhotos")}
@@ -585,10 +613,13 @@ export function EventGuestPage({ embed = false }: EventGuestPageProps) {
       {step === "portrait" && (
         <p className="event-guest__privacy">{tPath("privacy")}</p>
       )}
+      <div className="event-guest__legal-footer">
+        <SiteFooter variant="inline" />
+      </div>
       {(showSnapicFooter || showMinSnapicFooter) && (
         <footer className="event-guest__powered">
           {showMinSnapicFooter ? (
-            <a href="https://snapic.app">Snapic</a>
+            <a href={SITE_ORIGIN}>Snapic</a>
           ) : (
             <span>{tCommon("poweredBy")}</span>
           )}

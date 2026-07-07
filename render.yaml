@@ -70,6 +70,14 @@ services:
 
         sync: false
 
+      - key: SNAPIC_REPLY_TO_EMAIL
+
+        sync: false
+
+      - key: SNAPIC_APP_URL
+
+        sync: false
+
       - key: STRIPE_SECRET_KEY
 
         sync: false

@@ -23,9 +23,11 @@ function formatRunParts(
 
 interface GuestSearchHistoryProps {
   runs: MatchRunSummary[];
+  onClearHistory?: () => void;
+  clearBusy?: boolean;
 }
 
-export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
+export function GuestSearchHistory({ runs, onClearHistory, clearBusy = false }: GuestSearchHistoryProps) {
   const { tPath } = useTranslation("components.guestHistory");
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -199,6 +201,21 @@ export function GuestSearchHistory({ runs }: GuestSearchHistoryProps) {
               {showAll
                 ? tPath("showFewer")
                 : tPath("showAll", { count: runs.length })}
+            </button>
+          )}
+
+          {onClearHistory && (
+            <button
+              type="button"
+              className="guest-history__clear btn btn-ghost"
+              disabled={clearBusy}
+              onClick={() => {
+                if (window.confirm(tPath("clearConfirm"))) {
+                  onClearHistory();
+                }
+              }}
+            >
+              {tPath("clearHistory")}
             </button>
           )}
         </div>

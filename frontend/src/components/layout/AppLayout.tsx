@@ -3,6 +3,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import { useStudioMembership } from "../../hooks/useStudioMembership";
 import { useMobileNav } from "../../hooks/useMobileNav";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { SiteFooter } from "./SiteFooter";
 import { useTranslation } from "../../i18n";
 import { isSupabaseConfigured } from "../../lib/supabase";
 import { AppEventsNav } from "./AppEventsNav";
@@ -86,6 +87,7 @@ export function AppLayout() {
               {tCommon("signIn")}
             </Link>
           ) : null}
+          <SiteFooter variant="inline" />
         </div>
       </aside>
 

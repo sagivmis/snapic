@@ -863,6 +863,24 @@ export async function fetchMyEventRuns(
   return response.json() as Promise<MatchRunSummary[]>;
 }
 
+export async function clearMyEventRuns(
+  eventId: string,
+  auth: AuthFetchOptions,
+): Promise<{ deleted: number }> {
+  const response = await authFetch(`/api/events/${eventId}/my-runs`, { method: "DELETE" }, auth);
+  if (!response.ok) {
+    await parseError(response, "clearSearchHistory");
+  }
+  return response.json() as Promise<{ deleted: number }>;
+}
+
+export async function deleteMyAccount(token: string): Promise<void> {
+  const response = await authFetch("/api/me", { method: "DELETE" }, { token });
+  if (!response.ok) {
+    await parseError(response, "deleteAccount");
+  }
+}
+
 export async function downloadEventGalleryZip(eventId: string, token: string, filename: string): Promise<void> {
   const response = await authFetch(`/api/events/${eventId}/gallery/download`, {}, { token });
   if (!response.ok) {
@@ -1256,4 +1274,86 @@ export async function fetchAdminOrganizations(token: string): Promise<AdminOrgan
     await parseError(response, "loadOrganizations");
   }
   return response.json() as Promise<AdminOrganization[]>;
+}
+
+export interface AffiliateSummary {
+  id: string;
+  code: string;
+  display_name: string;
+  email: string;
+  phone?: string | null;
+  status: string;
+  created_at?: string | null;
+  submissions: number;
+  approved: number;
+  accrued_nis: number;
+  paid_nis: number;
+}
+
+export interface AffiliatePayout {
+  id: string;
+  affiliate_id: string;
+  signup_request_id: string;
+  amount_nis: number;
+  status: string;
+  created_at?: string | null;
+  paid_at?: string | null;
+  affiliate_code?: string | null;
+  affiliate_name?: string | null;
+  couple_email?: string | null;
+  couple_names?: string | null;
+}
+
+export async function fetchAdminAffiliates(token: string): Promise<AffiliateSummary[]> {
+  const response = await authFetch("/api/admin/affiliates", {}, { token });
+  if (!response.ok) {
+    await parseError(response, "loadAffiliates");
+  }
+  return response.json() as Promise<AffiliateSummary[]>;
+}
+
+export async function createAdminAffiliate(
+  body: { code: string; display_name: string; email: string; phone?: string | null },
+  token: string,
+): Promise<AffiliateSummary> {
+  const response = await authFetch(
+    "/api/admin/affiliates",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "createAffiliate");
+  }
+  return response.json() as Promise<AffiliateSummary>;
+}
+
+export async function fetchAdminAffiliatePayouts(
+  token: string,
+  status?: string,
+): Promise<AffiliatePayout[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await authFetch(`/api/admin/affiliate-payouts${query}`, {}, { token });
+  if (!response.ok) {
+    await parseError(response, "loadAffiliatePayouts");
+  }
+  return response.json() as Promise<AffiliatePayout[]>;
+}
+
+export async function markAdminAffiliatePayoutsPaid(
+  payoutIds: string[],
+  token: string,
+): Promise<{ marked_paid: number }> {
+  const response = await authFetch(
+    "/api/admin/affiliate-payouts/mark-paid",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payout_ids: payoutIds }),
+    },
+    { token },
+  );
+  if (!response.ok) {
+    await parseError(response, "markPayoutsPaid");
+  }
+  return response.json() as Promise<{ marked_paid: number }>;
 }

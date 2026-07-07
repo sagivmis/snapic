@@ -800,6 +800,33 @@ def list_user_match_runs(
     return summaries
 
 
+def delete_user_match_runs(
+    event_id: str,
+    user_id: str | None,
+    anonymous_session_id: str | None,
+) -> int:
+    client = get_supabase()
+    query = client.table("match_runs").select("id, user_id, anonymous_session_id").eq("event_id", event_id)
+    runs = query.execute().data or []
+    ids = [
+        r["id"]
+        for r in runs
+        if (user_id and r.get("user_id") == user_id)
+        or (anonymous_session_id and r.get("anonymous_session_id") == anonymous_session_id)
+    ]
+    if not ids:
+        return 0
+    client.table("match_runs").delete().in_("id", ids).execute()
+    return len(ids)
+
+
+def delete_user_account(user_id: str) -> None:
+    if is_super_admin(user_id):
+        raise ValueError("Cannot delete super admin account")
+    client = get_supabase()
+    client.auth.admin.delete_user(user_id)
+
+
 def is_super_admin(user_id: str) -> bool:
     return fetch_profile_role(user_id) == "super_admin"
 
